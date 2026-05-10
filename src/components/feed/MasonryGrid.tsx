@@ -1,0 +1,66 @@
+"use client";
+
+import { allPosts } from "@/lib/mockData";
+import { Post } from "@/lib/types";
+import { useEffect, useRef, useState } from "react";
+import FeedCard from "./FeedCard";
+
+const BATCH = 8;
+
+export default function MasonryGrid({ posts: seed }: { posts: Post[] }) {
+  const [visible, setVisible] = useState(seed);
+  const [loading, setLoading] = useState(false);
+  const endRef   = useRef<HTMLDivElement>(null);
+  const nextIdx  = useRef(seed.length);
+  const busy     = useRef(false);
+
+  useEffect(() => {
+    const el = endRef.current;
+    if (!el) return;
+
+    const obs = new IntersectionObserver(
+      ([entry]) => {
+        if (!entry.isIntersecting || busy.current) return;
+        const slice = allPosts.slice(nextIdx.current, nextIdx.current + BATCH);
+        if (slice.length === 0) return;
+        busy.current = true;
+        setLoading(true);
+        setTimeout(() => {
+          setVisible(v => [...v, ...slice]);
+          nextIdx.current += slice.length;
+          busy.current = false;
+          setLoading(false);
+        }, 650);
+      },
+      { rootMargin: "400px" }
+    );
+
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, []);
+
+  const done = !loading && nextIdx.current >= allPosts.length;
+
+  return (
+    <>
+      <div className="columns-2 md:columns-3 gap-4">
+        {visible.map(p => <FeedCard key={p.id} post={p} />)}
+      </div>
+
+      <div ref={endRef} className="flex justify-center py-10">
+        {loading && (
+          <div className="flex items-center gap-2">
+            <div
+              className="w-4 h-4 rounded-full border-2 animate-spin"
+              style={{ borderColor: "var(--bg-subtle)", borderTopColor: "#7C5BF5" }}
+            />
+            <span className="text-sm" style={{ color: "var(--text-6)" }}>Loading more...</span>
+          </div>
+        )}
+        {done && (
+          <span className="text-sm" style={{ color: "var(--text-6)" }}>You&apos;ve seen it all ✨</span>
+        )}
+      </div>
+    </>
+  );
+}

@@ -1,26 +1,115 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-background: #151515;
+  --color-foreground: #ffffff;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+/* ── Theme tokens ── */
+
+:root {
+  --bg:          #151515;
+  --bg-header:   rgba(21,21,21,0.82);
+  --bg-sidebar:  rgba(21,21,21,0.88);
+  --bg-nav:      rgba(21,21,21,0.90);
+  --bg-card:     rgba(255,255,255,0.04);
+  --bg-hover:    rgba(255,255,255,0.05);
+  --bg-input:    rgba(255,255,255,0.06);
+  --bg-subtle:   rgba(255,255,255,0.07);
+  --bg-muted:    rgba(255,255,255,0.08);
+  --border:      rgba(255,255,255,0.07);
+  --border-card: rgba(255,255,255,0.08);
+  --text-1:      #ffffff;
+  --text-2:      rgba(255,255,255,0.75);
+  --text-3:      rgba(255,255,255,0.55);
+  --text-4:      rgba(255,255,255,0.42);
+  --text-5:      rgba(255,255,255,0.35);
+  --text-6:      rgba(255,255,255,0.28);
+  --text-icon:   rgba(255,255,255,0.50);
+  --shadow:      rgba(0,0,0,0.25);
+  --ring-bg:     #151515;
+}
+
+html.light {
+  --bg:          #EEE9FB;
+  --bg-header:   rgba(226,219,252,0.88);
+  --bg-sidebar:  rgba(222,215,252,0.94);
+  --bg-nav:      rgba(222,215,252,0.92);
+  --bg-card:     rgba(54,30,123,0.05);
+  --bg-hover:    rgba(54,30,123,0.07);
+  --bg-input:    rgba(0,0,0,0.05);
+  --bg-subtle:   rgba(0,0,0,0.06);
+  --bg-muted:    rgba(0,0,0,0.08);
+  --border:      rgba(0,0,0,0.09);
+  --border-card: rgba(0,0,0,0.11);
+  --text-1:      #0f0f0f;
+  --text-2:      rgba(0,0,0,0.80);
+  --text-3:      rgba(0,0,0,0.60);
+  --text-4:      rgba(0,0,0,0.50);
+  --text-5:      rgba(0,0,0,0.42);
+  --text-6:      rgba(0,0,0,0.32);
+  --text-icon:   rgba(0,0,0,0.55);
+  --shadow:      rgba(54,30,123,0.12);
+  --ring-bg:     #EEE9FB;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--bg);
+  color: var(--text-1);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
+
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.12); border-radius: 99px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.22); }
+html.light ::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.15); }
+html.light ::-webkit-scrollbar-thumb:hover { background: rgba(0,0,0,0.28); }
+
+/* ── Animations ── */
+
+@keyframes card-float {
+  from { transform: translateY(0px); }
+  to   { transform: translateY(-14px); }
+}
+
+@keyframes badge-pop {
+  0%   { opacity: 0; transform: scale(0.4) translateY(12px); }
+  60%  { opacity: 1; transform: scale(1.08) translateY(-4px); }
+  80%  { transform: scale(0.96) translateY(1px); }
+  100% { opacity: 1; transform: scale(1) translateY(0px); }
+}
+
+@keyframes badge-bob {
+  from { transform: translateY(0px); }
+  to   { transform: translateY(-6px); }
+}
+
+@keyframes word-up {
+  from { opacity: 0; transform: translateY(110%); }
+  to   { opacity: 1; transform: translateY(0%); }
+}
+
+@keyframes fade-up {
+  from { opacity: 0; transform: translateY(18px); }
+  to   { opacity: 1; transform: translateY(0px); }
+}
+
+@keyframes nav-drop {
+  from { opacity: 0; transform: translateY(-16px); }
+  to   { opacity: 1; transform: translateY(0px); }
+}
+
+@keyframes pulse-glow {
+  0%, 100% { opacity: 0.5; }
+  50%       { opacity: 1; }
+}
+
+.word-clip {
+  display: inline-block;
+  overflow: hidden;
+  vertical-align: bottom;
+  padding-bottom: 0.06em;
+}
+.word-clip span { display: inline-block; }
