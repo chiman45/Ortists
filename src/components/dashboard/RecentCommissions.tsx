@@ -27,39 +27,43 @@ export default function RecentCommissions() {
         </button>
       </div>
 
-      <div className="grid gap-3 text-xs font-semibold px-1 mb-3"
-        style={{ gridTemplateColumns: "40px 1fr 1.4fr 1fr 0.8fr 0.9fr", color: "var(--text-6)" }}>
-        <span>Art</span><span>Order ID</span><span>Customer</span>
-        <span>Date</span><span>Price</span><span>Status</span>
-      </div>
-
-      <div className="space-y-0.5">
-        {ROWS.map(r => (
-          <div
-            key={r.id}
-            className="grid gap-3 items-center py-2.5 px-1 rounded-xl transition-colors cursor-pointer"
-            style={{ gridTemplateColumns: "40px 1fr 1.4fr 1fr 0.8fr 0.9fr", borderBottom: "1px solid var(--bg-card)" }}
-            onMouseEnter={e => (e.currentTarget.style.background = "var(--bg-hover)")}
-            onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
-          >
-            <div className="w-9 h-9 rounded-xl overflow-hidden shrink-0">
-              <Image src={`https://picsum.photos/seed/${r.seed}/60/60`} alt={r.customer} width={36} height={36} className="w-full h-full object-cover" />
-            </div>
-            <span className="text-sm font-medium" style={{ color: "var(--text-3)" }}>{r.id}</span>
-            <span className="text-sm font-medium truncate" style={{ color: "var(--text-1)" }}>{r.customer}</span>
-            <span className="flex items-center gap-1 text-xs" style={{ color: "var(--text-5)" }}>
-              <CalendarDays size={11} />{r.date}
-            </span>
-            <span className="text-sm font-bold" style={{ color: "var(--text-1)" }}>{r.price}</span>
-            <span
-              className="text-xs font-semibold px-2.5 py-1 rounded-full text-center"
-              style={r.ok
-                ? { background: "rgba(52,211,153,0.12)", color: "#34d399" }
-                : { background: "rgba(251,191,36,0.12)", color: "#fbbf24" }
-              }
-            >{r.ok ? "Complete" : "Pending"}</span>
+      <div className="overflow-x-auto -mx-5 px-5">
+        <div style={{ minWidth: 460 }}>
+          <div className="grid gap-3 text-xs font-semibold px-1 mb-3"
+            style={{ gridTemplateColumns: "40px 1fr 1.4fr 1fr 0.8fr 0.9fr", color: "var(--text-6)" }}>
+            <span>Art</span><span>Order ID</span><span>Customer</span>
+            <span>Date</span><span>Price</span><span>Status</span>
           </div>
-        ))}
+
+          <div className="space-y-0.5">
+            {ROWS.map(r => (
+              <div
+                key={r.id}
+                className="grid gap-3 items-center py-2.5 px-1 rounded-xl transition-colors cursor-pointer"
+                style={{ gridTemplateColumns: "40px 1fr 1.4fr 1fr 0.8fr 0.9fr", borderBottom: "1px solid var(--bg-card)" }}
+                onMouseEnter={e => (e.currentTarget.style.background = "var(--bg-hover)")}
+                onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
+              >
+                <div className="w-9 h-9 rounded-xl overflow-hidden shrink-0">
+                  <Image src={`https://picsum.photos/seed/${r.seed}/60/60`} alt={r.customer} width={36} height={36} className="w-full h-full object-cover" />
+                </div>
+                <span className="text-sm font-medium" style={{ color: "var(--text-3)" }}>{r.id}</span>
+                <span className="text-sm font-medium truncate" style={{ color: "var(--text-1)" }}>{r.customer}</span>
+                <span className="flex items-center gap-1 text-xs" style={{ color: "var(--text-5)" }}>
+                  <CalendarDays size={11} />{r.date}
+                </span>
+                <span className="text-sm font-bold" style={{ color: "var(--text-1)" }}>{r.price}</span>
+                <span
+                  className="text-xs font-semibold px-2.5 py-1 rounded-full text-center"
+                  style={r.ok
+                    ? { background: "rgba(52,211,153,0.12)", color: "#34d399" }
+                    : { background: "rgba(251,191,36,0.12)", color: "#fbbf24" }
+                  }
+                >{r.ok ? "Complete" : "Pending"}</span>
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
 
       <div className="flex items-center justify-between mt-4 pt-4" style={{ borderTop: "1px solid var(--border)" }}>

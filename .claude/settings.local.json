@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell(aws iam get-role --role-name ecsTaskExecutionRole --query \"Role.Arn\" --output text 2>&1)"
+    ]
+  }
+}

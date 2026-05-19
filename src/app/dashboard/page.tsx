@@ -35,7 +35,7 @@ export default function DashboardPage() {
       <div className="flex-1 lg:ml-56 flex flex-col min-h-screen">
         {/* Header */}
         <div
-          className="flex items-center justify-between px-4 md:px-8 py-4 sticky top-0 z-30"
+          className="flex items-center justify-between px-4 md:px-8 py-3 sm:py-4 sticky top-0 z-30"
           style={{
             background: "var(--bg-header)",
             backdropFilter: "blur(24px)",
@@ -47,7 +47,7 @@ export default function DashboardPage() {
             <h1 className="text-xl font-bold" style={{ color: "var(--text-1)" }}>Hi, Kate 👋</h1>
             <p className="text-sm" style={{ color: "var(--text-6)" }}>Welcome back to Ortist ✨</p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1 sm:gap-2">
             <button onClick={() => setSearchOpen(true)} className="p-2 rounded-xl transition-opacity hover:opacity-70"
               style={{ background: "var(--bg-subtle)", color: "var(--text-icon)" }}>
               <Search size={18} />
@@ -57,13 +57,14 @@ export default function DashboardPage() {
               <Bell size={18} strokeWidth={1.8} />
               <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 bg-rose-400 rounded-full" />
             </button>
-            <button className="hidden sm:flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-opacity hover:opacity-80"
+            <button className="hidden md:flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-opacity hover:opacity-80"
               style={{ background: "var(--bg-subtle)", border: "1px solid var(--border-card)", color: "var(--text-3)" }}>
               <SlidersHorizontal size={14} /> Customize
             </button>
-            <button className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold text-white transition-all hover:scale-[1.02]"
+            <button className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-semibold text-white transition-all hover:scale-[1.02]"
               style={{ background: "#361E7B", boxShadow: "0 0 20px rgba(54,30,123,0.45)" }}>
-              <Plus size={15} strokeWidth={2.5} /> Add New
+              <Plus size={15} strokeWidth={2.5} />
+              <span className="hidden sm:inline">Add New</span>
             </button>
           </div>
         </div>
