@@ -177,7 +177,7 @@ export default function Sidebar() {
         {!expanded ? (
           <Tooltip label={theme === "dark" ? "Light Mode" : "Dark Mode"}>
             <button
-              onClick={toggle}
+              onClick={e => toggle(e)}
               className="flex items-center rounded-xl transition-colors w-full"
               style={{ padding: "11px 0", justifyContent: "center", color: "var(--text-4)" }}
               onMouseEnter={e => { e.currentTarget.style.background = "var(--bg-hover)"; }}
@@ -188,7 +188,7 @@ export default function Sidebar() {
           </Tooltip>
         ) : (
           <button
-            onClick={toggle}
+            onClick={e => toggle(e)}
             className="flex items-center gap-3 rounded-xl transition-colors w-full"
             style={{ padding: "11px 12px", color: "var(--text-4)" }}
             onMouseEnter={e => { e.currentTarget.style.background = "var(--bg-hover)"; }}

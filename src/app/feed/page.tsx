@@ -5,11 +5,28 @@ import StoriesRow from "@/components/feed/StoriesRow";
 import BottomNav from "@/components/layout/BottomNav";
 import MainHeader from "@/components/layout/MainHeader";
 import Sidebar from "@/components/layout/Sidebar";
-import { mockPosts } from "@/lib/mockData";
+import { allPosts } from "@/lib/mockData";
 import { useState } from "react";
+
+const TAGS = [
+  { label: "All",            category: null },
+  { label: "UI/UX",          category: "UI/UX" },
+  { label: "Graphic Design", category: "Branding" },
+  { label: "Digital Art",    category: "Illustration" },
+  { label: "3D Art",         category: "3D" },
+  { label: "Motion",         category: "Motion" },
+  { label: "Sketch Artist",  category: "Typography" },
+  { label: "Photography",    category: "Photography" },
+  { label: "Web Design",     category: "Web Design" },
+];
 
 export default function FeedPage() {
   const [activeTab, setActiveTab] = useState<"Latest" | "Popular">("Latest");
+  const [activeTag, setActiveTag] = useState<string | null>(null);
+
+  const filtered = activeTag
+    ? allPosts.filter(p => p.category === activeTag).slice(0, 12)
+    : allPosts.slice(0, 12);
 
   return (
     <div
@@ -24,7 +41,28 @@ export default function FeedPage() {
       <Sidebar />
 
       <div className="flex-1 flex flex-col lg:ml-17 min-h-screen">
-        <MainHeader />
+        <MainHeader>
+          <div className="flex gap-2" style={{ scrollbarWidth: "none" }}>
+            {TAGS.map(({ label, category }) => {
+              const active = activeTag === category;
+              return (
+                <button
+                  key={label}
+                  onClick={() => setActiveTag(category)}
+                  className="shrink-0 px-4 py-1.5 rounded-full text-sm font-medium transition-all"
+                  style={{
+                    background: active ? "linear-gradient(135deg, #361E7B, #7C5BF5)" : "var(--bg-card)",
+                    color: active ? "#fff" : "var(--text-4)",
+                    border: active ? "1px solid transparent" : "1px solid var(--border)",
+                    boxShadow: active ? "0 0 12px rgba(124,91,245,0.35)" : "none",
+                  }}
+                >
+                  {label}
+                </button>
+              );
+            })}
+          </div>
+        </MainHeader>
 
         <main className="flex-1 px-4 md:px-8 py-7 pb-24 lg:pb-7">
           <StoriesRow />
@@ -51,7 +89,7 @@ export default function FeedPage() {
             </div>
           </div>
 
-          <MasonryGrid posts={mockPosts} />
+          <MasonryGrid posts={filtered} />
         </main>
       </div>
 

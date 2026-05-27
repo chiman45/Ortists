@@ -30,8 +30,8 @@ export default function LoginPage() {
       >
         <SignIn
           routing="hash"
-          afterSignInUrl="/feed"
-          afterSignUpUrl="/onboarding"
+          forceRedirectUrl="/feed"
+          signUpForceRedirectUrl="/onboarding"
           appearance={{
             variables: {
               colorPrimary: "#7C5BF5",
