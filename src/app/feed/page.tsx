@@ -5,13 +5,11 @@ import StoriesRow from "@/components/feed/StoriesRow";
 import BottomNav from "@/components/layout/BottomNav";
 import MainHeader from "@/components/layout/MainHeader";
 import Sidebar from "@/components/layout/Sidebar";
-import SearchOverlay from "@/components/search/SearchOverlay";
 import { mockPosts } from "@/lib/mockData";
 import { useState } from "react";
 
 export default function FeedPage() {
-  const [searchOpen, setSearchOpen] = useState(false);
-  const [activeTab, setActiveTab]   = useState<"Latest" | "Popular">("Latest");
+  const [activeTab, setActiveTab] = useState<"Latest" | "Popular">("Latest");
 
   return (
     <div
@@ -25,8 +23,8 @@ export default function FeedPage() {
     >
       <Sidebar />
 
-      <div className="flex-1 flex flex-col lg:ml-56 min-h-screen">
-        <MainHeader onSearchClick={() => setSearchOpen(true)} />
+      <div className="flex-1 flex flex-col lg:ml-17 min-h-screen">
+        <MainHeader />
 
         <main className="flex-1 px-4 md:px-8 py-7 pb-24 lg:pb-7">
           <StoriesRow />
@@ -57,7 +55,6 @@ export default function FeedPage() {
         </main>
       </div>
 
-      <SearchOverlay isOpen={searchOpen} onClose={() => setSearchOpen(false)} />
       <BottomNav />
     </div>
   );
