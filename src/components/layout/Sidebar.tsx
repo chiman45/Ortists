@@ -1,16 +1,18 @@
 "use client";
 
 import { useTheme } from "@/contexts/ThemeContext";
-import { LogOut, Moon, Sun } from "lucide-react";
+import { useClerk } from "@clerk/nextjs";
+import { LogOut, Moon, ShoppingBag, Sun } from "lucide-react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
 
 const NAV_ITEMS = [
   { icon: "/icons/1.png",  label: "Feed",          href: "/feed" },
-  { icon: "/icons/2.png",  label: "Dashboard",     href: "/dashboard" },
-  { icon: "/icons/5.png",  label: "Explore",       href: "/explore" },
+  { icon: "/icons/4.png",  label: "Dashboard",     href: "/dashboard" },
+  { icon: "/icons/2.png",  label: "Explore",       href: "/explore" },
   { icon: "/icons/3.png",  label: "Messages",      href: "/messages",      badge: 8 },
+  { icon: "/icons/7.png",            label: "Marketplace",   href: "/marketplace" },
   { icon: "/icons/6.png",  label: "Hiring",        href: "/hiring" },
 ];
 
@@ -51,8 +53,14 @@ function Tooltip({ label, children }: { label: string; children: React.ReactNode
 
 export default function Sidebar() {
   const pathname = usePathname();
+  const router = useRouter();
   const { theme, toggle } = useTheme();
+  const { signOut } = useClerk();
   const [expanded, setExpanded] = useState(false);
+
+  function handleLogout() {
+    signOut(() => router.push("/"));
+  }
 
   const w = expanded ? 220 : 72;
 
@@ -116,22 +124,30 @@ export default function Sidebar() {
               )}
 
               {/* Icon */}
-              <div className="relative shrink-0" style={{ width: 64, height: 64 }}>
-                <img
-                  src={icon}
-                  alt={label}
-                  width={64}
-                  height={64}
-                  style={{
-                    width: 64,
-                    height: 64,
-                    objectFit: "contain",
-                    display: "block",
-                    filter: active
-                      ? "brightness(1) saturate(1.2) drop-shadow(0 0 4px rgba(124,91,245,0.6))"
-                      : "opacity(0.5)",
-                  }}
-                />
+              <div className="relative shrink-0 flex items-center justify-center" style={{ width: 64, height: 64 }}>
+                {icon ? (
+                  <img
+                    src={icon}
+                    alt={label}
+                    width={64}
+                    height={64}
+                    style={{
+                      width: 64,
+                      height: 64,
+                      objectFit: "contain",
+                      display: "block",
+                      filter: active
+                        ? "brightness(1) saturate(1.2) drop-shadow(0 0 4px rgba(124,91,245,0.6))"
+                        : "opacity(0.5)",
+                    }}
+                  />
+                ) : (
+                  <ShoppingBag
+                    size={28}
+                    strokeWidth={1.8}
+                    style={{ color: active ? "#9B7CF5" : "var(--text-4)", opacity: active ? 1 : 0.5 }}
+                  />
+                )}
                 {badge !== undefined && !expanded && (
                   <span
                     className="absolute -top-1 -right-1 w-4 h-4 rounded-full text-[9px] font-bold flex items-center justify-center text-white"
@@ -204,27 +220,27 @@ export default function Sidebar() {
       <div className="px-2 pb-5">
         {!expanded ? (
           <Tooltip label="Logout">
-            <Link
-              href="/"
+            <button
+              onClick={handleLogout}
               className="flex items-center rounded-xl transition-colors w-full"
               style={{ padding: "11px 0", justifyContent: "center", color: "var(--text-5)" }}
               onMouseEnter={e => { e.currentTarget.style.color = "var(--text-2)"; e.currentTarget.style.background = "var(--bg-hover)"; }}
               onMouseLeave={e => { e.currentTarget.style.color = "var(--text-5)"; e.currentTarget.style.background = "transparent"; }}
             >
               <LogOut size={22} strokeWidth={1.8} />
-            </Link>
+            </button>
           </Tooltip>
         ) : (
-          <Link
-            href="/"
-            className="flex items-center gap-3 rounded-xl transition-colors"
+          <button
+            onClick={handleLogout}
+            className="flex items-center gap-3 rounded-xl transition-colors w-full"
             style={{ padding: "11px 12px", color: "var(--text-5)" }}
             onMouseEnter={e => { e.currentTarget.style.color = "var(--text-2)"; e.currentTarget.style.background = "var(--bg-hover)"; }}
             onMouseLeave={e => { e.currentTarget.style.color = "var(--text-5)"; e.currentTarget.style.background = "transparent"; }}
           >
             <LogOut size={22} strokeWidth={1.8} className="shrink-0" />
             <span className="text-sm font-medium whitespace-nowrap">Logout</span>
-          </Link>
+          </button>
         )}
       </div>
     </aside>

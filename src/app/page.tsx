@@ -147,7 +147,7 @@ export default function LandingPage() {
                 <Icon size={17} strokeWidth={1.8} />
               </button>
             ))}
-            <Link href="/feed" className="ml-1 sm:ml-2 px-3 sm:px-4 py-2 text-sm font-semibold text-white rounded-xl transition-all hover:scale-[1.03]"
+            <Link href="/login" className="ml-1 sm:ml-2 px-3 sm:px-4 py-2 text-sm font-semibold text-white rounded-xl transition-all hover:scale-[1.03]"
               style={{ background:"#361E7B", boxShadow:"0 0 20px rgba(54,30,123,0.40)" }}
               onMouseEnter={e => (e.currentTarget.style.background="#4B2FA8")}
               onMouseLeave={e => (e.currentTarget.style.background="#361E7B")}
@@ -214,13 +214,13 @@ export default function LandingPage() {
             {/* CTAs */}
             <div className="flex items-center justify-center lg:justify-start gap-3 mb-8"
               style={{ animation: visible ? "fade-up 0.7s cubic-bezier(0.22,1,0.36,1) 0.78s both" : "none" }}>
-              <Link href="/feed"
+              <Link href="/login"
                 className="px-6 py-3 text-sm font-semibold rounded-2xl text-white transition-all duration-200 hover:scale-[1.03] active:scale-[0.98]"
                 style={{ background:"#361E7B", boxShadow:"0 4px 24px rgba(54,30,123,0.50)" }}
                 onMouseEnter={e => (e.currentTarget.style.background="#4B2FA8")}
                 onMouseLeave={e => (e.currentTarget.style.background="#361E7B")}
               >Join for $9.99/m</Link>
-              <Link href="/feed"
+              <Link href="/login"
                 className="px-5 py-3 text-sm font-medium rounded-2xl transition-all hover:opacity-80"
                 style={{ color: "var(--text-4)", background: "var(--bg-input)", border: "1px solid var(--border)" }}
               >Read more</Link>
