@@ -7,21 +7,12 @@ import MainHeader from "@/components/layout/MainHeader";
 import Sidebar from "@/components/layout/Sidebar";
 import { marketplaceListings, featuredArtists, trendingListings, MARKETPLACE_CATEGORIES } from "@/lib/marketplaceData";
 import { Search, SlidersHorizontal, ChevronRight } from "lucide-react";
-import { useState, useEffect } from "react";
-import { useAuth } from "@clerk/nextjs";
-import { useRouter } from "next/navigation";
+import { useState } from "react";
 
 export default function MarketplacePage() {
-  const { isLoaded, isSignedIn } = useAuth();
-  const router = useRouter();
-
   const [activeCategory, setActiveCategory] = useState("All");
   const [search, setSearch] = useState("");
   const [showFilters, setShowFilters] = useState(false);
-
-  useEffect(() => {
-    if (isLoaded && !isSignedIn) router.push("/login");
-  }, [isLoaded, isSignedIn, router]);
 
   const filtered = marketplaceListings.filter(item => {
     const matchCat = activeCategory === "All" || item.category === activeCategory ||
@@ -30,14 +21,6 @@ export default function MarketplacePage() {
       item.artistName.toLowerCase().includes(search.toLowerCase());
     return matchCat && matchSearch;
   });
-
-  if (!isLoaded || !isSignedIn) {
-    return (
-      <div className="flex min-h-screen items-center justify-center" style={{ background: "var(--bg)" }}>
-        <div className="w-8 h-8 rounded-full border-2 border-t-transparent animate-spin" style={{ borderColor: "#7C5BF5", borderTopColor: "transparent" }} />
-      </div>
-    );
-  }
 
   return (
     <div
