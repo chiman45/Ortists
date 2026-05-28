@@ -4,6 +4,7 @@ import { Post } from "@/lib/types";
 import Avatar from "@/components/ui/Avatar";
 import { Heart, MessageCircle } from "lucide-react";
 import Image from "next/image";
+import Link from "next/link";
 import { useState } from "react";
 
 interface FeedCardProps { post: Post }
@@ -21,7 +22,7 @@ export default function FeedCard({ post }: FeedCardProps) {
   }
 
   return (
-    <div className="break-inside-avoid mb-4 cursor-pointer group">
+    <Link href={`/feed/${post.id}`} className="block break-inside-avoid mb-4 group">
       <div
         className="overflow-hidden rounded-2xl transition-all duration-300"
         style={{ boxShadow: "0 4px 20px var(--shadow)" }}
@@ -53,6 +54,6 @@ export default function FeedCard({ post }: FeedCardProps) {
           <span>{post.comments}</span>
         </div>
       </div>
-    </div>
+    </Link>
   );
 }

@@ -2,18 +2,18 @@
 
 import { useTheme } from "@/contexts/ThemeContext";
 import { useClerk } from "@clerk/nextjs";
-import { LogOut, Moon, ShoppingBag, Sun } from "lucide-react";
+import { LogOut, Moon, Sun, UserCircle } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
 
-const NAV_ITEMS = [
-  { icon: "/icons/1.png",  label: "Feed",          href: "/feed" },
-  { icon: "/icons/4.png",  label: "Dashboard",     href: "/dashboard" },
-  { icon: "/icons/2.png",  label: "Explore",       href: "/explore" },
-  { icon: "/icons/3.png",  label: "Messages",      href: "/messages",      badge: 8 },
-  { icon: "/icons/7.png",            label: "Marketplace",   href: "/marketplace" },
-  { icon: "/icons/6.png",  label: "Hiring",        href: "/hiring" },
+const NAV_ITEMS: { icon: string | null; lucideIcon: React.ElementType | null; label: string; href: string; badge?: number }[] = [
+  { icon: "/icons/1.png", lucideIcon: null,       label: "Feed",        href: "/feed" },
+  { icon: "/icons/4.png", lucideIcon: null,       label: "Dashboard",   href: "/dashboard" },
+  { icon: "/icons/3.png", lucideIcon: null,       label: "Messages",    href: "/messages",   badge: 8 },
+  { icon: "/icons/7.png", lucideIcon: null,       label: "Marketplace", href: "/marketplace" },
+  { icon: "/icons/6.png", lucideIcon: null,       label: "Hiring",      href: "/hiring" },
+  { icon: null,           lucideIcon: UserCircle, label: "Profile",     href: "/profile" },
 ];
 
 function Tooltip({ label, children }: { label: string; children: React.ReactNode }) {
@@ -98,7 +98,7 @@ export default function Sidebar() {
 
       {/* Nav */}
       <nav className="flex-1 flex flex-col gap-0.5 px-2 py-2">
-        {NAV_ITEMS.map(({ icon, label, href, badge }) => {
+        {NAV_ITEMS.map(({ icon, lucideIcon: LucideIcon, label, href, badge }) => {
           const active = pathname === href || (href !== "/" && pathname.startsWith(href));
 
           const linkEl = (
@@ -141,13 +141,13 @@ export default function Sidebar() {
                         : "opacity(0.5)",
                     }}
                   />
-                ) : (
-                  <ShoppingBag
+                ) : LucideIcon ? (
+                  <LucideIcon
                     size={28}
                     strokeWidth={1.8}
                     style={{ color: active ? "#9B7CF5" : "var(--text-4)", opacity: active ? 1 : 0.5 }}
                   />
-                )}
+                ) : null}
                 {badge !== undefined && !expanded && (
                   <span
                     className="absolute -top-1 -right-1 w-4 h-4 rounded-full text-[9px] font-bold flex items-center justify-center text-white"
