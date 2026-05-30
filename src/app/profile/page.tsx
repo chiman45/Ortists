@@ -4,7 +4,7 @@ import BottomNav from "@/components/layout/BottomNav";
 import MainHeader from "@/components/layout/MainHeader";
 import Sidebar from "@/components/layout/Sidebar";
 import { allPosts } from "@/lib/mockData";
-import { MapPin, Star, Heart, Bookmark, Users, TrendingUp, Clock, UserPlus } from "lucide-react";
+import { MapPin, Star, Heart, Bookmark, Users, TrendingUp, Clock } from "lucide-react";
 import { useState } from "react";
 
 const TABS = ["Portfolio", "Marketplace", "Services", "Saved", "About"] as const;
@@ -48,7 +48,6 @@ const portfolioPosts = allPosts.slice(0, 9);
 
 export default function ProfilePage() {
   const [activeTab, setActiveTab] = useState<Tab>("Portfolio");
-  const [following, setFollowing] = useState(false);
 
   return (
     <div className="flex min-h-screen" style={{ background: "var(--bg)" }}>
@@ -97,28 +96,16 @@ export default function ProfilePage() {
                 {/* Action buttons */}
                 <div className="flex items-center gap-2 shrink-0">
                   <button
-                    onClick={() => setFollowing(v => !v)}
                     className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold transition-all hover:opacity-85"
-                    style={{
-                      background: following ? "rgba(124,91,245,0.15)" : "#7C5BF5",
-                      color: following ? "#9B7CF5" : "#fff",
-                      border: following ? "1px solid rgba(124,91,245,0.4)" : "none",
-                    }}
+                    style={{ background: "#7C5BF5", color: "#fff" }}
                   >
-                    <UserPlus size={14} />
-                    {following ? "Following" : "Follow"}
-                  </button>
-                  <button
-                    className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold transition-all hover:opacity-85"
-                    style={{ background: "var(--bg-subtle)", color: "var(--text-2)", border: "1px solid var(--border)" }}
-                  >
-                    Message
+                    Edit Profile
                   </button>
                   <button
                     className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold transition-all hover:opacity-85"
                     style={{ background: "rgba(245,158,11,0.15)", color: "#F59E0B", border: "1px solid rgba(245,158,11,0.3)" }}
                   >
-                    Hire Artist
+                    Share Profile
                   </button>
                 </div>
               </div>
@@ -127,7 +114,7 @@ export default function ProfilePage() {
               <div className="flex gap-6 pt-4" style={{ borderTop: "1px solid var(--border)" }}>
                 {[
                   { icon: Users,    value: PROFILE.followers,  label: "Followers"    },
-                  { icon: UserPlus, value: PROFILE.following,  label: "Following"    },
+                  { icon: Users,    value: PROFILE.following,  label: "Following"    },
                   { icon: Heart,    value: PROFILE.totalLikes, label: "Total Likes"  },
                   { icon: Star,     value: PROFILE.rating,     label: "Rating"       },
                 ].map(({ icon: Icon, value, label }) => (
@@ -269,7 +256,7 @@ export default function ProfilePage() {
             {/* Recommended Artists */}
             <div className="rounded-2xl p-4" style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}>
               <div className="flex items-center gap-2 mb-3">
-                <UserPlus size={14} style={{ color: "#9B7CF5" }} />
+                <Users size={14} style={{ color: "#9B7CF5" }} />
                 <p className="text-sm font-semibold" style={{ color: "var(--text-1)" }}>Recommended Artists</p>
               </div>
               <div className="flex flex-col gap-3">

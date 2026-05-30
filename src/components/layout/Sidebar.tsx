@@ -2,7 +2,8 @@
 
 import { useTheme } from "@/contexts/ThemeContext";
 import { useClerk } from "@clerk/nextjs";
-import { LogOut, Moon, Sun, UserCircle } from "lucide-react";
+import CreatePostModal from "@/components/create/CreatePostModal";
+import { LogOut, Moon, Plus, Sun, UserCircle } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
@@ -56,7 +57,8 @@ export default function Sidebar() {
   const router = useRouter();
   const { theme, toggle } = useTheme();
   const { signOut } = useClerk();
-  const [expanded, setExpanded] = useState(false);
+  const [expanded, setExpanded]       = useState(false);
+  const [createOpen, setCreateOpen]   = useState(false);
 
   function handleLogout() {
     signOut(() => router.push("/"));
@@ -65,6 +67,7 @@ export default function Sidebar() {
   const w = expanded ? 220 : 72;
 
   return (
+    <>
     <aside
       className="hidden lg:flex flex-col fixed left-0 top-0 h-full z-40 transition-all duration-300"
       style={{
@@ -96,6 +99,30 @@ export default function Sidebar() {
         </button>
       </div>
 
+      {/* Create button */}
+      <div className="px-2 pb-2 shrink-0">
+        {!expanded ? (
+          <Tooltip label="Create Post">
+            <button
+              onClick={() => setCreateOpen(true)}
+              className="flex items-center justify-center w-full rounded-xl transition-all hover:opacity-85"
+              style={{ padding: "11px 0", background: "rgba(124,91,245,0.15)", border: "1px solid rgba(124,91,245,0.3)" }}
+            >
+              <Plus size={22} style={{ color: "#9B7CF5" }} />
+            </button>
+          </Tooltip>
+        ) : (
+          <button
+            onClick={() => setCreateOpen(true)}
+            className="flex items-center gap-2 w-full rounded-xl transition-all hover:opacity-85"
+            style={{ padding: "11px 12px", background: "#7C5BF5" }}
+          >
+            <Plus size={18} style={{ color: "#fff" }} />
+            <span className="text-sm font-semibold text-white whitespace-nowrap">Create Post</span>
+          </button>
+        )}
+      </div>
+
       {/* Nav */}
       <nav className="flex-1 flex flex-col gap-0.5 px-2 py-2">
         {NAV_ITEMS.map(({ icon, lucideIcon: LucideIcon, label, href, badge }) => {
@@ -124,16 +151,16 @@ export default function Sidebar() {
               )}
 
               {/* Icon */}
-              <div className="relative shrink-0 flex items-center justify-center" style={{ width: 64, height: 64 }}>
+              <div className="relative shrink-0 flex items-center justify-center" style={{ width: 55, height: 55 }}>
                 {icon ? (
                   <img
                     src={icon}
                     alt={label}
-                    width={64}
-                    height={64}
+                    width={55}
+                    height={55}
                     style={{
-                      width: 64,
-                      height: 64,
+                      width: 55,
+                      height: 55,
                       objectFit: "contain",
                       display: "block",
                       filter: active
@@ -244,5 +271,8 @@ export default function Sidebar() {
         )}
       </div>
     </aside>
+
+    {createOpen && <CreatePostModal onClose={() => setCreateOpen(false)} />}
+    </>
   );
 }
