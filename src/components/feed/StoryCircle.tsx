@@ -1,12 +1,12 @@
 import { Designer } from "@/lib/types";
 import Avatar from "@/components/ui/Avatar";
 
-interface StoryCircleProps { designer: Designer }
+interface StoryCircleProps { designer: Designer; onClick?: () => void }
 
-export default function StoryCircle({ designer }: StoryCircleProps) {
+export default function StoryCircle({ designer, onClick }: StoryCircleProps) {
   const shortName = designer.username.split(".")[0].split("_")[0];
   return (
-    <button className="flex flex-col items-center gap-2 shrink-0 group">
+    <button onClick={onClick} className="flex flex-col items-center gap-2 shrink-0 group">
       <div className="relative">
         <div
           className="w-14 h-14 rounded-full p-[2.5px] transition-all duration-200 group-hover:shadow-lg"
