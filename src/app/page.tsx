@@ -1,7 +1,6 @@
 "use client";
 
 import SearchOverlay from "@/components/search/SearchOverlay";
-import { Search, Settings, User } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
@@ -21,12 +20,6 @@ const FLOAT_DEL = [0.0, 0.4, 0.2, 0.6, 0.1, 0.5];
 
 const H1_L1 = ["A", "place", "to", "display", "your"];
 const H1_L2 = ["masterpiece."];
-
-const NAV_LINKS = [
-  { label: "Explore", href: "#" },
-  { label: "Pricing", href: "#" },
-  { label: "Contact", href: "#" },
-];
 
 const SPRING_IN    = "cubic-bezier(0.34, 1.56, 0.64, 1)";
 const SPRING_HOVER = "cubic-bezier(0.34, 1.56, 0.64, 1)";
@@ -89,7 +82,7 @@ export default function LandingPage() {
   const floating = phase === "floating";
 
   return (
-    <div className="min-h-screen flex flex-col overflow-hidden" style={{ background: "var(--bg)" }}>
+    <div className="min-h-screen flex flex-col" style={{ background: "var(--bg)" }}>
       {/* Background glow orbs */}
       <div className="fixed inset-0 pointer-events-none" style={{ zIndex: 0 }}>
         <div style={{ position:"absolute", top:"-15%", left:"-8%", width:700, height:700, borderRadius:"50%",
@@ -97,64 +90,6 @@ export default function LandingPage() {
         <div style={{ position:"absolute", bottom:"-5%", right:"-3%", width:500, height:500, borderRadius:"50%",
           background:"radial-gradient(circle, rgba(124,91,245,0.10) 0%, transparent 70%)" }} />
       </div>
-
-      {/* ── Floating Navbar ── */}
-      <nav
-        className="fixed z-50"
-        style={{ top:16, left:"3.5%", right:"3.5%",
-          animation:"nav-drop 0.6s cubic-bezier(0.22,1,0.36,1) 0.05s both" }}
-      >
-        <div
-          className="flex items-center justify-between px-4 py-3 sm:px-5"
-          style={{
-            background: "var(--bg-card)",
-            backdropFilter: "blur(28px)",
-            WebkitBackdropFilter: "blur(28px)",
-            border: "1px solid var(--border)",
-            boxShadow: "0 4px 32px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.07)",
-            borderRadius: 18,
-          }}
-        >
-          <Link href="/" className="flex items-center gap-2.5 shrink-0">
-            <Image src="/logo.jpeg" alt="Ortist" width={34} height={34} className="rounded-full object-cover" priority />
-            <span className="text-[15px] font-bold tracking-tight hidden sm:block" style={{ color: "var(--text-1)" }}>Ortist</span>
-          </Link>
-
-          <ul className="hidden md:flex items-center gap-6">
-            {NAV_LINKS.map(({ label, href }) => (
-              <li key={label}>
-                <Link href={href} className="text-sm font-medium transition-colors"
-                  style={{ color: "var(--text-4)" }}
-                  onMouseEnter={e => (e.currentTarget.style.color = "var(--text-1)")}
-                  onMouseLeave={e => (e.currentTarget.style.color = "var(--text-4)")}
-                >{label}</Link>
-              </li>
-            ))}
-          </ul>
-
-          <div className="flex items-center gap-1">
-            {[
-              { icon: Search,   label:"Search",   fn: () => setSearchOpen(true) },
-              { icon: User,     label:"Profile",  fn: undefined as (() => void)|undefined },
-              { icon: Settings, label:"Settings", fn: undefined as (() => void)|undefined, hideOnMobile: true },
-            ].map(({ icon: Icon, label, fn, hideOnMobile }) => (
-              <button key={label} aria-label={label} onClick={fn}
-                className={`p-2 rounded-xl transition-all ${hideOnMobile ? "hidden sm:flex" : ""}`}
-                style={{ color: "var(--text-4)" }}
-                onMouseEnter={e => { e.currentTarget.style.color = "var(--text-1)"; e.currentTarget.style.background = "var(--bg-subtle)"; }}
-                onMouseLeave={e => { e.currentTarget.style.color = "var(--text-4)"; e.currentTarget.style.background = "transparent"; }}
-              >
-                <Icon size={17} strokeWidth={1.8} />
-              </button>
-            ))}
-            <Link href="/login" className="ml-1 sm:ml-2 px-3 sm:px-4 py-2 text-sm font-semibold text-white rounded-xl transition-all hover:scale-[1.03]"
-              style={{ background:"#361E7B", boxShadow:"0 0 20px rgba(54,30,123,0.40)" }}
-              onMouseEnter={e => (e.currentTarget.style.background="#4B2FA8")}
-              onMouseLeave={e => (e.currentTarget.style.background="#361E7B")}
-            >Get Started</Link>
-          </div>
-        </div>
-      </nav>
 
       {/* ── Hero ── */}
       <main
@@ -242,7 +177,7 @@ export default function LandingPage() {
           </div>
 
           {/* Card fan — desktop: side column; mobile: below text, scaled to fit */}
-          <div className="relative w-full overflow-hidden h-70 sm:h-85 lg:mt-0 lg:flex-1 lg:shrink-0 lg:h-130 lg:max-w-150">
+          <div className="relative w-full h-70 sm:h-85 lg:mt-0 lg:flex-1 lg:shrink-0 lg:h-130 lg:max-w-150">
             {/* Scale wrapper: 56% on mobile → 100% on lg */}
             <div
               className="absolute top-0 scale-[0.56] sm:scale-[0.68] origin-top lg:scale-100"

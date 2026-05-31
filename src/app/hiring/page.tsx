@@ -3,7 +3,9 @@
 import BottomNav from "@/components/layout/BottomNav";
 import MainHeader from "@/components/layout/MainHeader";
 import Sidebar from "@/components/layout/Sidebar";
+import { ARTISTS } from "@/lib/hiringData";
 import { ArrowRight, ChevronLeft, ChevronRight, MapPin, Search, SlidersHorizontal, Star, Users } from "lucide-react";
+import Link from "next/link";
 import { useState } from "react";
 
 const MEDIUM_TILES = [
@@ -17,21 +19,6 @@ const MEDIUM_TILES = [
   { label: "charcoal sketch", seeds: ["charcoal1","charcoal2","charcoal3"],border: "#D04040", bg: "rgba(208,64,64,0.12)"   },
   { label: "graffiti",        seeds: ["graffiti1","graffiti2","graffiti3"],border: "#4F6EF7", bg: "rgba(79,110,247,0.12)"  },
   { label: "metal work",      seeds: ["metal1","metal2","metal3"],         border: "#777",    bg: "rgba(120,120,120,0.10)" },
-];
-
-const ARTISTS = [
-  { id: 1,  name: "Isabella Hart",   location: "New York, US",  medium: ["portraits","oil pastels"],   followers: "12.4k", price: 2500, rating: 4.9, available: true,  avatar: "https://i.pravatar.cc/80?img=1",  cover: "portrait1" },
-  { id: 2,  name: "Thomas Blackwell",location: "London, UK",    medium: ["charcoal sketch","portraits"],followers: "18.7k", price: 3200, rating: 4.8, available: true,  avatar: "https://i.pravatar.cc/80?img=3",  cover: "charcoal1" },
-  { id: 3,  name: "Yuki Tanaka",     location: "Tokyo, Japan",  medium: ["watercolours","origami"],    followers: "9.8k",  price: 2000, rating: 4.7, available: true,  avatar: "https://i.pravatar.cc/80?img=5",  cover: "water1"    },
-  { id: 4,  name: "Marco Rivera",    location: "Barcelona, ES", medium: ["graffiti","acrylic paint"],  followers: "31.2k", price: 4500, rating: 5.0, available: false, avatar: "https://i.pravatar.cc/80?img=7",  cover: "graffiti1" },
-  { id: 5,  name: "Anika Patel",     location: "Mumbai, IN",    medium: ["oil pastels","portraits"],   followers: "7.1k",  price: 1800, rating: 4.6, available: true,  avatar: "https://i.pravatar.cc/80?img=9",  cover: "oil1"      },
-  { id: 6,  name: "Lucas Müller",    location: "Berlin, DE",    medium: ["metal work","ceramics"],     followers: "14.5k", price: 3800, rating: 4.8, available: true,  avatar: "https://i.pravatar.cc/80?img=11", cover: "metal1"    },
-  { id: 7,  name: "Sofia Andersen",  location: "Copenhagen, DK",medium: ["ceramics","watercolours"],   followers: "6.3k",  price: 2200, rating: 4.5, available: true,  avatar: "https://i.pravatar.cc/80?img=13", cover: "ceramic1"  },
-  { id: 8,  name: "James Okafor",    location: "Lagos, NG",     medium: ["acrylic paint","portraits"], followers: "22.9k", price: 2900, rating: 4.9, available: false, avatar: "https://i.pravatar.cc/80?img=15", cover: "acrylic1"  },
-  { id: 9,  name: "Elena Sousa",     location: "Lisbon, PT",    medium: ["pencil colours","origami"],  followers: "5.4k",  price: 1500, rating: 4.4, available: true,  avatar: "https://i.pravatar.cc/80?img=17", cover: "pencil1"   },
-  { id: 10, name: "Kai Nakamura",    location: "Osaka, Japan",  medium: ["origami","charcoal sketch"], followers: "11.0k", price: 2600, rating: 4.7, available: true,  avatar: "https://i.pravatar.cc/80?img=19", cover: "origami1"  },
-  { id: 11, name: "Priya Sharma",    location: "Delhi, IN",     medium: ["watercolours","oil pastels"],followers: "8.8k",  price: 2100, rating: 4.6, available: true,  avatar: "https://i.pravatar.cc/80?img=21", cover: "water2"    },
-  { id: 12, name: "Diego Flores",    location: "Mexico City",   medium: ["graffiti","acrylic paint"],  followers: "19.3k", price: 3100, rating: 4.8, available: true,  avatar: "https://i.pravatar.cc/80?img=23", cover: "graffiti2" },
 ];
 
 type Artist = typeof ARTISTS[number];
@@ -163,12 +150,13 @@ function ResultsView({ active, query, results, onQueryChange, onBack }: ResultsP
                                 </span>
                                 <span className="text-[11px] text-white/60">From ${a.price.toLocaleString()}</span>
                               </div>
-                              <button
-                                className="w-full py-2 rounded-xl text-xs font-bold text-white transition-opacity hover:opacity-85"
+                              <Link
+                                href={`/artists/${a.id}`}
+                                className="w-full py-2 rounded-xl text-xs font-bold text-white transition-opacity hover:opacity-85 text-center block"
                                 style={{ background: "#7C5BF5" }}
                               >
                                 View Profile
-                              </button>
+                              </Link>
                             </>
                           )}
                         </div>
@@ -262,12 +250,13 @@ function ResultsView({ active, query, results, onQueryChange, onBack }: ResultsP
 
                     {/* Buttons */}
                     <div className="flex gap-2">
-                      <button
-                        className="flex-1 py-2 rounded-xl text-xs font-semibold transition-opacity hover:opacity-80"
+                      <Link
+                        href={`/artists/${a.id}`}
+                        className="flex-1 py-2 rounded-xl text-xs font-semibold transition-opacity hover:opacity-80 text-center block"
                         style={{ background: "var(--bg-subtle)", color: "var(--text-2)", border: "1px solid var(--border)" }}
                       >
                         View
-                      </button>
+                      </Link>
                       <button
                         className="flex-1 py-2 rounded-xl text-xs font-semibold text-white transition-opacity hover:opacity-85"
                         style={{ background: "#7C5BF5" }}

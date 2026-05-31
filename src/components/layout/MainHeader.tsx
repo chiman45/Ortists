@@ -81,14 +81,16 @@ export default function MainHeader({ children }: { children?: React.ReactNode })
           <div
             className="absolute right-0 top-full mt-2 w-80 rounded-2xl overflow-hidden"
             style={{
-              background: "var(--bg-card)",
-              border: "1px solid var(--border)",
-              boxShadow: "0 8px 32px rgba(0,0,0,0.3)",
+              background: "rgba(18,12,40,0.55)",
+              backdropFilter: "blur(24px)",
+              WebkitBackdropFilter: "blur(24px)",
+              border: "1px solid rgba(124,91,245,0.2)",
+              boxShadow: "0 8px 40px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.06)",
               zIndex: 50,
             }}
           >
             {/* Header */}
-            <div className="flex items-center gap-2 px-4 py-3" style={{ borderBottom: "1px solid var(--border)" }}>
+            <div className="flex items-center gap-2 px-4 py-3" style={{ borderBottom: "1px solid rgba(124,91,245,0.15)" }}>
               <p className="text-sm font-bold flex-1" style={{ color: "var(--text-1)" }}>
                 Notifications
                 {unread > 0 && (
@@ -111,11 +113,11 @@ export default function MainHeader({ children }: { children?: React.ReactNode })
                   onClick={() => markOne(n.id)}
                   className="flex items-start gap-3 px-4 py-3 cursor-pointer transition-colors"
                   style={{
-                    borderBottom: "1px solid var(--border)",
-                    background: n.read ? "transparent" : "rgba(124,91,245,0.04)",
+                    borderBottom: "1px solid rgba(124,91,245,0.1)",
+                    background: n.read ? "transparent" : "rgba(124,91,245,0.06)",
                   }}
-                  onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.background = "var(--bg-hover)"; }}
-                  onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.background = n.read ? "transparent" : "rgba(124,91,245,0.04)"; }}
+                  onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.background = "rgba(124,91,245,0.1)"; }}
+                  onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.background = n.read ? "transparent" : "rgba(124,91,245,0.06)"; }}
                 >
                   <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0" style={{ background: n.iconBg }}>
                     <n.icon size={14} style={{ color: n.iconColor }} />
