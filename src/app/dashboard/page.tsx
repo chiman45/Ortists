@@ -8,7 +8,7 @@ import TrafficSources from "@/components/dashboard/TrafficSources";
 import BottomNav from "@/components/layout/BottomNav";
 import Sidebar from "@/components/layout/Sidebar";
 import SearchOverlay from "@/components/search/SearchOverlay";
-import { Bell, Plus, Search, SlidersHorizontal } from "lucide-react";
+import { Bell, Search } from "lucide-react";
 import { useState } from "react";
 
 const STATS = [
@@ -56,15 +56,6 @@ export default function DashboardPage() {
               style={{ background: "var(--bg-subtle)", color: "var(--text-icon)" }}>
               <Bell size={18} strokeWidth={1.8} />
               <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 bg-rose-400 rounded-full" />
-            </button>
-            <button className="hidden md:flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-opacity hover:opacity-80"
-              style={{ background: "var(--bg-subtle)", border: "1px solid var(--border-card)", color: "var(--text-3)" }}>
-              <SlidersHorizontal size={14} /> Customize
-            </button>
-            <button className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-semibold text-white transition-all hover:scale-[1.02]"
-              style={{ background: "#361E7B", boxShadow: "0 0 20px rgba(54,30,123,0.45)" }}>
-              <Plus size={15} strokeWidth={2.5} />
-              <span className="hidden sm:inline">Add New</span>
             </button>
           </div>
         </div>
