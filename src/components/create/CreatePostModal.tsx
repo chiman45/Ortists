@@ -4,6 +4,8 @@ import {
   ArrowLeft, ArrowRight, BookmarkCheck, Briefcase,
   Check, FileText, ImageIcon, MapPin, Send, ShoppingBag, Upload, X,
 } from "lucide-react";
+import { createPost, uploadArtwork } from "@/lib/db/posts";
+import { useUser } from "@clerk/nextjs";
 import { useCallback, useRef, useState } from "react";
 
 const STEPS = ["Type", "Media", "Details", "Options", "Preview"] as const;
@@ -20,9 +22,12 @@ const PRESET_TAGS = ["Digital Art", "Portrait", "Photography", "3D Art", "Graphi
 interface Props { onClose: () => void }
 
 export default function CreatePostModal({ onClose }: Props) {
+  const { user } = useUser();
   const [step, setStep]             = useState(0);
   const [type, setType]             = useState("portfolio");
   const [imageUrl, setImageUrl]     = useState<string | null>(null);
+  const [imageFile, setImageFile]   = useState<File | null>(null);
+  const [publishing, setPublishing] = useState(false);
   const [dragging, setDragging]     = useState(false);
   const [title, setTitle]           = useState("");
   const [desc, setDesc]             = useState("");
@@ -38,6 +43,7 @@ export default function CreatePostModal({ onClose }: Props) {
 
   function handleFile(file: File) {
     if (!file.type.startsWith("image/") && !file.type.startsWith("video/")) return;
+    setImageFile(file);
     setImageUrl(URL.createObjectURL(file));
   }
 
@@ -386,11 +392,38 @@ export default function CreatePostModal({ onClose }: Props) {
                 <BookmarkCheck size={14} /> Save Draft
               </button>
               <button
-                className="flex items-center gap-1.5 px-5 py-2.5 rounded-xl text-sm font-semibold text-white transition-opacity hover:opacity-85"
+                className="flex items-center gap-1.5 px-5 py-2.5 rounded-xl text-sm font-semibold text-white transition-opacity hover:opacity-85 disabled:opacity-50"
                 style={{ background: "#7C5BF5" }}
-                onClick={onClose}
+                disabled={publishing}
+                onClick={async () => {
+                  if (!user || !imageFile) return;
+                  setPublishing(true);
+                  try {
+                    const uploadedUrl = await uploadArtwork(imageFile);
+                    await createPost({
+                      user_id: user.id,
+                      author_name: user.fullName ?? user.username ?? "Artist",
+                      author_username: user.username ?? user.id.slice(0, 12),
+                      author_avatar: user.imageUrl,
+                      title: title || "Untitled",
+                      description: desc || undefined,
+                      image_url: uploadedUrl ?? imageUrl ?? "",
+                      category: category || "General",
+                      tags,
+                      medium: medium || undefined,
+                      style: style || undefined,
+                      location: location || undefined,
+                      visibility,
+                      allow_comments: comments,
+                      allow_downloads: downloads,
+                    });
+                    onClose();
+                  } finally {
+                    setPublishing(false);
+                  }
+                }}
               >
-                <Send size={14} /> Publish
+                <Send size={14} /> {publishing ? "Publishing…" : "Publish"}
               </button>
             </div>
           ) : (

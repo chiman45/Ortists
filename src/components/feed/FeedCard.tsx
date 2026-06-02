@@ -2,23 +2,33 @@
 
 import { Post } from "@/lib/types";
 import Avatar from "@/components/ui/Avatar";
+import { likePost, unlikePost } from "@/lib/db/posts";
 import { Heart, MessageCircle } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useState } from "react";
+import { useUser } from "@clerk/nextjs";
 
 interface FeedCardProps { post: Post }
 
 function fmt(n: number) { return n >= 1000 ? `${(n / 1000).toFixed(1)}k` : String(n); }
+const isUUID = (s: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s);
 
 export default function FeedCard({ post }: FeedCardProps) {
+  const { user } = useUser();
   const [liked, setLiked] = useState(false);
   const [count, setCount] = useState(post.likes);
 
-  function handleLike(e: React.MouseEvent) {
+  async function handleLike(e: React.MouseEvent) {
+    e.preventDefault();
     e.stopPropagation();
-    setLiked(p => !p);
-    setCount(p => liked ? p - 1 : p + 1);
+    if (liked) {
+      setLiked(false); setCount(c => Math.max(0, c - 1));
+      if (user && isUUID(post.id)) await unlikePost(post.id, user.id);
+    } else {
+      setLiked(true); setCount(c => c + 1);
+      if (user && isUUID(post.id)) await likePost(post.id, user.id);
+    }
   }
 
   return (

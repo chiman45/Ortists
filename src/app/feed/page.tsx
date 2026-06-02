@@ -5,8 +5,11 @@ import StoriesRow from "@/components/feed/StoriesRow";
 import BottomNav from "@/components/layout/BottomNav";
 import MainHeader from "@/components/layout/MainHeader";
 import Sidebar from "@/components/layout/Sidebar";
+import { getPosts, type Post } from "@/lib/db/posts";
+import { upsertProfile } from "@/lib/db/profiles";
 import { allPosts } from "@/lib/mockData";
-import { useState } from "react";
+import { useUser } from "@clerk/nextjs";
+import { useEffect, useState } from "react";
 
 const TAGS = [
   { label: "All",            category: null },
@@ -20,13 +23,56 @@ const TAGS = [
   { label: "Web Design",     category: "Web Design" },
 ];
 
-export default function FeedPage() {
-  const [activeTab, setActiveTab] = useState<"Latest" | "Popular">("Latest");
-  const [activeTag, setActiveTag] = useState<string | null>(null);
+// Shape the mock posts to match the DB Post type so MasonryGrid works with both
+function toGridPost(p: Post) {
+  return {
+    id: p.id,
+    title: p.title,
+    imageUrl: p.image_url,
+    imageWidth: 400,
+    imageHeight: 500,
+    username: p.author_username,
+    avatar: p.author_avatar ?? `https://i.pravatar.cc/80`,
+    likes: p.likes_count,
+    comments: p.comments_count,
+    category: p.category,
+  };
+}
 
-  const filtered = activeTag
-    ? allPosts.filter(p => p.category === activeTag).slice(0, 12)
-    : allPosts.slice(0, 12);
+export default function FeedPage() {
+  const { user, isLoaded } = useUser();
+  const [activeTab, setActiveTab]   = useState<"Latest" | "Popular">("Latest");
+  const [activeTag, setActiveTag]   = useState<string | null>(null);
+  const [dbPosts, setDbPosts]       = useState<Post[]>([]);
+  const [loading, setLoading]       = useState(true);
+
+  // Sync Clerk user → Supabase profile
+  useEffect(() => {
+    if (!isLoaded || !user) return;
+    upsertProfile({
+      clerk_id:     user.id,
+      display_name: user.fullName ?? user.firstName ?? "Artist",
+      username:     user.username ?? user.id.slice(0, 12),
+      avatar_url:   user.imageUrl,
+    });
+  }, [user, isLoaded]);
+
+  // Load posts from Supabase
+  useEffect(() => {
+    getPosts({ category: activeTag ?? undefined, limit: 30 })
+      .then(posts => { setDbPosts(posts); setLoading(false); })
+      .catch(() => setLoading(false));
+  }, [activeTag]);
+
+  // Use DB posts if available, otherwise fall back to mock data
+  const posts = loading
+    ? []
+    : dbPosts.length > 0
+      ? dbPosts.map(toGridPost)
+      : (activeTag
+          ? allPosts.filter(p => p.category === activeTag)
+          : allPosts
+        ).slice(0, 24).map(p => ({ ...p, imageUrl: p.imageUrl, likes: p.likes, comments: p.comments }));
 
   return (
     <div
@@ -79,17 +125,28 @@ export default function FeedPage() {
                 >
                   {tab}
                   {activeTab === tab && (
-                    <span
-                      className="absolute -bottom-0.5 left-0 right-0 h-0.5 rounded-full"
-                      style={{ background: "linear-gradient(90deg, #361E7B, #7C5BF5)" }}
-                    />
+                    <span className="absolute -bottom-0.5 left-0 right-0 h-0.5 rounded-full"
+                      style={{ background: "linear-gradient(90deg, #361E7B, #7C5BF5)" }} />
                   )}
                 </button>
               ))}
             </div>
           </div>
 
-          <MasonryGrid posts={filtered} />
+          {loading ? (
+            <div className="columns-2 sm:columns-3 lg:columns-4 xl:columns-5 gap-4">
+              {Array.from({ length: 12 }).map((_, i) => (
+                <div key={i} className="break-inside-avoid mb-4 rounded-2xl animate-pulse"
+                  style={{ height: 200 + (i % 3) * 80, background: "var(--bg-card)" }} />
+              ))}
+            </div>
+          ) : (
+            /* key forces full remount when tag changes or when DB vs mock source changes */
+            <MasonryGrid
+              key={`${activeTag ?? "all"}-${dbPosts.length > 0 ? "db" : "mock"}`}
+              posts={posts as Parameters<typeof MasonryGrid>[0]["posts"]}
+            />
+          )}
         </main>
       </div>
 

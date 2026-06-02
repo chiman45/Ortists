@@ -13,6 +13,12 @@ export default function MasonryGrid({ posts: seed }: { posts: Post[] }) {
   const endRef   = useRef<HTMLDivElement>(null);
   const nextIdx  = useRef(seed.length);
   const busy     = useRef(false);
+  const cancelled = useRef(false);
+
+  useEffect(() => {
+    cancelled.current = false;
+    return () => { cancelled.current = true; };
+  }, []);
 
   useEffect(() => {
     const el = endRef.current;
@@ -26,8 +32,13 @@ export default function MasonryGrid({ posts: seed }: { posts: Post[] }) {
         busy.current = true;
         setLoading(true);
         setTimeout(() => {
-          setVisible(v => [...v, ...slice]);
-          nextIdx.current += slice.length;
+          if (!cancelled.current) {
+            setVisible(v => {
+              const ids = new Set(v.map(p => p.id));
+              return [...v, ...slice.filter(p => !ids.has(p.id))];
+            });
+            nextIdx.current += BATCH;
+          }
           busy.current = false;
           setLoading(false);
         }, 650);
@@ -37,7 +48,7 @@ export default function MasonryGrid({ posts: seed }: { posts: Post[] }) {
 
     obs.observe(el);
     return () => obs.disconnect();
-  }, []);
+  }, []); // empty deps — observer created once per mount
 
   const done = !loading && nextIdx.current >= allPosts.length;
 

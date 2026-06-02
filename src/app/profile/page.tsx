@@ -3,27 +3,30 @@
 import BottomNav from "@/components/layout/BottomNav";
 import MainHeader from "@/components/layout/MainHeader";
 import Sidebar from "@/components/layout/Sidebar";
+import { getPosts, type Post as DbPost } from "@/lib/db/posts";
+import { getProfile, upsertProfile, type Profile } from "@/lib/db/profiles";
 import { allPosts } from "@/lib/mockData";
+import { useUser } from "@clerk/nextjs";
 import { MapPin, Star, Heart, Bookmark, Users, TrendingUp, Clock } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 const TABS = ["Portfolio", "Marketplace", "Services", "Saved", "About"] as const;
 type Tab = typeof TABS[number];
 
-const PROFILE = {
-  name: "Alex Morrison",
-  username: "@alexmorrison",
-  location: "San Francisco, CA",
-  tag: "Digital Artist",
-  bio: "Creating visual experiences that blend surrealism with modern design. Specializing in brand identity, illustration, and digital art. Open for commissions and collaborations.",
+const PROFILE_FALLBACK = {
+  name: "Your Name",
+  username: "@yourhandle",
+  location: "Add your location",
+  tag: "Artist",
+  bio: "Tell the world about your art. Click Edit Profile to update.",
   avatar: "https://i.pravatar.cc/200?img=33",
-  followers: "124.5K",
-  following: 892,
-  totalLikes: "2.4M",
-  rating: 4.9,
+  followers: "0",
+  following: 0,
+  totalLikes: "0",
+  rating: 0,
   availability: "Available for new projects",
-  responseTime: "Within 2 hours",
-  queue: "2 active projects",
+  responseTime: "Within 24 hours",
+  queue: "0 active projects",
 };
 
 const FEATURED = [
@@ -44,10 +47,49 @@ const RECOMMENDED = [
   { name: "Olivia Rivera", role: "Digital Artist", avatar: "https://i.pravatar.cc/80?img=9"  },
 ];
 
-const portfolioPosts = allPosts.slice(0, 9);
-
 export default function ProfilePage() {
+  const { user, isLoaded } = useUser();
   const [activeTab, setActiveTab] = useState<Tab>("Portfolio");
+  const [profile, setProfile]     = useState<Profile | null>(null);
+  const [dbPosts, setDbPosts]     = useState<DbPost[]>([]);
+
+  useEffect(() => {
+    if (!isLoaded || !user) return;
+    // Sync Clerk → Supabase profile
+    upsertProfile({
+      clerk_id:     user.id,
+      display_name: user.fullName ?? user.firstName ?? "Artist",
+      username:     user.username ?? user.id.slice(0, 12),
+      avatar_url:   user.imageUrl,
+    }).then(() => getProfile(user.id).then(setProfile));
+    // Load user's own posts
+    getPosts({ userId: user.id }).then(setDbPosts);
+  }, [user, isLoaded]);
+
+  const P = profile ? {
+    name:         profile.display_name ?? PROFILE_FALLBACK.name,
+    username:     `@${profile.username ?? PROFILE_FALLBACK.username}`,
+    location:     profile.location ?? PROFILE_FALLBACK.location,
+    tag:          profile.tag ?? PROFILE_FALLBACK.tag,
+    bio:          profile.bio ?? PROFILE_FALLBACK.bio,
+    avatar:       profile.avatar_url ?? user?.imageUrl ?? PROFILE_FALLBACK.avatar,
+    followers:    profile.followers_count.toLocaleString(),
+    following:    profile.following_count,
+    totalLikes:   profile.total_likes.toLocaleString(),
+    rating:       profile.rating,
+    availability: profile.available ? "Available for new projects" : "Currently busy",
+    responseTime: profile.response_time,
+    queue:        "Active projects",
+  } : {
+    ...PROFILE_FALLBACK,
+    name:   user?.fullName ?? PROFILE_FALLBACK.name,
+    avatar: user?.imageUrl ?? PROFILE_FALLBACK.avatar,
+    username: `@${user?.username ?? "yourhandle"}`,
+  };
+
+  const portfolioPosts = dbPosts.length > 0
+    ? dbPosts.map(p => ({ ...allPosts[0], id: p.id, imageUrl: p.image_url, title: p.title }))
+    : allPosts.slice(0, 9);
 
   return (
     <div className="flex min-h-screen" style={{ background: "var(--bg)" }}>
@@ -70,27 +112,27 @@ export default function ProfilePage() {
               <div className="flex flex-wrap items-start gap-4 mb-4">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
-                  src={PROFILE.avatar}
-                  alt={PROFILE.name}
+                  src={P.avatar}
+                  alt={P.name}
                   className="w-20 h-20 rounded-full object-cover shrink-0"
                   style={{ border: "3px solid rgba(124,91,245,0.5)" }}
                 />
                 <div className="flex-1 min-w-0">
                   <div className="flex flex-wrap items-center gap-2 mb-0.5">
-                    <h1 className="text-xl font-bold" style={{ color: "var(--text-1)" }}>{PROFILE.name}</h1>
+                    <h1 className="text-xl font-bold" style={{ color: "var(--text-1)" }}>{P.name}</h1>
                   </div>
-                  <p className="text-sm mb-1.5" style={{ color: "var(--text-5)" }}>{PROFILE.username}</p>
+                  <p className="text-sm mb-1.5" style={{ color: "var(--text-5)" }}>{P.username}</p>
                   <div className="flex items-center gap-1.5 mb-2">
                     <MapPin size={12} style={{ color: "var(--text-5)" }} />
-                    <span className="text-xs" style={{ color: "var(--text-5)" }}>{PROFILE.location}</span>
+                    <span className="text-xs" style={{ color: "var(--text-5)" }}>{P.location}</span>
                     <span
                       className="text-[10px] font-semibold px-2 py-0.5 rounded-full ml-1"
                       style={{ background: "rgba(124,91,245,0.15)", color: "#9B7CF5", border: "1px solid rgba(124,91,245,0.3)" }}
                     >
-                      {PROFILE.tag}
+                      {P.tag}
                     </span>
                   </div>
-                  <p className="text-xs leading-relaxed" style={{ color: "var(--text-4)" }}>{PROFILE.bio}</p>
+                  <p className="text-xs leading-relaxed" style={{ color: "var(--text-4)" }}>{P.bio}</p>
                 </div>
 
                 {/* Action buttons */}
@@ -113,10 +155,10 @@ export default function ProfilePage() {
               {/* Stats */}
               <div className="flex gap-6 pt-4" style={{ borderTop: "1px solid var(--border)" }}>
                 {[
-                  { icon: Users,    value: PROFILE.followers,  label: "Followers"    },
-                  { icon: Users,    value: PROFILE.following,  label: "Following"    },
-                  { icon: Heart,    value: PROFILE.totalLikes, label: "Total Likes"  },
-                  { icon: Star,     value: PROFILE.rating,     label: "Rating"       },
+                  { icon: Users,    value: P.followers,  label: "Followers"    },
+                  { icon: Users,    value: P.following,  label: "Following"    },
+                  { icon: Heart,    value: P.totalLikes, label: "Total Likes"  },
+                  { icon: Star,     value: P.rating,     label: "Rating"       },
                 ].map(({ icon: Icon, value, label }) => (
                   <div key={label} className="flex items-center gap-2">
                     <div className="w-7 h-7 rounded-full flex items-center justify-center" style={{ background: "rgba(124,91,245,0.12)" }}>
@@ -202,10 +244,10 @@ export default function ProfilePage() {
                 <span className="w-2 h-2 rounded-full" style={{ background: "#10B981" }} />
                 <p className="text-sm font-semibold" style={{ color: "var(--text-1)" }}>Availability Status</p>
               </div>
-              <p className="text-xs mb-3" style={{ color: "var(--text-4)" }}>{PROFILE.availability}</p>
+              <p className="text-xs mb-3" style={{ color: "var(--text-4)" }}>{P.availability}</p>
               {[
-                { label: "Response time:", value: PROFILE.responseTime },
-                { label: "Queue:",         value: PROFILE.queue },
+                { label: "Response time:", value: P.responseTime },
+                { label: "Queue:",         value: P.queue },
               ].map(({ label, value }) => (
                 <div key={label} className="flex justify-between text-xs mb-1.5">
                   <span style={{ color: "var(--text-5)" }}>{label}</span>
@@ -221,16 +263,19 @@ export default function ProfilePage() {
                 <p className="text-sm font-semibold" style={{ color: "var(--text-1)" }}>Featured Work</p>
               </div>
               <div className="flex flex-col gap-2">
-                {FEATURED.map(({ title, views }) => (
-                  <div key={title} className="flex items-center justify-between py-2 cursor-pointer rounded-lg px-2 transition-colors"
+                {(dbPosts.length > 0 ? dbPosts.slice(0, 3) : []).map(p => (
+                  <div key={p.id} className="flex items-center justify-between py-2 cursor-pointer rounded-lg px-2 transition-colors"
                     style={{ borderBottom: "1px solid var(--border)" }}
                     onMouseEnter={e => (e.currentTarget.style.background = "var(--bg-hover)")}
                     onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
                   >
-                    <span className="text-xs font-medium" style={{ color: "var(--text-2)" }}>{title}</span>
-                    <span className="text-[10px]" style={{ color: "var(--text-5)" }}>{views}</span>
+                    <span className="text-xs font-medium truncate flex-1" style={{ color: "var(--text-2)" }}>{p.title}</span>
+                    <span className="text-[10px] shrink-0 ml-2" style={{ color: "var(--text-5)" }}>{p.likes_count} likes</span>
                   </div>
                 ))}
+                {dbPosts.length === 0 && (
+                  <p className="text-xs" style={{ color: "var(--text-5)" }}>No posts yet — create your first!</p>
+                )}
               </div>
             </div>
 
