@@ -3,11 +3,11 @@
 import BottomNav from "@/components/layout/BottomNav";
 import MainHeader from "@/components/layout/MainHeader";
 import Sidebar from "@/components/layout/Sidebar";
-import { getPosts, type Post as DbPost } from "@/lib/db/posts";
-import { getAllProfiles, isFollowing as checkFollowing, followUser, unfollowUser, type Profile } from "@/lib/db/profiles";
+import { type Post as DbPost } from "@/lib/db/posts";
+import { type Profile } from "@/lib/db/profiles";
 import { getOrCreateConversation } from "@/lib/db/messages";
 import { useUser } from "@clerk/nextjs";
-import { Bookmark, Heart, MapPin, MessageCircle, Star, Users, UserPlus, Clock, TrendingUp } from "lucide-react";
+import { Bookmark, Heart, MapPin, MessageCircle, Star, Users, UserPlus, TrendingUp } from "lucide-react";
 import Link from "next/link";
 import { use, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -24,39 +24,56 @@ export default function UserProfilePage({ params }: { params: Promise<{ username
   const [activeTab, setActiveTab] = useState<"Portfolio" | "About">("Portfolio");
 
   useEffect(() => {
-    // Find profile by username or clerk_id
-    getAllProfiles(100).then(async allProfiles => {
-      const found = allProfiles.find(
-        p => p.username === username || p.clerk_id === username
-      );
-      if (found) {
-        setProfile(found);
-        const userPosts = await getPosts({ userId: found.clerk_id });
-        setPosts(userPosts);
-        if (user && user.id !== found.clerk_id) {
-          const f = await checkFollowing(user.id, found.clerk_id);
-          setFollowing(f);
-        }
+    async function load() {
+      // Fetch profile via server API (bypasses RLS)
+      const res = await fetch(`/api/profiles?username=${encodeURIComponent(username)}`);
+      const { profile: found }: { profile: Profile | null } = await res.json();
+
+      if (!found) { setLoading(false); return; }
+      setProfile(found);
+
+      // Fetch posts
+      const postsRes = await fetch(`/api/posts?userId=${found.clerk_id}`);
+      const { posts: userPosts } = await postsRes.json();
+      setPosts(userPosts ?? []);
+
+      // Check following status
+      if (user && user.id !== found.clerk_id) {
+        const fRes = await fetch(`/api/follows?followerId=${user.id}&followingId=${found.clerk_id}`);
+        const { following: isF } = await fRes.json();
+        setFollowing(isF);
       }
+
       setLoading(false);
-    });
+    }
+    load();
   }, [username, user]);
 
   async function handleFollow() {
     if (!user || !profile) return;
     if (following) {
-      await unfollowUser(user.id, profile.clerk_id);
+      await fetch("/api/follows", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ followerId: user.id, followingId: profile.clerk_id }),
+      });
       setFollowing(false);
+      setProfile(p => p ? { ...p, followers_count: Math.max(0, p.followers_count - 1) } : p);
     } else {
-      await followUser(user.id, profile.clerk_id);
+      await fetch("/api/follows", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ followerId: user.id, followingId: profile.clerk_id }),
+      });
       setFollowing(true);
+      setProfile(p => p ? { ...p, followers_count: p.followers_count + 1 } : p);
     }
   }
 
   async function handleMessage() {
     if (!user || !profile) return;
     const conv = await getOrCreateConversation(user.id, profile.clerk_id);
-    if (conv) router.push(`/messages`);
+    if (conv) router.push("/messages");
   }
 
   if (loading) {
@@ -104,7 +121,8 @@ export default function UserProfilePage({ params }: { params: Promise<{ username
           <div className="flex-1 min-w-0 px-4 md:px-8 py-6">
 
             {/* Back */}
-            <Link href="/explore" className="inline-flex items-center gap-1.5 text-sm mb-5 transition-opacity hover:opacity-70"
+            <Link href="/explore"
+              className="inline-flex items-center gap-1.5 text-sm mb-5 transition-opacity hover:opacity-70"
               style={{ color: "var(--text-5)" }}>
               ← Explore
             </Link>
@@ -282,7 +300,6 @@ export default function UserProfilePage({ params }: { params: Promise<{ username
           {/* Right sidebar */}
           <div className="hidden xl:flex flex-col gap-4 w-72 shrink-0 px-4 py-6"
             style={{ borderLeft: "1px solid var(--border)" }}>
-            {/* Availability */}
             <div className="rounded-2xl p-4" style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}>
               <div className="flex items-center gap-2 mb-3">
                 <span className="w-2 h-2 rounded-full" style={{ background: profile.available ? "#10B981" : "#9CA3AF" }} />
@@ -301,16 +318,15 @@ export default function UserProfilePage({ params }: { params: Promise<{ username
               ))}
             </div>
 
-            {/* Stats */}
             <div className="rounded-2xl p-4" style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}>
               <div className="flex items-center gap-2 mb-3">
                 <TrendingUp size={14} style={{ color: "#9B7CF5" }} />
                 <p className="text-sm font-semibold" style={{ color: "var(--text-1)" }}>Artist Stats</p>
               </div>
               {[
-                { label: "Followers",  value: profile.followers_count.toLocaleString() },
-                { label: "Posts",      value: posts.length.toString() },
-                { label: "Rating",     value: profile.rating ? `⭐ ${profile.rating}` : "No ratings yet" },
+                { label: "Followers", value: profile.followers_count.toLocaleString() },
+                { label: "Posts",     value: posts.length.toString() },
+                { label: "Rating",    value: profile.rating ? `⭐ ${profile.rating}` : "No ratings yet" },
               ].map(({ label, value }) => (
                 <div key={label} className="flex justify-between text-xs py-1.5"
                   style={{ borderBottom: "1px solid var(--border)" }}>
@@ -320,7 +336,6 @@ export default function UserProfilePage({ params }: { params: Promise<{ username
               ))}
             </div>
 
-            {/* Actions */}
             {!isOwnProfile && (
               <div className="flex flex-col gap-2">
                 <button onClick={handleFollow}

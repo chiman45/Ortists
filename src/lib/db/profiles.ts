@@ -109,6 +109,13 @@ export async function isFollowing(followerId: string, followingId: string): Prom
   return !!data;
 }
 
+export async function getProfileCount(): Promise<number> {
+  const { count } = await db
+    .from("profiles")
+    .select("*", { count: "exact", head: true });
+  return count ?? 0;
+}
+
 export async function getAllProfiles(limit = 48): Promise<Profile[]> {
   const { data } = await db
     .from("profiles")

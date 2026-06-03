@@ -4,7 +4,7 @@ import {
   ArrowLeft, ArrowRight, BookmarkCheck, Briefcase,
   Check, FileText, ImageIcon, MapPin, Send, ShoppingBag, Upload, X,
 } from "lucide-react";
-import { createPost, uploadArtwork } from "@/lib/db/posts";
+import { uploadArtwork } from "@/lib/db/posts";
 import { useUser } from "@clerk/nextjs";
 import { useCallback, useRef, useState } from "react";
 
@@ -400,22 +400,26 @@ export default function CreatePostModal({ onClose }: Props) {
                   setPublishing(true);
                   try {
                     const uploadedUrl = await uploadArtwork(imageFile);
-                    await createPost({
-                      user_id: user.id,
-                      author_name: user.fullName ?? user.username ?? "Artist",
-                      author_username: user.username ?? user.id.slice(0, 12),
-                      author_avatar: user.imageUrl,
-                      title: title || "Untitled",
-                      description: desc || undefined,
-                      image_url: uploadedUrl ?? imageUrl ?? "",
-                      category: category || "General",
-                      tags,
-                      medium: medium || undefined,
-                      style: style || undefined,
-                      location: location || undefined,
-                      visibility,
-                      allow_comments: comments,
-                      allow_downloads: downloads,
+                    await fetch("/api/posts", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({
+                        user_id: user.id,
+                        author_name: user.fullName ?? user.username ?? "Artist",
+                        author_username: user.username ?? user.id.slice(0, 12),
+                        author_avatar: user.imageUrl,
+                        title: title || "Untitled",
+                        description: desc || undefined,
+                        image_url: uploadedUrl ?? imageUrl ?? "",
+                        category: category || "General",
+                        tags,
+                        medium: medium || undefined,
+                        style: style || undefined,
+                        location: location || undefined,
+                        visibility,
+                        allow_comments: comments,
+                        allow_downloads: downloads,
+                      }),
                     });
                     onClose();
                   } finally {

@@ -2,19 +2,18 @@
 
 import { Post } from "@/lib/types";
 import Avatar from "@/components/ui/Avatar";
-import { likePost, unlikePost } from "@/lib/db/posts";
 import { Heart, MessageCircle } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useState } from "react";
 import { useUser } from "@clerk/nextjs";
 
-interface FeedCardProps { post: Post }
+interface FeedCardProps { post: Post; priority?: boolean }
 
 function fmt(n: number) { return n >= 1000 ? `${(n / 1000).toFixed(1)}k` : String(n); }
 const isUUID = (s: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s);
 
-export default function FeedCard({ post }: FeedCardProps) {
+export default function FeedCard({ post, priority = false }: FeedCardProps) {
   const { user } = useUser();
   const [liked, setLiked] = useState(false);
   const [count, setCount] = useState(post.likes);
@@ -22,26 +21,34 @@ export default function FeedCard({ post }: FeedCardProps) {
   async function handleLike(e: React.MouseEvent) {
     e.preventDefault();
     e.stopPropagation();
+    if (!user || !isUUID(post.id)) return;
     if (liked) {
       setLiked(false); setCount(c => Math.max(0, c - 1));
-      if (user && isUUID(post.id)) await unlikePost(post.id, user.id);
+      fetch(`/api/posts/${post.id}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "unlike", userId: user.id }),
+      });
     } else {
       setLiked(true); setCount(c => c + 1);
-      if (user && isUUID(post.id)) await likePost(post.id, user.id);
+      fetch(`/api/posts/${post.id}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "like", userId: user.id }),
+      });
     }
   }
 
   return (
     <Link href={`/feed/${post.id}`} className="block break-inside-avoid mb-4 group">
-      <div
-        className="overflow-hidden rounded-2xl transition-all duration-300"
-        style={{ boxShadow: "0 4px 20px var(--shadow)" }}
-      >
+      <div className="overflow-hidden rounded-2xl transition-all duration-300"
+        style={{ boxShadow: "0 4px 20px var(--shadow)" }}>
         <Image
           src={post.imageUrl}
           alt={post.title}
           width={post.imageWidth}
           height={post.imageHeight}
+          priority={priority}
           className="w-full object-cover transition-all duration-300 group-hover:scale-[1.03] group-hover:brightness-110"
           sizes="(max-width: 768px) 50vw, 33vw"
         />
@@ -49,13 +56,11 @@ export default function FeedCard({ post }: FeedCardProps) {
       <div className="flex items-center gap-2 mt-2.5 px-0.5">
         <Avatar name={post.username} size={26} />
         <span className="text-sm font-medium flex-1 truncate" style={{ color: "var(--text-2)" }}>
-          {post.username.replace(/_/g, " ").split(" ").map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(" ")}
+          {post.username}
         </span>
-        <button
-          onClick={handleLike}
+        <button onClick={handleLike}
           className="flex items-center gap-1 text-xs transition-colors shrink-0"
-          style={{ color: liked ? "#f43f5e" : "var(--text-5)" }}
-        >
+          style={{ color: liked ? "#f43f5e" : "var(--text-5)" }}>
           <Heart size={14} fill={liked ? "currentColor" : "none"} />
           <span>{fmt(count)}</span>
         </button>

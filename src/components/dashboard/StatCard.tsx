@@ -30,11 +30,13 @@ export default function StatCard({ title, value, change, positive, data, color, 
       </div>
       <p className="text-[28px] font-bold tracking-tight mb-3" style={{ color: "var(--text-1)" }}>{value}</p>
       <div className="flex items-end justify-between">
-        <div className={`flex items-center gap-1 text-xs font-semibold ${positive ? "text-emerald-400" : "text-rose-400"}`}>
-          {positive ? <TrendingUp size={13} /> : <TrendingDown size={13} />}
-          <span>{change}</span>
-          <span className="font-normal ml-0.5" style={{ color: "var(--text-6)" }}>vs last month</span>
-        </div>
+        {change ? (
+          <div className={`flex items-center gap-1 text-xs font-semibold ${positive ? "text-emerald-400" : "text-rose-400"}`}>
+            {positive ? <TrendingUp size={13} /> : <TrendingDown size={13} />}
+            <span>{change}</span>
+            <span className="font-normal ml-0.5" style={{ color: "var(--text-6)" }}>vs last month</span>
+          </div>
+        ) : <div />}
         <SparkLine data={data} color={color} gradId={gradId} width={100} height={40} />
       </div>
     </div>

@@ -5,10 +5,7 @@ import StoriesRow from "@/components/feed/StoriesRow";
 import BottomNav from "@/components/layout/BottomNav";
 import MainHeader from "@/components/layout/MainHeader";
 import Sidebar from "@/components/layout/Sidebar";
-import { getPosts, type Post } from "@/lib/db/posts";
-import { upsertProfile } from "@/lib/db/profiles";
-import { allPosts } from "@/lib/mockData";
-import { useUser } from "@clerk/nextjs";
+import { type Post } from "@/lib/db/posts";
 import { useEffect, useState } from "react";
 
 const TAGS = [
@@ -40,39 +37,24 @@ function toGridPost(p: Post) {
 }
 
 export default function FeedPage() {
-  const { user, isLoaded } = useUser();
-  const [activeTab, setActiveTab]   = useState<"Latest" | "Popular">("Latest");
+const [activeTab, setActiveTab]   = useState<"Latest" | "Popular">("Latest");
   const [activeTag, setActiveTag]   = useState<string | null>(null);
   const [dbPosts, setDbPosts]       = useState<Post[]>([]);
   const [loading, setLoading]       = useState(true);
 
-  // Sync Clerk user → Supabase profile
+  // Load first page from Supabase
   useEffect(() => {
-    if (!isLoaded || !user) return;
-    upsertProfile({
-      clerk_id:     user.id,
-      display_name: user.fullName ?? user.firstName ?? "Artist",
-      username:     user.username ?? user.id.slice(0, 12),
-      avatar_url:   user.imageUrl,
-    });
-  }, [user, isLoaded]);
-
-  // Load posts from Supabase
-  useEffect(() => {
-    getPosts({ category: activeTag ?? undefined, limit: 30 })
-      .then(posts => { setDbPosts(posts); setLoading(false); })
+    setLoading(true);
+    setDbPosts([]);
+    const params = new URLSearchParams({ limit: "12", offset: "0" });
+    if (activeTag) params.set("category", activeTag);
+    fetch(`/api/posts?${params}`)
+      .then(r => r.json())
+      .then(({ posts }: { posts: Post[] }) => { setDbPosts(posts ?? []); setLoading(false); })
       .catch(() => setLoading(false));
   }, [activeTag]);
 
-  // Use DB posts if available, otherwise fall back to mock data
-  const posts = loading
-    ? []
-    : dbPosts.length > 0
-      ? dbPosts.map(toGridPost)
-      : (activeTag
-          ? allPosts.filter(p => p.category === activeTag)
-          : allPosts
-        ).slice(0, 24).map(p => ({ ...p, imageUrl: p.imageUrl, likes: p.likes, comments: p.comments }));
+  const posts = loading ? [] : dbPosts.map(toGridPost);
 
   return (
     <div
@@ -143,8 +125,10 @@ export default function FeedPage() {
           ) : (
             /* key forces full remount when tag changes or when DB vs mock source changes */
             <MasonryGrid
-              key={`${activeTag ?? "all"}-${dbPosts.length > 0 ? "db" : "mock"}`}
+              key={activeTag ?? "all"}
               posts={posts as Parameters<typeof MasonryGrid>[0]["posts"]}
+              category={activeTag}
+              loadFromDb={true}
             />
           )}
         </main>

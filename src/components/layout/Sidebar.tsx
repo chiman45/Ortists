@@ -125,7 +125,7 @@ export default function Sidebar() {
       </div>
 
       {/* Nav */}
-      <nav className="flex-1 flex flex-col gap-0.5 px-2 py-2">
+      <nav className="flex-1 flex flex-col gap-0 px-1.5 py-1">
         {NAV_ITEMS.map(({ icon, lucideIcon: LucideIcon, label, href, badge }) => {
           const active = pathname === href || (href !== "/" && pathname.startsWith(href));
 
@@ -136,7 +136,7 @@ export default function Sidebar() {
               className="relative flex items-center rounded-xl transition-all duration-150 w-full"
               style={{
                 gap: expanded ? 12 : 0,
-                padding: expanded ? "11px 12px" : "11px 0",
+                padding: expanded ? "7px 10px" : "4px 0",
                 justifyContent: expanded ? "flex-start" : "center",
                 color:      active ? "#9B7CF5" : "var(--text-4)",
                 background: active ? "rgba(124,91,245,0.14)" : "transparent",
@@ -152,16 +152,16 @@ export default function Sidebar() {
               )}
 
               {/* Icon */}
-              <div className="relative shrink-0 flex items-center justify-center" style={{ width: 55, height: 55 }}>
+              <div className="relative shrink-0 flex items-center justify-center" style={{ width: 60, height: 60 }}>
                 {icon ? (
                   <img
                     src={icon}
                     alt={label}
-                    width={55}
-                    height={55}
+                    width={60}
+                    height={60}
                     style={{
-                      width: 55,
-                      height: 55,
+                      width: 60,
+                      height: 60,
                       objectFit: "contain",
                       display: "block",
                       filter: active

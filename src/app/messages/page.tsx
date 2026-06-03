@@ -6,12 +6,10 @@ import {
   getMessages, getUserConversations, getOrCreateConversation,
   sendMessage, markMessagesRead, type Conversation, type Message,
 } from "@/lib/db/messages";
-import {
-  getAllProfiles, getProfilesByIds, searchProfiles, type Profile,
-} from "@/lib/db/profiles";
+import { type Profile } from "@/lib/db/profiles";
 import { useUser } from "@clerk/nextjs";
 import {
-  ExternalLink, FileText, Mic, MoreVertical, Paperclip,
+  FileText, Mic, MoreVertical, Paperclip,
   Phone, Plus, Search, Send, Video, X,
 } from "lucide-react";
 import Link from "next/link";
@@ -58,7 +56,8 @@ export default function MessagesPage() {
       data.flatMap(c => c.participant_ids.filter(id => id !== user.id))
     )];
     if (otherIds.length) {
-      const profs = await getProfilesByIds(otherIds);
+      const res = await fetch(`/api/profiles?ids=${otherIds.join(",")}`);
+      const { profiles: profs }: { profiles: Profile[] } = await res.json();
       setProfiles(prev => {
         const next = { ...prev };
         profs.forEach(p => { next[p.clerk_id] = p; });
@@ -100,20 +99,16 @@ export default function MessagesPage() {
     if (!showNewChat) { setSearchResults([]); return; }
     const timeout = setTimeout(async () => {
       setSearching(true);
-      const results = await searchProfiles(userSearch);
-      setSearchResults(results.filter(p => p.clerk_id !== user?.id));
+      const url = userSearch.trim()
+        ? `/api/profiles?q=${encodeURIComponent(userSearch)}`
+        : "/api/profiles";
+      const res = await fetch(url);
+      const { profiles } = await res.json();
+      setSearchResults(profiles ?? []);
       setSearching(false);
     }, 300);
     return () => clearTimeout(timeout);
-  }, [userSearch, showNewChat, user]);
-
-  // Load all profiles on new chat open
-  useEffect(() => {
-    if (!showNewChat || userSearch) return;
-    getAllProfiles(20).then(results =>
-      setSearchResults(results.filter(p => p.clerk_id !== user?.id))
-    );
-  }, [showNewChat, userSearch, user]);
+  }, [userSearch, showNewChat]);
 
   async function startConversation(otherUser: Profile) {
     if (!user) return;
