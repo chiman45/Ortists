@@ -17,11 +17,8 @@ export async function POST(req: NextRequest) {
     .maybeSingle();
 
   if (existing) {
-    // Only sync avatar from Clerk — preserve display_name/username set by the user
-    await adminDb
-      .from("profiles")
-      .update({ avatar_url, updated_at: new Date().toISOString() })
-      .eq("clerk_id", clerk_id);
+    // Don't overwrite anything — display_name, username, avatar_url
+    // are all managed by the user via the Edit Profile modal
   } else {
     // First time: seed all fields from Clerk
     await adminDb

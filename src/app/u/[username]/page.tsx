@@ -5,23 +5,32 @@ import MainHeader from "@/components/layout/MainHeader";
 import Sidebar from "@/components/layout/Sidebar";
 import { type Post as DbPost } from "@/lib/db/posts";
 import { type Profile } from "@/lib/db/profiles";
-import { getOrCreateConversation } from "@/lib/db/messages";
 import { useUser } from "@clerk/nextjs";
-import { Bookmark, Heart, MapPin, MessageCircle, Star, Users, UserPlus, TrendingUp } from "lucide-react";
+import { Bookmark, Heart, MapPin, MessageCircle, Star, Users, UserPlus, TrendingUp, X } from "lucide-react";
 import Link from "next/link";
 import { use, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+
+interface FollowUser {
+  clerk_id: string;
+  display_name: string | null;
+  username: string | null;
+  avatar_url: string | null;
+  tag: string;
+}
 
 export default function UserProfilePage({ params }: { params: Promise<{ username: string }> }) {
   const { username } = use(params);
   const { user } = useUser();
   const router = useRouter();
 
-  const [profile, setProfile]     = useState<Profile | null>(null);
-  const [posts, setPosts]         = useState<DbPost[]>([]);
-  const [following, setFollowing] = useState(false);
-  const [loading, setLoading]     = useState(true);
-  const [activeTab, setActiveTab] = useState<"Portfolio" | "About">("Portfolio");
+  const [profile, setProfile]         = useState<Profile | null>(null);
+  const [posts, setPosts]             = useState<DbPost[]>([]);
+  const [following, setFollowing]     = useState(false);
+  const [loading, setLoading]         = useState(true);
+  const [activeTab, setActiveTab]     = useState<"Portfolio" | "About">("Portfolio");
+  const [followModal, setFollowModal] = useState<{ type: "followers" | "following"; users: FollowUser[] } | null>(null);
+  const [followLoading, setFollowLoading] = useState(false);
 
   useEffect(() => {
     async function load() {
@@ -49,6 +58,15 @@ export default function UserProfilePage({ params }: { params: Promise<{ username
     load();
   }, [username, user]);
 
+  async function openFollowList(type: "followers" | "following") {
+    if (!profile) return;
+    setFollowLoading(true);
+    const res = await fetch(`/api/follows/list?userId=${profile.clerk_id}&type=${type}`);
+    const { users } = await res.json();
+    setFollowModal({ type, users: users ?? [] });
+    setFollowLoading(false);
+  }
+
   async function handleFollow() {
     if (!user || !profile) return;
     if (following) {
@@ -72,8 +90,12 @@ export default function UserProfilePage({ params }: { params: Promise<{ username
 
   async function handleMessage() {
     if (!user || !profile) return;
-    const conv = await getOrCreateConversation(user.id, profile.clerk_id);
-    if (conv) router.push("/messages");
+    await fetch("/api/messages", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "get_or_create_conversation", userId1: user.id, userId2: profile.clerk_id }),
+    });
+    router.push("/messages");
   }
 
   if (loading) {
@@ -201,23 +223,42 @@ export default function UserProfilePage({ params }: { params: Promise<{ username
 
                 {/* Stats */}
                 <div className="flex gap-6 pt-4" style={{ borderTop: "1px solid var(--border)" }}>
-                  {[
-                    { icon: Users, value: profile.followers_count.toLocaleString(), label: "Followers" },
-                    { icon: Users, value: profile.following_count.toLocaleString(), label: "Following" },
-                    { icon: Heart, value: profile.total_likes.toLocaleString(),     label: "Likes"     },
-                    { icon: Star,  value: profile.rating || "—",                   label: "Rating"    },
-                  ].map(({ icon: Icon, value, label }) => (
-                    <div key={label} className="flex items-center gap-2">
-                      <div className="w-7 h-7 rounded-full flex items-center justify-center"
-                        style={{ background: "rgba(124,91,245,0.12)" }}>
-                        <Icon size={13} style={{ color: "#9B7CF5" }} />
-                      </div>
-                      <div>
-                        <p className="text-sm font-bold leading-none" style={{ color: "var(--text-1)" }}>{value}</p>
-                        <p className="text-[10px]" style={{ color: "var(--text-5)" }}>{label}</p>
-                      </div>
+                  <button onClick={() => openFollowList("followers")} className="flex items-center gap-2 hover:opacity-70 transition-opacity">
+                    <div className="w-7 h-7 rounded-full flex items-center justify-center" style={{ background: "rgba(124,91,245,0.12)" }}>
+                      <Users size={13} style={{ color: "#9B7CF5" }} />
                     </div>
-                  ))}
+                    <div className="text-left">
+                      <p className="text-sm font-bold leading-none" style={{ color: "var(--text-1)" }}>{profile.followers_count.toLocaleString()}</p>
+                      <p className="text-[10px]" style={{ color: "var(--text-5)" }}>Followers</p>
+                    </div>
+                  </button>
+                  <button onClick={() => openFollowList("following")} className="flex items-center gap-2 hover:opacity-70 transition-opacity">
+                    <div className="w-7 h-7 rounded-full flex items-center justify-center" style={{ background: "rgba(124,91,245,0.12)" }}>
+                      <Users size={13} style={{ color: "#9B7CF5" }} />
+                    </div>
+                    <div className="text-left">
+                      <p className="text-sm font-bold leading-none" style={{ color: "var(--text-1)" }}>{profile.following_count.toLocaleString()}</p>
+                      <p className="text-[10px]" style={{ color: "var(--text-5)" }}>Following</p>
+                    </div>
+                  </button>
+                  <div className="flex items-center gap-2">
+                    <div className="w-7 h-7 rounded-full flex items-center justify-center" style={{ background: "rgba(124,91,245,0.12)" }}>
+                      <Heart size={13} style={{ color: "#9B7CF5" }} />
+                    </div>
+                    <div>
+                      <p className="text-sm font-bold leading-none" style={{ color: "var(--text-1)" }}>{profile.total_likes.toLocaleString()}</p>
+                      <p className="text-[10px]" style={{ color: "var(--text-5)" }}>Likes</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-7 h-7 rounded-full flex items-center justify-center" style={{ background: "rgba(124,91,245,0.12)" }}>
+                      <Star size={13} style={{ color: "#9B7CF5" }} />
+                    </div>
+                    <div>
+                      <p className="text-sm font-bold leading-none" style={{ color: "var(--text-1)" }}>{profile.rating || "—"}</p>
+                      <p className="text-[10px]" style={{ color: "var(--text-5)" }}>Rating</p>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -358,6 +399,59 @@ export default function UserProfilePage({ params }: { params: Promise<{ username
         </main>
       </div>
       <BottomNav />
+
+      {/* Followers / Following Modal */}
+      {(followModal || followLoading) && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          style={{ background: "rgba(0,0,0,0.65)", backdropFilter: "blur(6px)" }}
+          onClick={e => e.target === e.currentTarget && setFollowModal(null)}>
+          <div className="w-full max-w-sm rounded-2xl overflow-hidden"
+            style={{ background: "var(--bg-card)", border: "1px solid var(--border)", boxShadow: "0 8px 40px rgba(0,0,0,0.5)" }}>
+            <div className="flex items-center gap-3 px-5 py-4" style={{ borderBottom: "1px solid var(--border)" }}>
+              <h3 className="text-sm font-bold flex-1 capitalize" style={{ color: "var(--text-1)" }}>
+                {followModal?.type ?? "Loading…"}
+              </h3>
+              <button onClick={() => setFollowModal(null)} style={{ color: "var(--text-5)" }}>
+                <X size={16} />
+              </button>
+            </div>
+            <div className="overflow-y-auto" style={{ maxHeight: 420, scrollbarWidth: "none" }}>
+              {followLoading && (
+                <div className="flex justify-center py-10">
+                  <div className="w-6 h-6 rounded-full border-2 animate-spin"
+                    style={{ borderColor: "var(--bg-subtle)", borderTopColor: "#7C5BF5" }} />
+                </div>
+              )}
+              {!followLoading && followModal?.users.length === 0 && (
+                <p className="text-sm text-center py-10" style={{ color: "var(--text-5)" }}>
+                  No {followModal.type} yet
+                </p>
+              )}
+              {!followLoading && followModal?.users.map(u => (
+                <Link key={u.clerk_id} href={`/u/${u.username ?? u.clerk_id}`}
+                  onClick={() => setFollowModal(null)}
+                  className="flex items-center gap-3 px-5 py-3 transition-colors"
+                  style={{ borderBottom: "1px solid var(--border)" }}
+                  onMouseEnter={e => ((e.currentTarget as HTMLElement).style.background = "var(--bg-hover)")}
+                  onMouseLeave={e => ((e.currentTarget as HTMLElement).style.background = "transparent")}>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={u.avatar_url ?? `https://i.pravatar.cc/80?u=${u.clerk_id}`}
+                    alt={u.display_name ?? "User"}
+                    className="w-10 h-10 rounded-full object-cover shrink-0"
+                    style={{ border: "2px solid rgba(124,91,245,0.3)" }} />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold truncate" style={{ color: "var(--text-1)" }}>
+                      {u.display_name ?? u.username}
+                    </p>
+                    <p className="text-xs" style={{ color: "var(--text-5)" }}>@{u.username} · {u.tag}</p>
+                  </div>
+                  <span className="text-xs font-medium shrink-0" style={{ color: "#9B7CF5" }}>View →</span>
+                </Link>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

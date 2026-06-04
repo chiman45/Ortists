@@ -2,10 +2,7 @@
 
 import BottomNav from "@/components/layout/BottomNav";
 import Sidebar from "@/components/layout/Sidebar";
-import {
-  getMessages, getUserConversations, getOrCreateConversation,
-  sendMessage, markMessagesRead, type Conversation, type Message,
-} from "@/lib/db/messages";
+import { type Conversation, type Message } from "@/lib/db/messages";
 import { type Profile } from "@/lib/db/profiles";
 import { useUser } from "@clerk/nextjs";
 import {
@@ -13,7 +10,7 @@ import {
   Phone, Plus, Search, Send, Video, X,
 } from "lucide-react";
 import Link from "next/link";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 function timeAgo(iso: string) {
   const m = Math.floor((Date.now() - new Date(iso).getTime()) / 60000);
@@ -46,57 +43,71 @@ export default function MessagesPage() {
   const otherProfile = otherUserId ? profiles[otherUserId] : null;
 
   // Load conversations + participant profiles
-  const loadConversations = useCallback(async () => {
+  useEffect(() => {
     if (!user) return;
-    const data = await getUserConversations(user.id);
-    setConvs(data);
-
-    // Collect all participant IDs that aren't the current user
-    const otherIds = [...new Set(
-      data.flatMap(c => c.participant_ids.filter(id => id !== user.id))
-    )];
-    if (otherIds.length) {
-      const res = await fetch(`/api/profiles?ids=${otherIds.join(",")}`);
-      const { profiles: profs }: { profiles: Profile[] } = await res.json();
-      setProfiles(prev => {
-        const next = { ...prev };
-        profs.forEach(p => { next[p.clerk_id] = p; });
-        return next;
+    fetch(`/api/messages?action=conversations&userId=${user.id}`)
+      .then(r => r.json())
+      .then(({ conversations: data }: { conversations: Conversation[] }) => {
+        setConvs(data ?? []);
+        const otherIds = [...new Set(
+          (data ?? []).flatMap((c: Conversation) => c.participant_ids.filter((id: string) => id !== user.id))
+        )];
+        if (!otherIds.length) { setLoading(false); return; }
+        fetch(`/api/profiles?ids=${otherIds.join(",")}`)
+          .then(r => r.json())
+          .then(({ profiles: profs }: { profiles: Profile[] }) => {
+            setProfiles(prev => {
+              const next = { ...prev };
+              (profs ?? []).forEach(p => { next[p.clerk_id] = p; });
+              return next;
+            });
+            setLoading(false);
+          });
       });
-    }
-    setLoading(false);
   }, [user]);
-
-  useEffect(() => { loadConversations(); }, [loadConversations]);
 
   // Load messages when active conversation changes
   useEffect(() => {
     if (!activeConvId) return;
-    getMessages(activeConvId).then(msgs => {
-      setMessages(msgs);
-      setTimeout(() => msgEndRef.current?.scrollIntoView({ behavior: "smooth" }), 100);
-    });
-    if (user) markMessagesRead(activeConvId, user.id);
+    fetch(`/api/messages?action=messages&conversationId=${activeConvId}`)
+      .then(r => r.json())
+      .then(({ messages: msgs }: { messages: Message[] }) => {
+        setMessages(msgs ?? []);
+        setTimeout(() => msgEndRef.current?.scrollIntoView({ behavior: "smooth" }), 100);
+      });
+    if (user) {
+      fetch("/api/messages", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "mark_read", conversationId: activeConvId, userId: user.id }),
+      });
+    }
   }, [activeConvId, user]);
 
   // Poll for new messages every 3 seconds
   useEffect(() => {
     if (!activeConvId) return;
-    pollRef.current = setInterval(async () => {
-      const msgs = await getMessages(activeConvId);
-      setMessages(prev => {
-        if (msgs.length !== prev.length) {
-          setTimeout(() => msgEndRef.current?.scrollIntoView({ behavior: "smooth" }), 50);
-        }
-        return msgs;
-      });
+    pollRef.current = setInterval(() => {
+      fetch(`/api/messages?action=messages&conversationId=${activeConvId}`)
+        .then(r => r.json())
+        .then(({ messages: msgs }: { messages: Message[] }) => {
+          setMessages(prev => {
+            if ((msgs ?? []).length !== prev.length) {
+              setTimeout(() => msgEndRef.current?.scrollIntoView({ behavior: "smooth" }), 50);
+            }
+            return msgs ?? prev;
+          });
+        });
     }, 3000);
     return () => { if (pollRef.current) clearInterval(pollRef.current); };
   }, [activeConvId]);
 
   // Search users for new chat
   useEffect(() => {
-    if (!showNewChat) { setSearchResults([]); return; }
+    if (!showNewChat) {
+      setTimeout(() => setSearchResults([]), 0);
+      return;
+    }
     const timeout = setTimeout(async () => {
       setSearching(true);
       const url = userSearch.trim()
@@ -114,32 +125,40 @@ export default function MessagesPage() {
     if (!user) return;
     setShowNewChat(false);
     setUserSearch("");
-    const conv = await getOrCreateConversation(user.id, otherUser.clerk_id);
+    const res = await fetch("/api/messages", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "get_or_create_conversation", userId1: user.id, userId2: otherUser.clerk_id }),
+    });
+    const { conversation: conv } = await res.json();
     if (!conv) return;
     setProfiles(prev => ({ ...prev, [otherUser.clerk_id]: otherUser }));
-    setConvs(prev => {
-      if (prev.find(c => c.id === conv.id)) return prev;
-      return [conv, ...prev];
-    });
+    setConvs(prev => prev.find(c => c.id === conv.id) ? prev : [conv, ...prev]);
     setActiveConvId(conv.id);
   }
 
   async function send() {
     if (!input.trim() || !user || !activeConvId) return;
-    const msg = await sendMessage({
-      conversation_id: activeConvId,
-      sender_id: user.id,
-      sender_name: user.fullName ?? user.username ?? "You",
-      sender_avatar: user.imageUrl,
-      text: input.trim(),
+    const text = input.trim();
+    setInput("");
+    const res = await fetch("/api/messages", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        action:          "send_message",
+        conversation_id: activeConvId,
+        sender_id:       user.id,
+        sender_name:     user.fullName ?? user.username ?? "You",
+        sender_avatar:   user.imageUrl,
+        text,
+      }),
     });
+    const { message: msg } = await res.json();
     if (msg) {
       setMessages(prev => [...prev, msg]);
-      setInput("");
-      // Update conversation last message locally
       setConvs(prev => prev.map(c =>
         c.id === activeConvId
-          ? { ...c, last_message: input.trim(), last_message_at: new Date().toISOString() }
+          ? { ...c, last_message: text, last_message_at: new Date().toISOString() }
           : c
       ));
       setTimeout(() => msgEndRef.current?.scrollIntoView({ behavior: "smooth" }), 50);

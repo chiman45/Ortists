@@ -54,7 +54,7 @@ export default function FeedCard({ post, priority = false }: FeedCardProps) {
         />
       </div>
       <div className="flex items-center gap-2 mt-2.5 px-0.5">
-        <Avatar name={post.username} size={26} />
+        <Avatar name={post.username} src={post.avatar} size={26} />
         <span className="text-sm font-medium flex-1 truncate" style={{ color: "var(--text-2)" }}>
           {post.username}
         </span>

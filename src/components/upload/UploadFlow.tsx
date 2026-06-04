@@ -1,6 +1,5 @@
 "use client";
 
-import { uploadArtwork } from "@/lib/db/posts";
 import { useUser } from "@clerk/nextjs";
 import {
   ArrowLeft, Camera, Check, ChevronRight,
@@ -69,8 +68,12 @@ export default function UploadFlow() {
       // Upload image to Supabase storage (or use existing URL for demo)
       let imageUrl: string | null = preview;
       if (file) {
-        imageUrl = await uploadArtwork(file);
-        if (!imageUrl) throw new Error("Image upload failed. Please try again.");
+        const form = new FormData();
+        form.append("file", file);
+        const upRes = await fetch("/api/upload", { method: "POST", body: form });
+        const { url, error: upErr } = await upRes.json();
+        if (upErr || !url) throw new Error(upErr ?? "Image upload failed. Please try again.");
+        imageUrl = url;
       }
 
       const res = await fetch("/api/posts", {

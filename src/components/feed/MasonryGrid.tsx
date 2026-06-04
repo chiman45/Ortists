@@ -1,6 +1,7 @@
 "use client";
 
 import { type Post as DbPost } from "@/lib/db/posts";
+import { allPosts } from "@/lib/mockData";
 import { Post } from "@/lib/types";
 import { useEffect, useRef, useState } from "react";
 import FeedCard from "./FeedCard";
@@ -23,24 +24,28 @@ function toGridPost(p: DbPost): Post {
 const PAGE = 12;
 
 interface Props {
-  posts: Post[];           // initial batch (already fetched by parent)
-  category?: string | null; // filter to pass when loading more from DB
-  loadFromDb?: boolean;     // true = load more from API, false = done (mock/static)
+  posts: Post[];
+  category?: string | null;
+  loadFromDb?: boolean;
 }
 
 export default function MasonryGrid({ posts: initial, category, loadFromDb = true }: Props) {
-  const [visible, setVisible]   = useState<Post[]>(initial);
-  const [loading, setLoading]   = useState(false);
-  const [done, setDone]         = useState(false);
-  const offset  = useRef(initial.length);
-  const busy    = useRef(false);
-  const endRef  = useRef<HTMLDivElement>(null);
+  const [visible, setVisible] = useState<Post[]>(initial);
+  const [loading, setLoading] = useState(false);
+  const [done, setDone]       = useState(false);
+  const dbOffset   = useRef(initial.length);
+  const mockOffset = useRef(0);
+  const dbExhausted = useRef(false);
+  const busy       = useRef(false);
+  const endRef     = useRef<HTMLDivElement>(null);
 
-  // Reset when filter changes
+  // Reset when initial posts or category changes
   useEffect(() => {
     setVisible(initial);
     setDone(false);
-    offset.current = initial.length;
+    dbOffset.current   = initial.length;
+    mockOffset.current = 0;
+    dbExhausted.current = false;
   }, [initial]);
 
   useEffect(() => {
@@ -54,27 +59,56 @@ export default function MasonryGrid({ posts: initial, category, loadFromDb = tru
       busy.current = true;
       setLoading(true);
 
-      const params = new URLSearchParams({
-        limit:  String(PAGE),
-        offset: String(offset.current),
-      });
-      if (category) params.set("category", category);
+      if (!dbExhausted.current) {
+        // Try loading real posts from DB first
+        const params = new URLSearchParams({
+          limit:  String(PAGE),
+          offset: String(dbOffset.current),
+        });
+        if (category) params.set("category", category);
 
-      fetch(`/api/posts?${params}`)
-        .then(r => r.json())
-        .then(({ posts: raw, hasMore }: { posts: DbPost[]; hasMore: boolean }) => {
-          if (!raw || raw.length === 0) { setDone(true); return; }
-          const posts = raw.map(toGridPost);
+        fetch(`/api/posts?${params}`)
+          .then(r => r.json())
+          .then(({ posts: raw }: { posts: DbPost[] }) => {
+            if (raw && raw.length > 0) {
+              const posts = raw.map(toGridPost);
+              setVisible(v => {
+                const ids = new Set(v.map(p => p.id));
+                return [...v, ...posts.filter(p => !ids.has(p.id))];
+              });
+              dbOffset.current += posts.length;
+            } else {
+              // DB exhausted — fall through to mock data
+              dbExhausted.current = true;
+              loadMock();
+              return;
+            }
+          })
+          .catch(() => { dbExhausted.current = true; })
+          .finally(() => { busy.current = false; setLoading(false); });
+      } else {
+        loadMock();
+      }
+
+      function loadMock() {
+        const mockFiltered = category
+          ? allPosts.filter(p => p.category === category)
+          : allPosts;
+        const slice = mockFiltered.slice(mockOffset.current, mockOffset.current + PAGE);
+        if (slice.length === 0) {
+          setDone(true);
+        } else {
           setVisible(v => {
             const ids = new Set(v.map(p => p.id));
-            return [...v, ...posts.filter(p => !ids.has(p.id))];
+            return [...v, ...slice.filter(p => !ids.has(p.id))];
           });
-          offset.current += posts.length;
-          if (!hasMore) setDone(true);
-        })
-        .catch(() => setDone(true))
-        .finally(() => { busy.current = false; setLoading(false); });
-    }, { rootMargin: "500px" });
+          mockOffset.current += slice.length;
+          if (mockOffset.current >= mockFiltered.length) setDone(true);
+        }
+        busy.current = false;
+        setLoading(false);
+      }
+    }, { rootMargin: "400px" });
 
     obs.observe(el);
     return () => obs.disconnect();

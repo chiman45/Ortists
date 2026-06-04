@@ -8,10 +8,18 @@ import { type Profile } from "@/lib/db/profiles";
 import { useUser } from "@clerk/nextjs";
 import {
   MapPin, Star, Heart, Bookmark, Users, TrendingUp,
-  Clock, X, Check, Share2, Link as LinkIcon,
+  Clock, X, Check, Share2, Link as LinkIcon, Camera, Loader2,
 } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+
+interface FollowUser {
+  clerk_id: string;
+  display_name: string | null;
+  username: string | null;
+  avatar_url: string | null;
+  tag: string;
+}
 
 const TABS = ["Portfolio", "Marketplace", "Services", "Saved", "About"] as const;
 type Tab = typeof TABS[number];
@@ -47,6 +55,11 @@ export default function ProfilePage() {
   const [saving, setSaving]             = useState(false);
   const [saveError, setSaveError]       = useState<string | null>(null);
   const [copied, setCopied]             = useState(false);
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
+  const [avatarUploading, setAvatarUploading] = useState(false);
+  const avatarInputRef                  = useRef<HTMLInputElement>(null);
+  const [followModal, setFollowModal]   = useState<{ type: "followers" | "following"; users: FollowUser[] } | null>(null);
+  const [followLoading, setFollowLoading] = useState(false);
   const [editForm, setEditForm]         = useState<EditForm>({
     display_name: "", username: "", bio: "", location: "",
     tag: "Artist", available: true, response_time: "Within 24 hours",
@@ -93,7 +106,28 @@ export default function ProfilePage() {
       available:     profile?.available ?? true,
       response_time: profile?.response_time ?? "Within 24 hours",
     });
+    setAvatarPreview(null);
+    setSaveError(null);
     setShowEdit(true);
+  }
+
+  async function handleAvatarChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = "";
+    setAvatarUploading(true);
+    try {
+      const form = new FormData();
+      form.append("file", file);
+      const res = await fetch("/api/upload", { method: "POST", body: form });
+      const { url, error: upErr } = await res.json();
+      if (upErr || !url) throw new Error(upErr ?? "Upload failed");
+      setAvatarPreview(url);
+    } catch (err) {
+      setSaveError(err instanceof Error ? err.message : "Avatar upload failed");
+    } finally {
+      setAvatarUploading(false);
+    }
   }
 
   async function saveProfile() {
@@ -113,6 +147,7 @@ export default function ProfilePage() {
           tag:           editForm.tag,
           available:     editForm.available,
           response_time: editForm.response_time,
+          ...(avatarPreview ? { avatar_url: avatarPreview } : {}),
         }),
       });
       const data = await res.json();
@@ -132,6 +167,15 @@ export default function ProfilePage() {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     });
+  }
+
+  async function openFollowList(type: "followers" | "following") {
+    if (!user) return;
+    setFollowLoading(true);
+    const res = await fetch(`/api/follows/list?userId=${user.id}&type=${type}`);
+    const { users } = await res.json();
+    setFollowModal({ type, users: users ?? [] });
+    setFollowLoading(false);
   }
 
   async function toggleFollow(p: Profile) {
@@ -227,23 +271,49 @@ export default function ProfilePage() {
 
               {/* Stats */}
               <div className="flex gap-6 pt-4" style={{ borderTop: "1px solid var(--border)" }}>
-                {[
-                  { icon: Users, value: followers.toLocaleString(), label: "Followers"   },
-                  { icon: Users, value: following.toLocaleString(), label: "Following"   },
-                  { icon: Heart, value: totalLikes.toLocaleString(),label: "Total Likes" },
-                  { icon: Star,  value: rating || "—",              label: "Rating"      },
-                ].map(({ icon: Icon, value, label }) => (
-                  <div key={label} className="flex items-center gap-2">
-                    <div className="w-7 h-7 rounded-full flex items-center justify-center"
-                      style={{ background: "rgba(124,91,245,0.12)" }}>
-                      <Icon size={13} style={{ color: "#9B7CF5" }} />
-                    </div>
-                    <div>
-                      <p className="text-sm font-bold leading-none" style={{ color: "var(--text-1)" }}>{value}</p>
-                      <p className="text-[10px]" style={{ color: "var(--text-5)" }}>{label}</p>
-                    </div>
+                {/* Clickable: Followers */}
+                <button onClick={() => openFollowList("followers")} className="flex items-center gap-2 hover:opacity-70 transition-opacity">
+                  <div className="w-7 h-7 rounded-full flex items-center justify-center" style={{ background: "rgba(124,91,245,0.12)" }}>
+                    <Users size={13} style={{ color: "#9B7CF5" }} />
                   </div>
-                ))}
+                  <div className="text-left">
+                    <p className="text-sm font-bold leading-none" style={{ color: "var(--text-1)" }}>{followers.toLocaleString()}</p>
+                    <p className="text-[10px]" style={{ color: "var(--text-5)" }}>Followers</p>
+                  </div>
+                </button>
+
+                {/* Clickable: Following */}
+                <button onClick={() => openFollowList("following")} className="flex items-center gap-2 hover:opacity-70 transition-opacity">
+                  <div className="w-7 h-7 rounded-full flex items-center justify-center" style={{ background: "rgba(124,91,245,0.12)" }}>
+                    <Users size={13} style={{ color: "#9B7CF5" }} />
+                  </div>
+                  <div className="text-left">
+                    <p className="text-sm font-bold leading-none" style={{ color: "var(--text-1)" }}>{following.toLocaleString()}</p>
+                    <p className="text-[10px]" style={{ color: "var(--text-5)" }}>Following</p>
+                  </div>
+                </button>
+
+                {/* Total Likes */}
+                <div className="flex items-center gap-2">
+                  <div className="w-7 h-7 rounded-full flex items-center justify-center" style={{ background: "rgba(124,91,245,0.12)" }}>
+                    <Heart size={13} style={{ color: "#9B7CF5" }} />
+                  </div>
+                  <div>
+                    <p className="text-sm font-bold leading-none" style={{ color: "var(--text-1)" }}>{totalLikes.toLocaleString()}</p>
+                    <p className="text-[10px]" style={{ color: "var(--text-5)" }}>Total Likes</p>
+                  </div>
+                </div>
+
+                {/* Rating */}
+                <div className="flex items-center gap-2">
+                  <div className="w-7 h-7 rounded-full flex items-center justify-center" style={{ background: "rgba(124,91,245,0.12)" }}>
+                    <Star size={13} style={{ color: "#9B7CF5" }} />
+                  </div>
+                  <div>
+                    <p className="text-sm font-bold leading-none" style={{ color: "var(--text-1)" }}>{rating || "—"}</p>
+                    <p className="text-[10px]" style={{ color: "var(--text-5)" }}>Rating</p>
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -453,6 +523,71 @@ export default function ProfilePage() {
 
       <BottomNav />
 
+      {/* ── Followers / Following Modal ── */}
+      {(followModal || followLoading) && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          style={{ background: "rgba(0,0,0,0.65)", backdropFilter: "blur(6px)" }}
+          onClick={e => e.target === e.currentTarget && setFollowModal(null)}
+        >
+          <div className="w-full max-w-sm rounded-2xl overflow-hidden"
+            style={{ background: "var(--bg-card)", border: "1px solid var(--border)", boxShadow: "0 8px 40px rgba(0,0,0,0.5)" }}>
+            <div className="flex items-center gap-3 px-5 py-4" style={{ borderBottom: "1px solid var(--border)" }}>
+              <h3 className="text-sm font-bold flex-1 capitalize" style={{ color: "var(--text-1)" }}>
+                {followModal?.type ?? "Loading…"}
+              </h3>
+              <button onClick={() => setFollowModal(null)} style={{ color: "var(--text-5)" }}>
+                <X size={16} />
+              </button>
+            </div>
+
+            <div className="overflow-y-auto" style={{ maxHeight: 420, scrollbarWidth: "none" }}>
+              {followLoading && (
+                <div className="flex justify-center py-10">
+                  <div className="w-6 h-6 rounded-full border-2 animate-spin"
+                    style={{ borderColor: "var(--bg-subtle)", borderTopColor: "#7C5BF5" }} />
+                </div>
+              )}
+
+              {!followLoading && followModal?.users.length === 0 && (
+                <p className="text-sm text-center py-10" style={{ color: "var(--text-5)" }}>
+                  No {followModal.type} yet
+                </p>
+              )}
+
+              {!followLoading && followModal?.users.map(u => (
+                <Link
+                  key={u.clerk_id}
+                  href={`/u/${u.username ?? u.clerk_id}`}
+                  onClick={() => setFollowModal(null)}
+                  className="flex items-center gap-3 px-5 py-3 transition-colors"
+                  style={{ borderBottom: "1px solid var(--border)" }}
+                  onMouseEnter={e => ((e.currentTarget as HTMLElement).style.background = "var(--bg-hover)")}
+                  onMouseLeave={e => ((e.currentTarget as HTMLElement).style.background = "transparent")}
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={u.avatar_url ?? `https://i.pravatar.cc/80?u=${u.clerk_id}`}
+                    alt={u.display_name ?? "User"}
+                    className="w-10 h-10 rounded-full object-cover shrink-0"
+                    style={{ border: "2px solid rgba(124,91,245,0.3)" }}
+                  />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold truncate" style={{ color: "var(--text-1)" }}>
+                      {u.display_name ?? u.username}
+                    </p>
+                    <p className="text-xs" style={{ color: "var(--text-5)" }}>
+                      @{u.username} · {u.tag}
+                    </p>
+                  </div>
+                  <span className="text-xs font-medium shrink-0" style={{ color: "#9B7CF5" }}>View →</span>
+                </Link>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ── Edit Profile Modal ── */}
       {showEdit && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
@@ -468,6 +603,32 @@ export default function ProfilePage() {
             </div>
 
             <div className="px-5 py-4 flex flex-col gap-4 overflow-y-auto" style={{ maxHeight: "70vh", scrollbarWidth: "none" }}>
+
+              {/* Avatar upload */}
+              <div className="flex flex-col items-center gap-2">
+                <div className="relative group cursor-pointer" onClick={() => !avatarUploading && avatarInputRef.current?.click()}>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={avatarPreview ?? avatar}
+                    alt="Profile photo"
+                    className="w-20 h-20 rounded-full object-cover"
+                    style={{ border: "3px solid rgba(124,91,245,0.5)" }}
+                  />
+                  <div className="absolute inset-0 rounded-full flex items-center justify-center transition-opacity"
+                    style={{ background: "rgba(0,0,0,0.45)", opacity: 0 }}
+                    onMouseEnter={e => { (e.currentTarget as HTMLElement).style.opacity = "1"; }}
+                    onMouseLeave={e => { (e.currentTarget as HTMLElement).style.opacity = "0"; }}>
+                    {avatarUploading
+                      ? <Loader2 size={20} className="animate-spin text-white" />
+                      : <Camera size={20} className="text-white" />}
+                  </div>
+                </div>
+                <p className="text-xs" style={{ color: "var(--text-5)" }}>
+                  {avatarUploading ? "Uploading…" : "Click photo to change"}
+                </p>
+                <input ref={avatarInputRef} type="file" accept="image/*" className="hidden" onChange={handleAvatarChange} />
+              </div>
+
               {([
                 { label: "Display Name",  key: "display_name"  as const, placeholder: "Your full name"           },
                 { label: "Username",      key: "username"      as const, placeholder: "yourhandle"               },
@@ -526,10 +687,10 @@ export default function ProfilePage() {
                 style={{ background: "var(--bg-subtle)", color: "var(--text-3)", border: "1px solid var(--border)" }}>
                 Cancel
               </button>
-              <button onClick={saveProfile} disabled={saving}
+              <button onClick={saveProfile} disabled={saving || avatarUploading}
                 className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold transition-opacity hover:opacity-85 disabled:opacity-50"
                 style={{ background: "#7C5BF5", color: "#fff" }}>
-                {saving ? "Saving…" : <><Check size={14} /> Save Changes</>}
+                {saving ? "Saving…" : avatarUploading ? "Uploading photo…" : <><Check size={14} /> Save Changes</>}
               </button>
             </div>
           </div>

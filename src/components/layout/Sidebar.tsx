@@ -1,17 +1,17 @@
 "use client";
 
 import { useTheme } from "@/contexts/ThemeContext";
-import { useClerk } from "@clerk/nextjs";
+import { useClerk, useUser } from "@clerk/nextjs";
 import CreatePostModal from "@/components/create/CreatePostModal";
 import { Compass, LogOut, Moon, Plus, Sun, UserCircle } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
-const NAV_ITEMS: { icon: string | null; lucideIcon: React.ElementType | null; label: string; href: string; badge?: number }[] = [
+const NAV_ITEMS: { icon: string | null; lucideIcon: React.ElementType | null; label: string; href: string }[] = [
   { icon: "/icons/1.png", lucideIcon: null,       label: "Feed",        href: "/feed" },
   { icon: "/icons/4.png", lucideIcon: null,       label: "Dashboard",   href: "/dashboard" },
-  { icon: "/icons/3.png", lucideIcon: null,       label: "Messages",    href: "/messages",   badge: 8 },
+  { icon: "/icons/3.png", lucideIcon: null,       label: "Messages",    href: "/messages" },
   { icon: null,           lucideIcon: Compass,    label: "Explore",     href: "/explore" },
   { icon: "/icons/7.png", lucideIcon: null,       label: "Marketplace", href: "/marketplace" },
   { icon: "/icons/6.png", lucideIcon: null,       label: "Hiring",      href: "/hiring" },
@@ -58,8 +58,22 @@ export default function Sidebar() {
   const router = useRouter();
   const { theme, toggle } = useTheme();
   const { signOut } = useClerk();
-  const [expanded, setExpanded]       = useState(false);
-  const [createOpen, setCreateOpen]   = useState(false);
+  const { user } = useUser();
+  const [expanded, setExpanded]     = useState(false);
+  const [createOpen, setCreateOpen] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  useEffect(() => {
+    if (!user) return;
+    function fetchUnread() {
+      fetch(`/api/messages?action=unread_count&userId=${user!.id}`)
+        .then(r => r.json())
+        .then(({ count }) => setUnreadCount(count ?? 0));
+    }
+    fetchUnread();
+    const interval = setInterval(fetchUnread, 30000);
+    return () => clearInterval(interval);
+  }, [user]);
 
   function handleLogout() {
     signOut(() => router.push("/"));
@@ -126,7 +140,7 @@ export default function Sidebar() {
 
       {/* Nav */}
       <nav className="flex-1 flex flex-col gap-0 px-1.5 py-1">
-        {NAV_ITEMS.map(({ icon, lucideIcon: LucideIcon, label, href, badge }) => {
+        {NAV_ITEMS.map(({ icon, lucideIcon: LucideIcon, label, href }) => {
           const active = pathname === href || (href !== "/" && pathname.startsWith(href));
 
           const linkEl = (
@@ -176,12 +190,12 @@ export default function Sidebar() {
                     style={{ color: active ? "#9B7CF5" : "var(--text-4)", opacity: active ? 1 : 0.5 }}
                   />
                 ) : null}
-                {badge !== undefined && !expanded && (
+                {label === "Messages" && unreadCount > 0 && !expanded && (
                   <span
                     className="absolute -top-1 -right-1 w-4 h-4 rounded-full text-[9px] font-bold flex items-center justify-center text-white"
                     style={{ background: "#7C5BF5" }}
                   >
-                    {badge}
+                    {unreadCount > 9 ? "9+" : unreadCount}
                   </span>
                 )}
               </div>
@@ -192,12 +206,12 @@ export default function Sidebar() {
                   <span className={`text-sm flex-1 whitespace-nowrap ${active ? "font-semibold" : "font-medium"}`}>
                     {label}
                   </span>
-                  {badge !== undefined && (
+                  {label === "Messages" && unreadCount > 0 && (
                     <span
                       className="text-[11px] font-semibold rounded-full px-1.5 py-0.5 leading-none min-w-4.5 text-center"
                       style={{ background: "rgba(124,91,245,0.20)", color: "#9B7CF5" }}
                     >
-                      {badge}
+                      {unreadCount > 9 ? "9+" : unreadCount}
                     </span>
                   )}
                 </>

@@ -4,7 +4,6 @@ import {
   ArrowLeft, ArrowRight, BookmarkCheck, Briefcase,
   Check, FileText, ImageIcon, MapPin, Send, ShoppingBag, Upload, X,
 } from "lucide-react";
-import { uploadArtwork } from "@/lib/db/posts";
 import { useUser } from "@clerk/nextjs";
 import { useCallback, useRef, useState } from "react";
 
@@ -399,7 +398,10 @@ export default function CreatePostModal({ onClose }: Props) {
                   if (!user || !imageFile) return;
                   setPublishing(true);
                   try {
-                    const uploadedUrl = await uploadArtwork(imageFile);
+                    const form = new FormData();
+                    form.append("file", imageFile);
+                    const upRes = await fetch("/api/upload", { method: "POST", body: form });
+                    const { url: uploadedUrl } = await upRes.json();
                     await fetch("/api/posts", {
                       method: "POST",
                       headers: { "Content-Type": "application/json" },
