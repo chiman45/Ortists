@@ -35,6 +35,7 @@ export default function UploadFlow() {
   const [caption, setCaption]         = useState("");
   const [location, setLocation]       = useState("");
   const [category, setCategory]       = useState("");
+  const [tags, setTags]               = useState<string[]>([]);
   const [publishing, setPublishing]   = useState(false);
   const [error, setError]             = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -88,6 +89,7 @@ export default function UploadFlow() {
           description:      caption.trim() || undefined,
           image_url:        imageUrl,
           category:         category || "General",
+          tags:             tags,
           location:         location.trim() || undefined,
         }),
       });
@@ -252,6 +254,22 @@ export default function UploadFlow() {
                         : "bg-gray-100 text-gray-600 hover:bg-gray-200"
                     }`}>
                     {c}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Tags</p>
+              <div className="flex flex-wrap gap-2">
+                {["Digital Art", "Portrait", "Photography", "3D Art", "Graphic Design", "Illustration", "Sketch", "Painting"].map(t => (
+                  <button key={t} onClick={() => setTags(prev => prev.includes(t) ? prev.filter(x => x !== t) : [...prev, t])}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                      tags.includes(t)
+                        ? "bg-violet-100 text-violet-700 ring-1 ring-violet-300"
+                        : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                    }`}>
+                    {t}
                   </button>
                 ))}
               </div>

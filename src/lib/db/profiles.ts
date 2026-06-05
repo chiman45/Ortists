@@ -7,6 +7,7 @@ export interface Profile {
   display_name: string | null;
   bio: string | null;
   avatar_url: string | null;
+  banner_url: string | null;
   location: string | null;
   tag: string;
   available: boolean;

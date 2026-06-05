@@ -10,12 +10,12 @@ import { useEffect, useState } from "react";
 
 const NAV_ITEMS: { icon: string | null; lucideIcon: React.ElementType | null; label: string; href: string }[] = [
   { icon: "/icons/1.png", lucideIcon: null,       label: "Feed",        href: "/feed" },
-  { icon: "/icons/4.png", lucideIcon: null,       label: "Dashboard",   href: "/dashboard" },
+  { icon: "/icons/dashboard.png", lucideIcon: null,       label: "Dashboard",   href: "/dashboard" },
   { icon: "/icons/3.png", lucideIcon: null,       label: "Messages",    href: "/messages" },
-  { icon: null,           lucideIcon: Compass,    label: "Explore",     href: "/explore" },
+  { icon: "/icons/explore.png",           lucideIcon: Compass,    label: "Explore",     href: "/explore" },
   { icon: "/icons/7.png", lucideIcon: null,       label: "Marketplace", href: "/marketplace" },
   { icon: "/icons/6.png", lucideIcon: null,       label: "Hiring",      href: "/hiring" },
-  { icon: null,           lucideIcon: UserCircle, label: "Profile",     href: "/profile" },
+  { icon: "/icons/4.png",           lucideIcon: UserCircle, label: "Profile",     href: "/profile" },
 ];
 
 function Tooltip({ label, children }: { label: string; children: React.ReactNode }) {

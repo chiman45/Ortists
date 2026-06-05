@@ -55,9 +55,12 @@ export default function ProfilePage() {
   const [saving, setSaving]             = useState(false);
   const [saveError, setSaveError]       = useState<string | null>(null);
   const [copied, setCopied]             = useState(false);
-  const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
+  const [avatarPreview, setAvatarPreview]   = useState<string | null>(null);
   const [avatarUploading, setAvatarUploading] = useState(false);
-  const avatarInputRef                  = useRef<HTMLInputElement>(null);
+  const avatarInputRef                        = useRef<HTMLInputElement>(null);
+  const [bannerPreview, setBannerPreview]   = useState<string | null>(null);
+  const [bannerUploading, setBannerUploading] = useState(false);
+  const bannerInputRef                        = useRef<HTMLInputElement>(null);
   const [followModal, setFollowModal]   = useState<{ type: "followers" | "following"; users: FollowUser[] } | null>(null);
   const [followLoading, setFollowLoading] = useState(false);
   const [editForm, setEditForm]         = useState<EditForm>({
@@ -107,6 +110,7 @@ export default function ProfilePage() {
       response_time: profile?.response_time ?? "Within 24 hours",
     });
     setAvatarPreview(null);
+    setBannerPreview(null);
     setSaveError(null);
     setShowEdit(true);
   }
@@ -130,6 +134,25 @@ export default function ProfilePage() {
     }
   }
 
+  async function handleBannerChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = "";
+    setBannerUploading(true);
+    try {
+      const form = new FormData();
+      form.append("file", file);
+      const res = await fetch("/api/upload", { method: "POST", body: form });
+      const { url, error: upErr } = await res.json();
+      if (upErr || !url) throw new Error(upErr ?? "Upload failed");
+      setBannerPreview(url);
+    } catch (err) {
+      setSaveError(err instanceof Error ? err.message : "Banner upload failed");
+    } finally {
+      setBannerUploading(false);
+    }
+  }
+
   async function saveProfile() {
     if (!user) return;
     setSaving(true);
@@ -148,6 +171,7 @@ export default function ProfilePage() {
           available:     editForm.available,
           response_time: editForm.response_time,
           ...(avatarPreview ? { avatar_url: avatarPreview } : {}),
+          ...(bannerPreview ? { banner_url: bannerPreview } : {}),
         }),
       });
       const data = await res.json();
@@ -233,85 +257,96 @@ export default function ProfilePage() {
           <div className="flex-1 min-w-0 px-4 md:px-8 py-6">
 
             {/* Profile header */}
-            <div className="rounded-2xl p-5 mb-5"
+            <div className="rounded-2xl overflow-hidden mb-5"
               style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}>
-              <div className="flex flex-wrap items-start gap-4 mb-4">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={avatar} alt={name}
-                  className="w-20 h-20 rounded-full object-cover shrink-0"
-                  style={{ border: "3px solid rgba(124,91,245,0.5)" }} />
 
-                <div className="flex-1 min-w-0">
-                  <h1 className="text-xl font-bold mb-0.5" style={{ color: "var(--text-1)" }}>{name}</h1>
-                  <p className="text-sm mb-1.5" style={{ color: "var(--text-5)" }}>{username}</p>
-                  <div className="flex items-center gap-1.5 mb-2">
-                    {location && <><MapPin size={12} style={{ color: "var(--text-5)" }} />
-                    <span className="text-xs" style={{ color: "var(--text-5)" }}>{location}</span></>}
-                    <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full"
-                      style={{ background: "rgba(124,91,245,0.15)", color: "#9B7CF5", border: "1px solid rgba(124,91,245,0.3)" }}>
-                      {tag}
-                    </span>
-                  </div>
-                  <p className="text-xs leading-relaxed" style={{ color: "var(--text-4)" }}>{bio}</p>
-                </div>
-
-                <div className="flex items-center gap-2 shrink-0">
-                  <button onClick={openEdit}
-                    className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold transition-all hover:opacity-85"
-                    style={{ background: "#7C5BF5", color: "#fff" }}>
-                    Edit Profile
-                  </button>
-                  <button onClick={shareProfile}
-                    className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold transition-all hover:opacity-85"
-                    style={{ background: "rgba(245,158,11,0.15)", color: "#F59E0B", border: "1px solid rgba(245,158,11,0.3)" }}>
-                    {copied ? <><LinkIcon size={13} /> Copied!</> : <><Share2 size={13} /> Share</>}
-                  </button>
-                </div>
+              {/* Banner */}
+              <div className="relative h-32 w-full"
+                style={{ background: "linear-gradient(135deg, #1a0a3a, #2d1b69)" }}>
+                {profile?.banner_url && (
+                  /* eslint-disable-next-line @next/next/no-img-element */
+                  <img src={profile.banner_url} alt="banner"
+                    className="absolute inset-0 w-full h-full object-cover" />
+                )}
               </div>
 
-              {/* Stats */}
-              <div className="flex gap-6 pt-4" style={{ borderTop: "1px solid var(--border)" }}>
-                {/* Clickable: Followers */}
-                <button onClick={() => openFollowList("followers")} className="flex items-center gap-2 hover:opacity-70 transition-opacity">
-                  <div className="w-7 h-7 rounded-full flex items-center justify-center" style={{ background: "rgba(124,91,245,0.12)" }}>
-                    <Users size={13} style={{ color: "#9B7CF5" }} />
-                  </div>
-                  <div className="text-left">
-                    <p className="text-sm font-bold leading-none" style={{ color: "var(--text-1)" }}>{followers.toLocaleString()}</p>
-                    <p className="text-[10px]" style={{ color: "var(--text-5)" }}>Followers</p>
-                  </div>
-                </button>
+              {/* Content */}
+              <div className="px-5 pb-5">
+                <div className="flex flex-wrap items-end gap-4 -mt-8 mb-4">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={avatar} alt={name}
+                    className="w-20 h-20 rounded-full object-cover shrink-0 relative z-10"
+                    style={{ border: "3px solid var(--bg-card)" }} />
 
-                {/* Clickable: Following */}
-                <button onClick={() => openFollowList("following")} className="flex items-center gap-2 hover:opacity-70 transition-opacity">
-                  <div className="w-7 h-7 rounded-full flex items-center justify-center" style={{ background: "rgba(124,91,245,0.12)" }}>
-                    <Users size={13} style={{ color: "#9B7CF5" }} />
+                  <div className="flex-1 min-w-0 pt-10">
+                    <h1 className="text-xl font-bold mb-0.5" style={{ color: "var(--text-1)" }}>{name}</h1>
+                    <p className="text-sm mb-1.5" style={{ color: "var(--text-5)" }}>{username}</p>
+                    <div className="flex items-center gap-1.5 mb-2">
+                      {location && (
+                        <>
+                          <MapPin size={12} style={{ color: "var(--text-5)" }} />
+                          <span className="text-xs" style={{ color: "var(--text-5)" }}>{location}</span>
+                        </>
+                      )}
+                      <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full"
+                        style={{ background: "rgba(124,91,245,0.15)", color: "#9B7CF5", border: "1px solid rgba(124,91,245,0.3)" }}>
+                        {tag}
+                      </span>
+                    </div>
+                    <p className="text-xs leading-relaxed" style={{ color: "var(--text-4)" }}>{bio}</p>
                   </div>
-                  <div className="text-left">
-                    <p className="text-sm font-bold leading-none" style={{ color: "var(--text-1)" }}>{following.toLocaleString()}</p>
-                    <p className="text-[10px]" style={{ color: "var(--text-5)" }}>Following</p>
-                  </div>
-                </button>
 
-                {/* Total Likes */}
-                <div className="flex items-center gap-2">
-                  <div className="w-7 h-7 rounded-full flex items-center justify-center" style={{ background: "rgba(124,91,245,0.12)" }}>
-                    <Heart size={13} style={{ color: "#9B7CF5" }} />
-                  </div>
-                  <div>
-                    <p className="text-sm font-bold leading-none" style={{ color: "var(--text-1)" }}>{totalLikes.toLocaleString()}</p>
-                    <p className="text-[10px]" style={{ color: "var(--text-5)" }}>Total Likes</p>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <button onClick={openEdit}
+                      className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold transition-all hover:opacity-85"
+                      style={{ background: "#7C5BF5", color: "#fff" }}>
+                      Edit Profile
+                    </button>
+                    <button onClick={shareProfile}
+                      className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold transition-all hover:opacity-85"
+                      style={{ background: "rgba(245,158,11,0.15)", color: "#F59E0B", border: "1px solid rgba(245,158,11,0.3)" }}>
+                      {copied ? <><LinkIcon size={13} /> Copied!</> : <><Share2 size={13} /> Share</>}
+                    </button>
                   </div>
                 </div>
 
-                {/* Rating */}
-                <div className="flex items-center gap-2">
-                  <div className="w-7 h-7 rounded-full flex items-center justify-center" style={{ background: "rgba(124,91,245,0.12)" }}>
-                    <Star size={13} style={{ color: "#9B7CF5" }} />
+                {/* Stats */}
+                <div className="flex gap-6 pt-4" style={{ borderTop: "1px solid var(--border)" }}>
+                  <button onClick={() => openFollowList("followers")} className="flex items-center gap-2 hover:opacity-70 transition-opacity">
+                    <div className="w-7 h-7 rounded-full flex items-center justify-center" style={{ background: "rgba(124,91,245,0.12)" }}>
+                      <Users size={13} style={{ color: "#9B7CF5" }} />
+                    </div>
+                    <div className="text-left">
+                      <p className="text-sm font-bold leading-none" style={{ color: "var(--text-1)" }}>{followers.toLocaleString()}</p>
+                      <p className="text-[10px]" style={{ color: "var(--text-5)" }}>Followers</p>
+                    </div>
+                  </button>
+                  <button onClick={() => openFollowList("following")} className="flex items-center gap-2 hover:opacity-70 transition-opacity">
+                    <div className="w-7 h-7 rounded-full flex items-center justify-center" style={{ background: "rgba(124,91,245,0.12)" }}>
+                      <Users size={13} style={{ color: "#9B7CF5" }} />
+                    </div>
+                    <div className="text-left">
+                      <p className="text-sm font-bold leading-none" style={{ color: "var(--text-1)" }}>{following.toLocaleString()}</p>
+                      <p className="text-[10px]" style={{ color: "var(--text-5)" }}>Following</p>
+                    </div>
+                  </button>
+                  <div className="flex items-center gap-2">
+                    <div className="w-7 h-7 rounded-full flex items-center justify-center" style={{ background: "rgba(124,91,245,0.12)" }}>
+                      <Heart size={13} style={{ color: "#9B7CF5" }} />
+                    </div>
+                    <div>
+                      <p className="text-sm font-bold leading-none" style={{ color: "var(--text-1)" }}>{totalLikes.toLocaleString()}</p>
+                      <p className="text-[10px]" style={{ color: "var(--text-5)" }}>Total Likes</p>
+                    </div>
                   </div>
-                  <div>
-                    <p className="text-sm font-bold leading-none" style={{ color: "var(--text-1)" }}>{rating || "—"}</p>
-                    <p className="text-[10px]" style={{ color: "var(--text-5)" }}>Rating</p>
+                  <div className="flex items-center gap-2">
+                    <div className="w-7 h-7 rounded-full flex items-center justify-center" style={{ background: "rgba(124,91,245,0.12)" }}>
+                      <Star size={13} style={{ color: "#9B7CF5" }} />
+                    </div>
+                    <div>
+                      <p className="text-sm font-bold leading-none" style={{ color: "var(--text-1)" }}>{rating || "—"}</p>
+                      <p className="text-[10px]" style={{ color: "var(--text-5)" }}>Rating</p>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -627,6 +662,30 @@ export default function ProfilePage() {
                   {avatarUploading ? "Uploading…" : "Click photo to change"}
                 </p>
                 <input ref={avatarInputRef} type="file" accept="image/*" className="hidden" onChange={handleAvatarChange} />
+              </div>
+
+              {/* Banner upload */}
+              <div>
+                <label className="text-xs font-semibold mb-1.5 block" style={{ color: "var(--text-4)" }}>Banner Image</label>
+                <div
+                  className="relative w-full h-24 rounded-xl overflow-hidden cursor-pointer group"
+                  style={{ background: "linear-gradient(135deg, #1a0a3a, #2d1b69)" }}
+                  onClick={() => !bannerUploading && bannerInputRef.current?.click()}
+                >
+                  {(bannerPreview ?? profile?.banner_url) && (
+                    /* eslint-disable-next-line @next/next/no-img-element */
+                    <img src={bannerPreview ?? profile?.banner_url ?? ""}
+                      alt="banner" className="absolute inset-0 w-full h-full object-cover" />
+                  )}
+                  <div className="absolute inset-0 flex items-center justify-center transition-opacity bg-black/0 group-hover:bg-black/40">
+                    <span className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1.5 text-xs font-semibold text-white">
+                      {bannerUploading
+                        ? <><Loader2 size={14} className="animate-spin" /> Uploading…</>
+                        : <><Camera size={14} /> Change Banner</>}
+                    </span>
+                  </div>
+                </div>
+                <input ref={bannerInputRef} type="file" accept="image/*" className="hidden" onChange={handleBannerChange} />
               </div>
 
               {([
