@@ -195,7 +195,7 @@ export default function UploadFlow() {
         {/* ── EDIT ── */}
         {step === "edit" && preview && (
           <div className="p-6 space-y-4">
-            <div className="rounded-2xl overflow-hidden bg-gray-50 aspect-[4/3] relative">
+            <div className="rounded-2xl overflow-hidden bg-gray-50 aspect-4/3 relative">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={preview} alt="Preview" className="w-full h-full object-cover" style={{ filter: currentFilter }} />
             </div>
@@ -262,7 +262,14 @@ export default function UploadFlow() {
             <div>
               <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Tags</p>
               <div className="flex flex-wrap gap-2">
-                {["Digital Art", "Portrait", "Photography", "3D Art", "Graphic Design", "Illustration", "Sketch", "Painting"].map(t => (
+                {[
+                  "Painting", "Drawing", "Sketching", "Illustration", "Watercolor",
+                  "Oil Painting", "Acrylic Painting", "Gouache", "Ink Art", "Pastel Art",
+                  "Charcoal Art", "Portrait Art", "Landscape Art", "Abstract Art",
+                  "Contemporary Art", "Realism", "Hyperrealism", "Surrealism",
+                  "Expressionism", "Figurative Art", "Miniature Art", "Religious Art",
+                  "Conceptual Art", "Mixed Media Art", "Mural Art", "Fresco Art",
+                ].map(t => (
                   <button key={t} onClick={() => setTags(prev => prev.includes(t) ? prev.filter(x => x !== t) : [...prev, t])}
                     className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
                       tags.includes(t)

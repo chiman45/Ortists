@@ -9,15 +9,33 @@ import { type Post } from "@/lib/db/posts";
 import { useEffect, useState } from "react";
 
 const TAGS = [
-  { label: "All",            category: null },
-  { label: "UI/UX",          category: "UI/UX" },
-  { label: "Graphic Design", category: "Branding" },
-  { label: "Digital Art",    category: "Illustration" },
-  { label: "3D Art",         category: "3D" },
-  { label: "Motion",         category: "Motion" },
-  { label: "Sketch Artist",  category: "Typography" },
-  { label: "Photography",    category: "Photography" },
-  { label: "Web Design",     category: "Web Design" },
+  { label: "All",           category: null },
+  { label: "Painting",      category: "Painting" },
+  { label: "Drawing",       category: "Drawing" },
+  { label: "Sketching",     category: "Sketching" },
+  { label: "Illustration",  category: "Illustration" },
+  { label: "Watercolor",    category: "Watercolor" },
+  { label: "Oil Painting",  category: "Oil Painting" },
+  { label: "Acrylic",       category: "Acrylic Painting" },
+  { label: "Gouache",       category: "Gouache" },
+  { label: "Ink Art",       category: "Ink Art" },
+  { label: "Pastel Art",    category: "Pastel Art" },
+  { label: "Charcoal",      category: "Charcoal Art" },
+  { label: "Portrait",      category: "Portrait Art" },
+  { label: "Landscape",     category: "Landscape Art" },
+  { label: "Abstract",      category: "Abstract Art" },
+  { label: "Contemporary",  category: "Contemporary Art" },
+  { label: "Realism",       category: "Realism" },
+  { label: "Hyperrealism",  category: "Hyperrealism" },
+  { label: "Surrealism",    category: "Surrealism" },
+  { label: "Expressionism", category: "Expressionism" },
+  { label: "Figurative",    category: "Figurative Art" },
+  { label: "Miniature",     category: "Miniature Art" },
+  { label: "Religious",     category: "Religious Art" },
+  { label: "Conceptual",    category: "Conceptual Art" },
+  { label: "Mixed Media",   category: "Mixed Media Art" },
+  { label: "Mural",         category: "Mural Art" },
+  { label: "Fresco",        category: "Fresco Art" },
 ];
 
 // Shape the mock posts to match the DB Post type so MasonryGrid works with both
@@ -58,7 +76,7 @@ const [activeTab, setActiveTab]   = useState<"Latest" | "Popular">("Latest");
 
   return (
     <div
-      className="flex min-h-screen"
+      className="flex min-h-screen overflow-x-hidden"
       style={{
         background:
           "radial-gradient(ellipse 60% 50% at 8% 50%, rgba(54,30,123,0.16) 0%, transparent 55%)," +
@@ -68,9 +86,15 @@ const [activeTab, setActiveTab]   = useState<"Latest" | "Popular">("Latest");
     >
       <Sidebar />
 
-      <div className="flex-1 flex flex-col lg:ml-17 min-h-screen">
+      <div className="flex-1 flex flex-col lg:ml-17 min-h-screen min-w-0">
         <MainHeader>
-          <div className="flex gap-2" style={{ scrollbarWidth: "none" }}>
+          <div
+            className="flex gap-2 overflow-x-auto pb-1"
+            style={{
+              scrollbarWidth: "thin",
+              scrollbarColor: "rgba(124,91,245,0.4) transparent",
+            }}
+          >
             {TAGS.map(({ label, category }) => {
               const active = activeTag === category;
               return (

@@ -75,7 +75,7 @@ export default function MainHeader({ children }: { children?: React.ReactNode })
       }}
     >
       {children && (
-        <div className="flex-1 min-w-0 overflow-x-auto" style={{ scrollbarWidth: "none" }}>
+        <div className="flex-1 min-w-0">
           {children}
         </div>
       )}

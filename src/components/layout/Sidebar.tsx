@@ -67,8 +67,9 @@ export default function Sidebar() {
     if (!user) return;
     function fetchUnread() {
       fetch(`/api/messages?action=unread_count&userId=${user!.id}`)
-        .then(r => r.json())
-        .then(({ count }) => setUnreadCount(count ?? 0));
+        .then(r => r.ok ? r.json() : Promise.resolve({ count: 0 }))
+        .then(({ count }) => setUnreadCount(count ?? 0))
+        .catch(() => {}); // silently ignore if API is unreachable
     }
     fetchUnread();
     const interval = setInterval(fetchUnread, 30000);

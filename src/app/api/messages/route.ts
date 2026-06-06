@@ -4,57 +4,60 @@ import { NextRequest, NextResponse } from "next/server";
 // GET /api/messages?action=conversations&userId=
 // GET /api/messages?action=messages&conversationId=
 export async function GET(req: NextRequest) {
-  const { searchParams } = new URL(req.url);
-  const action = searchParams.get("action");
+  try {
+    const { searchParams } = new URL(req.url);
+    const action = searchParams.get("action");
 
-  if (action === "unread_count") {
-    const userId = searchParams.get("userId");
-    if (!userId) return NextResponse.json({ count: 0 });
+    if (action === "unread_count") {
+      const userId = searchParams.get("userId");
+      if (!userId) return NextResponse.json({ count: 0 });
 
-    // Get all conversation IDs for this user
-    const { data: convs } = await adminDb
-      .from("conversations")
-      .select("id")
-      .contains("participant_ids", [userId]);
+      const { data: convs } = await adminDb
+        .from("conversations")
+        .select("id")
+        .contains("participant_ids", [userId]);
 
-    if (!convs || convs.length === 0) return NextResponse.json({ count: 0 });
+      if (!convs || convs.length === 0) return NextResponse.json({ count: 0 });
 
-    const convIds = convs.map((c: { id: string }) => c.id);
+      const convIds = convs.map((c: { id: string }) => c.id);
 
-    // Count unread messages not sent by this user
-    const { count } = await adminDb
-      .from("messages")
-      .select("*", { count: "exact", head: true })
-      .in("conversation_id", convIds)
-      .eq("read", false)
-      .neq("sender_id", userId);
+      const { count } = await adminDb
+        .from("messages")
+        .select("*", { count: "exact", head: true })
+        .in("conversation_id", convIds)
+        .eq("read", false)
+        .neq("sender_id", userId);
 
-    return NextResponse.json({ count: count ?? 0 });
+      return NextResponse.json({ count: count ?? 0 });
+    }
+
+    if (action === "conversations") {
+      const userId = searchParams.get("userId");
+      if (!userId) return NextResponse.json({ conversations: [] });
+      const { data } = await adminDb
+        .from("conversations")
+        .select("*")
+        .contains("participant_ids", [userId])
+        .order("last_message_at", { ascending: false });
+      return NextResponse.json({ conversations: data ?? [] });
+    }
+
+    if (action === "messages") {
+      const conversationId = searchParams.get("conversationId");
+      if (!conversationId) return NextResponse.json({ messages: [] });
+      const { data } = await adminDb
+        .from("messages")
+        .select("*")
+        .eq("conversation_id", conversationId)
+        .order("created_at", { ascending: true });
+      return NextResponse.json({ messages: data ?? [] });
+    }
+
+    return NextResponse.json({ error: "Invalid action" }, { status: 400 });
+  } catch (e) {
+    console.error("GET /api/messages:", e);
+    return NextResponse.json({ count: 0, conversations: [], messages: [] });
   }
-
-  if (action === "conversations") {
-    const userId = searchParams.get("userId");
-    if (!userId) return NextResponse.json({ conversations: [] });
-    const { data } = await adminDb
-      .from("conversations")
-      .select("*")
-      .contains("participant_ids", [userId])
-      .order("last_message_at", { ascending: false });
-    return NextResponse.json({ conversations: data ?? [] });
-  }
-
-  if (action === "messages") {
-    const conversationId = searchParams.get("conversationId");
-    if (!conversationId) return NextResponse.json({ messages: [] });
-    const { data } = await adminDb
-      .from("messages")
-      .select("*")
-      .eq("conversation_id", conversationId)
-      .order("created_at", { ascending: true });
-    return NextResponse.json({ messages: data ?? [] });
-  }
-
-  return NextResponse.json({ error: "Invalid action" }, { status: 400 });
 }
 
 // POST /api/messages — multiple actions via body.action

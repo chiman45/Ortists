@@ -10,6 +10,11 @@ const inter = Inter({ subsets: ["latin"], display: "swap" });
 export const metadata: Metadata = {
   title: "Ortist — Designer Community",
   description: "A social platform for designers to share work and get hired",
+  icons: {
+    icon: "/login-image/ortists logo.jpeg",
+    shortcut: "/login-image/ortists logo.jpeg",
+    apple: "/login-image/ortists logo.jpeg",
+  },
 };
 
 export default function RootLayout({

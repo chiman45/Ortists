@@ -16,7 +16,14 @@ const CONTENT_TYPES = [
   { id: "commission",  Icon: Briefcase,   title: "Commission Service",   desc: "Offer custom creative services and accept hiring requests." },
 ] as const;
 
-const PRESET_TAGS = ["Digital Art", "Portrait", "Photography", "3D Art", "Graphic Design", "Illustration", "Sketch", "Painting"];
+const PRESET_TAGS = [
+  "Painting", "Drawing", "Sketching", "Illustration", "Watercolor",
+  "Oil Painting", "Acrylic Painting", "Gouache", "Ink Art", "Pastel Art",
+  "Charcoal Art", "Portrait Art", "Landscape Art", "Abstract Art",
+  "Contemporary Art", "Realism", "Hyperrealism", "Surrealism",
+  "Expressionism", "Figurative Art", "Miniature Art", "Religious Art",
+  "Conceptual Art", "Mixed Media Art", "Mural Art", "Fresco Art",
+];
 
 interface Props { onClose: () => void }
 
