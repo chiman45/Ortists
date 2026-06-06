@@ -14,6 +14,7 @@ export const allPosts: Post[] = Array.from({ length: 120 }, (_, i) => {
   const h = IMG_HEIGHTS[i % IMG_HEIGHTS.length];
   return {
     id: `p${i + 1}`,
+    userId:      "",
     imageUrl:    `https://picsum.photos/seed/ortist${i + 1}/400/${h}`,
     imageWidth:  400,
     imageHeight: h,

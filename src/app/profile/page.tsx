@@ -49,6 +49,7 @@ export default function ProfilePage() {
   const [activeTab, setActiveTab]       = useState<Tab>("Portfolio");
   const [profile, setProfile]           = useState<Profile | null>(null);
   const [dbPosts, setDbPosts]           = useState<DbPost[]>([]);
+  const [savedPosts, setSavedPosts]     = useState<DbPost[]>([]);
   const [recommended, setRecommended]   = useState<Profile[]>([]);
   const [followed, setFollowed]         = useState<Set<string>>(new Set());
   const [showEdit, setShowEdit]         = useState(false);
@@ -89,6 +90,11 @@ export default function ProfilePage() {
     fetch(`/api/posts?userId=${user.id}`)
       .then(r => r.json())
       .then(({ posts }) => { if (posts) setDbPosts(posts); });
+
+    // Load saved posts
+    fetch(`/api/posts?savedBy=${user.id}`)
+      .then(r => r.json())
+      .then(({ posts }) => { if (posts) setSavedPosts(posts); });
 
     // Load recommended artists (other users)
     fetch("/api/profiles")
@@ -405,7 +411,39 @@ export default function ProfilePage() {
               )
             )}
 
-            {activeTab !== "Portfolio" && activeTab !== "About" && (
+            {/* Saved */}
+            {activeTab === "Saved" && (
+              savedPosts.length > 0 ? (
+                <div className="columns-2 sm:columns-3 gap-3">
+                  {savedPosts.map(post => (
+                    <Link key={post.id} href={`/feed/${post.id}`}
+                      className="break-inside-avoid mb-3 rounded-xl overflow-hidden group cursor-pointer relative block">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={post.image_url} alt={post.title}
+                        className="w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]" />
+                      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-all duration-200 flex items-end p-2">
+                        <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-2">
+                          <span className="flex items-center gap-1 text-[11px] text-white">
+                            <Heart size={11} /> {post.likes_count}
+                          </span>
+                          <span className="flex items-center gap-1 text-[11px] text-white">
+                            <Bookmark size={11} /> {post.saves_count}
+                          </span>
+                        </div>
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+              ) : (
+                <div className="flex flex-col items-center py-20 gap-3">
+                  <p className="text-4xl">🔖</p>
+                  <p className="text-sm font-semibold" style={{ color: "var(--text-2)" }}>No saved posts yet</p>
+                  <p className="text-xs" style={{ color: "var(--text-5)" }}>Posts you save will appear here</p>
+                </div>
+              )
+            )}
+
+            {activeTab !== "Portfolio" && activeTab !== "Saved" && activeTab !== "About" && (
               <div className="flex flex-col items-center py-20 gap-3">
                 <p className="text-3xl">🚧</p>
                 <p className="text-sm" style={{ color: "var(--text-5)" }}>

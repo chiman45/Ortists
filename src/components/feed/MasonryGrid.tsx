@@ -9,6 +9,7 @@ import FeedCard from "./FeedCard";
 function toGridPost(p: DbPost): Post {
   return {
     id:          p.id,
+    userId:      p.user_id,
     title:       p.title,
     imageUrl:    p.image_url,
     imageWidth:  400,

@@ -3,11 +3,12 @@
 import BottomNav from "@/components/layout/BottomNav";
 import MainHeader from "@/components/layout/MainHeader";
 import Sidebar from "@/components/layout/Sidebar";
+import HireModal from "@/components/hire/HireModal";
 import { type Comment } from "@/lib/db/comments";
 import { type Post } from "@/lib/db/posts";
 import { allPosts } from "@/lib/mockData";
 import { useUser } from "@clerk/nextjs";
-import { ArrowLeft, Bookmark, Heart, Send, Share2, UserPlus } from "lucide-react";
+import { ArrowLeft, Bookmark, Briefcase, Heart, Send, Share2, UserPlus } from "lucide-react";
 import Link from "next/link";
 import { use, useEffect, useState } from "react";
 import MasonryGrid from "@/components/feed/MasonryGrid";
@@ -28,6 +29,7 @@ export default function FeedPostPage({ params }: { params: Promise<{ id: string 
   const [comments, setComments]       = useState<Comment[]>([]);
   const [commentText, setCommentText] = useState("");
   const [loading, setLoading]         = useState(true);
+  const [hireOpen, setHireOpen]       = useState(false);
 
   const mockPost = allPosts.find(p => p.id === id) ?? allPosts[0];
   const related  = allPosts.filter(p => p.id !== mockPost.id && p.category === mockPost.category).slice(0, 8);
@@ -224,6 +226,21 @@ export default function FeedPostPage({ params }: { params: Promise<{ id: string 
                     style={{ color: "var(--text-4)" }}>
                     <Share2 size={16} /> Share
                   </button>
+
+                  {/* Hire button — only on other people's posts */}
+                  {user && post?.user_id && user.id !== post.user_id && (
+                    <button
+                      onClick={() => setHireOpen(true)}
+                      className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-full ml-auto transition-all hover:opacity-90"
+                      style={{
+                        background: "linear-gradient(135deg,#361E7B,#7C5BF5)",
+                        color: "#fff",
+                        boxShadow: "0 2px 12px rgba(124,91,245,0.4)",
+                      }}
+                    >
+                      <Briefcase size={13} /> Hire
+                    </button>
+                  )}
                 </div>
               </div>
 
@@ -277,6 +294,15 @@ export default function FeedPostPage({ params }: { params: Promise<{ id: string 
         </main>
       </div>
       <BottomNav />
+
+      {hireOpen && post?.user_id && (
+        <HireModal
+          authorUserId={post.user_id}
+          authorName={udisp}
+          authorAvatar={avatar}
+          onClose={() => setHireOpen(false)}
+        />
+      )}
     </div>
   );
 }

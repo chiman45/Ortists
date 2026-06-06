@@ -43,6 +43,11 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     .single();
 
   if (action === "like") {
+    // Guard: skip if already liked (prevents duplicate rows)
+    const { data: existing } = await adminDb
+      .from("likes").select("user_id").eq("post_id", id).eq("user_id", userId).maybeSingle();
+    if (existing) return NextResponse.json({ ok: true });
+
     await adminDb.from("likes").insert({ post_id: id, user_id: userId });
     if (post) {
       await Promise.all([

@@ -5,7 +5,7 @@ import Avatar from "@/components/ui/Avatar";
 import { Heart, MessageCircle } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useUser } from "@clerk/nextjs";
 
 interface FeedCardProps { post: Post; priority?: boolean }
@@ -15,28 +15,45 @@ const isUUID = (s: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-
 
 export default function FeedCard({ post, priority = false }: FeedCardProps) {
   const { user } = useUser();
-  const [liked, setLiked] = useState(false);
-  const [count, setCount] = useState(post.likes);
+  const [liked, setLiked]     = useState(false);
+  const [count, setCount]     = useState(post.likes);
+  const [pending, setPending] = useState(false);
+
+  // Fetch real liked state on mount — prevents duplicate likes
+  useEffect(() => {
+    if (!user || !isUUID(post.id)) return;
+    fetch(`/api/posts/${post.id}?userId=${user.id}`)
+      .then(r => r.json())
+      .then(({ liked: alreadyLiked, post: p }) => {
+        setLiked(!!alreadyLiked);
+        if (p?.likes_count !== undefined) setCount(p.likes_count);
+      })
+      .catch(() => {});
+  }, [post.id, user]);
 
   async function handleLike(e: React.MouseEvent) {
     e.preventDefault();
     e.stopPropagation();
-    if (!user || !isUUID(post.id)) return;
+    if (!user || !isUUID(post.id) || pending) return;
+    setPending(true);
     if (liked) {
-      setLiked(false); setCount(c => Math.max(0, c - 1));
-      fetch(`/api/posts/${post.id}`, {
+      setLiked(false);
+      setCount(c => Math.max(0, c - 1));
+      await fetch(`/api/posts/${post.id}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "unlike", userId: user.id }),
       });
     } else {
-      setLiked(true); setCount(c => c + 1);
-      fetch(`/api/posts/${post.id}`, {
+      setLiked(true);
+      setCount(c => c + 1);
+      await fetch(`/api/posts/${post.id}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "like", userId: user.id }),
       });
     }
+    setPending(false);
   }
 
   return (
@@ -55,17 +72,20 @@ export default function FeedCard({ post, priority = false }: FeedCardProps) {
       </div>
       <div className="flex items-center gap-2 mt-2.5 px-0.5">
         <Avatar name={post.username} src={post.avatar} size={26} />
-        <span className="text-sm font-medium flex-1 truncate" style={{ color: "var(--text-2)" }}>
+        <span className="text-sm font-medium flex-1 truncate min-w-0" style={{ color: "var(--text-2)" }}>
           {post.username}
         </span>
-        <button onClick={handleLike}
-          className="flex items-center gap-1 text-xs transition-colors shrink-0"
-          style={{ color: liked ? "#f43f5e" : "var(--text-5)" }}>
-          <Heart size={14} fill={liked ? "currentColor" : "none"} />
+        <button
+          onClick={handleLike}
+          disabled={pending}
+          className="flex items-center gap-1 text-xs transition-colors shrink-0 disabled:opacity-60"
+          style={{ color: liked ? "#f43f5e" : "var(--text-5)" }}
+        >
+          <Heart size={13} fill={liked ? "currentColor" : "none"} />
           <span>{fmt(count)}</span>
         </button>
         <div className="flex items-center gap-1 text-xs shrink-0" style={{ color: "var(--text-5)" }}>
-          <MessageCircle size={14} />
+          <MessageCircle size={13} />
           <span>{post.comments}</span>
         </div>
       </div>
