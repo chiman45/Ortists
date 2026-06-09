@@ -3,6 +3,7 @@
 import BottomNav from "@/components/layout/BottomNav";
 import MainHeader from "@/components/layout/MainHeader";
 import Sidebar from "@/components/layout/Sidebar";
+import ProfileSkeleton from "@/components/ui/skeletons/ProfileSkeleton";
 import { type Post as DbPost } from "@/lib/db/posts";
 import { type Profile } from "@/lib/db/profiles";
 import { useUser } from "@clerk/nextjs";
@@ -259,8 +260,15 @@ export default function ProfilePage() {
 
         <main className="flex-1 flex gap-0 pb-24 lg:pb-0">
 
+          {/* Loading skeleton */}
+          {!isLoaded || !profile ? (
+            <div className="flex-1 min-w-0 px-4 md:px-8 py-6">
+              <ProfileSkeleton />
+            </div>
+          ) : null}
+
           {/* ── Centre ── */}
-          <div className="flex-1 min-w-0 px-4 md:px-8 py-6">
+          <div className={`flex-1 min-w-0 px-4 md:px-8 py-6${!isLoaded || !profile ? " hidden" : ""}`}>
 
             {/* Profile header */}
             <div className="rounded-2xl overflow-hidden mb-5"

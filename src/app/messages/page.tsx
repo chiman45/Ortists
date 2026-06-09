@@ -2,6 +2,7 @@
 
 import BottomNav from "@/components/layout/BottomNav";
 import Sidebar from "@/components/layout/Sidebar";
+import MessagesSkeleton from "@/components/ui/skeletons/MessagesSkeleton";
 import { type Conversation, type Message } from "@/lib/db/messages";
 import { type Profile } from "@/lib/db/profiles";
 import { useUser } from "@clerk/nextjs";
@@ -178,7 +179,11 @@ export default function MessagesPage() {
 
       <div className="flex-1 flex lg:ml-17 overflow-hidden" style={{ height: "100vh" }}>
 
+        {/* Loading skeleton — shown while conversations fetch */}
+        {loading ? <MessagesSkeleton /> : null}
+
         {/* ── Left: Conversation list ── */}
+        {!loading ? (<>
         <div className="hidden md:flex flex-col w-72 shrink-0 h-full"
           style={{ borderRight: "1px solid var(--border)", background: "var(--bg-card)" }}>
           <div className="px-4 pt-5 pb-4 shrink-0">
@@ -396,6 +401,8 @@ export default function MessagesPage() {
             </div>
           </div>
         )}
+
+      </>) : null}
 
       </div>
 

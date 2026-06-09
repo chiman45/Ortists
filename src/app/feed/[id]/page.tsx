@@ -4,6 +4,7 @@ import BottomNav from "@/components/layout/BottomNav";
 import MainHeader from "@/components/layout/MainHeader";
 import Sidebar from "@/components/layout/Sidebar";
 import HireModal from "@/components/hire/HireModal";
+import PostDetailSkeleton from "@/components/ui/skeletons/PostDetailSkeleton";
 import { type Comment } from "@/lib/db/comments";
 import { type Post } from "@/lib/db/posts";
 import { allPosts } from "@/lib/mockData";
@@ -168,7 +169,11 @@ export default function FeedPostPage({ params }: { params: Promise<{ id: string 
             </Link>
           </div>
 
-          <div className="flex flex-col lg:flex-row" style={{ minHeight: "calc(100vh - 180px)" }}>
+          {loading && isUUID ? (
+            <PostDetailSkeleton />
+          ) : null}
+
+          <div className={`flex flex-col lg:flex-row${loading && isUUID ? " hidden" : ""}`} style={{ minHeight: "calc(100vh - 180px)" }}>
             {/* Image */}
             <div className="lg:sticky lg:top-15 lg:self-start flex-1 flex items-center justify-center px-4 md:px-8 pb-6 lg:pb-0"
               style={{ maxWidth: "55%" }}>

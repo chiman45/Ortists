@@ -1,9 +1,59 @@
 "use client";
 
 import SearchOverlay from "@/components/search/SearchOverlay";
+import { FeaturesGrid, FeaturesHero, FeatureHighlight, StatsBar } from "@/components/features";
 import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
+
+/* ── Scroll-reveal helpers ── */
+function useReveal(threshold = 0.25) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [revealed, setRevealed] = useState(false);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const obs = new IntersectionObserver(
+      ([e]) => { if (e.isIntersecting) { setRevealed(true); obs.disconnect(); } },
+      { threshold }
+    );
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, [threshold]);
+  return { ref, revealed };
+}
+
+function RevealWords({ text, className = "", style = {}, baseDelay = 0, stagger = 0.06 }:
+  { text: string; className?: string; style?: React.CSSProperties; baseDelay?: number; stagger?: number }) {
+  const { ref, revealed } = useReveal(0.3);
+  return (
+    <span ref={ref} className={className} style={style}>
+      {text.split(" ").map((word, i) => (
+        <span key={i} className="word-clip">
+          <span style={{ animation: revealed ? `word-up 0.7s cubic-bezier(0.22,1,0.36,1) ${baseDelay + i * stagger}s both` : "none", opacity: revealed ? undefined : 0 }}>
+            {word}
+          </span>
+          {i < text.split(" ").length - 1 ? " " : ""}
+        </span>
+      ))}
+    </span>
+  );
+}
+
+function RevealFade({ children, delay = 0, className = "", style = {} }:
+  { children: React.ReactNode; delay?: number; className?: string; style?: React.CSSProperties }) {
+  const { ref, revealed } = useReveal(0.2);
+  return (
+    <div ref={ref} className={className} style={{
+      ...style,
+      opacity: revealed ? 1 : 0,
+      transform: revealed ? "translateY(0)" : "translateY(28px)",
+      transition: revealed ? `opacity 0.7s ease ${delay}s, transform 0.7s cubic-bezier(0.22,1,0.36,1) ${delay}s` : "none",
+    }}>
+      {children}
+    </div>
+  );
+}
 
 const CARDS = [
   { seed: "artwork-urban",    w: 280, h: 375, rotate: -20, x: -235 },
@@ -265,6 +315,116 @@ export default function LandingPage() {
       </main>
 
       <SearchOverlay isOpen={searchOpen} onClose={() => setSearchOpen(false)} />
+
+      {/* ── Features sections ── */}
+      <FeaturesHero />
+      <StatsBar />
+      <FeaturesGrid />
+      <FeatureHighlight />
+
+      {/* ── CTA ── */}
+      <section className="relative z-10 py-24 px-6 md:px-10 text-center overflow-hidden"
+        style={{ borderTop: "1px solid rgba(124,91,245,0.10)" }}>
+        <div className="absolute inset-0 pointer-events-none"
+          style={{ background: "radial-gradient(ellipse 80% 70% at 50% 50%, rgba(54,30,123,0.18) 0%, transparent 70%)" }} />
+        <div className="relative max-w-2xl mx-auto">
+          <RevealWords text="Ready to share your" baseDelay={0} stagger={0.07}
+            className="block font-black mb-1" style={{ fontSize: "clamp(28px, 4.5vw, 60px)", color: "var(--text-1)" }} />
+          <RevealWords text="masterpiece?" baseDelay={0.35} stagger={0.09}
+            className="block font-black mb-6" style={{ fontSize: "clamp(28px, 4.5vw, 60px)", background: "linear-gradient(90deg,#9B7CF5,#F59E0B)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }} />
+          <RevealFade delay={0.6}>
+            <p className="text-base mb-8" style={{ color: "var(--text-4)" }}>
+              Join 12,400+ artists already building their creative careers on Ortist.
+            </p>
+            <Link href="/login"
+              className="inline-flex items-center px-8 py-4 rounded-2xl text-white font-bold text-base transition-all hover:scale-[1.04] active:scale-[0.98]"
+              style={{ background: "linear-gradient(135deg, #361E7B, #7C5BF5)", boxShadow: "0 8px 32px rgba(54,30,123,0.45)" }}>
+              Get started free →
+            </Link>
+          </RevealFade>
+        </div>
+      </section>
+
+      {/* Footer */}
+      <footer
+        className="relative z-10 w-full"
+        style={{ borderTop: "1px solid rgba(124,91,245,0.15)", background: "rgba(10,6,28,0.7)", backdropFilter: "blur(20px)" }}
+      >
+        <div className="max-w-7xl mx-auto px-6 md:px-10 py-12">
+          {/* Top row */}
+          <div className="flex flex-col md:flex-row gap-10 md:gap-0 justify-between mb-10">
+
+            {/* Brand */}
+            <div className="max-w-xs">
+              <div className="flex items-center gap-2.5 mb-3">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src="/login-image/ortists logo.jpeg" alt="Ortist" className="w-8 h-8 rounded-lg object-cover" />
+                <span className="text-lg font-black" style={{ background: "linear-gradient(90deg,#9B7CF5,#F59E0B)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
+                  Ortist
+                </span>
+              </div>
+              <p className="text-sm leading-relaxed" style={{ color: "var(--text-5)" }}>
+                A social platform for artists to showcase their masterpieces, connect with buyers, and grow their creative careers.
+              </p>
+            </div>
+
+            {/* Links */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-8 text-sm">
+              <div>
+                <p className="font-semibold mb-3" style={{ color: "var(--text-2)" }}>Platform</p>
+                <ul className="flex flex-col gap-2">
+                  {[["Feed", "/feed"], ["Explore", "/explore"], ["Marketplace", "/marketplace"], ["Hiring", "/hiring"]].map(([l, h]) => (
+                    <li key={l}><Link href={h} className="transition-opacity hover:opacity-70" style={{ color: "var(--text-5)" }}>{l}</Link></li>
+                  ))}
+                </ul>
+              </div>
+              <div>
+                <p className="font-semibold mb-3" style={{ color: "var(--text-2)" }}>Company</p>
+                <ul className="flex flex-col gap-2">
+                  {[["About", "#"], ["Blog", "#"], ["Careers", "#"], ["Press", "#"]].map(([l, h]) => (
+                    <li key={l}><Link href={h} className="transition-opacity hover:opacity-70" style={{ color: "var(--text-5)" }}>{l}</Link></li>
+                  ))}
+                </ul>
+              </div>
+              <div>
+                <p className="font-semibold mb-3" style={{ color: "var(--text-2)" }}>Legal</p>
+                <ul className="flex flex-col gap-2">
+                  {[["Privacy Policy", "#"], ["Terms of Service", "#"], ["Cookie Policy", "#"], ["DMCA", "#"]].map(([l, h]) => (
+                    <li key={l}><Link href={h} className="transition-opacity hover:opacity-70" style={{ color: "var(--text-5)" }}>{l}</Link></li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+          </div>
+
+          {/* Divider */}
+          <div style={{ borderTop: "1px solid rgba(124,91,245,0.12)" }} className="mb-6" />
+
+          {/* Bottom row */}
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+            <p className="text-xs" style={{ color: "var(--text-5)" }}>
+              © {new Date().getFullYear()} Ortist. All rights reserved.
+            </p>
+            {/* Social icons */}
+            <div className="flex items-center gap-4">
+              {[
+                { label: "Twitter / X", svg: <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.746l7.73-8.835L1.254 2.25H8.08l4.253 5.622zm-1.161 17.52h1.833L7.084 4.126H5.117z" /> },
+                { label: "Instagram",   svg: <><rect width="20" height="20" x="2" y="2" rx="5" ry="5"/><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/><line x1="17.5" x2="17.51" y1="6.5" y2="6.5"/></> },
+                { label: "LinkedIn",    svg: <><path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6z"/><rect width="4" height="12" x="2" y="9"/><circle cx="4" cy="4" r="2"/></> },
+              ].map(({ label, svg }) => (
+                <a key={label} href="#" aria-label={label}
+                  className="w-8 h-8 rounded-lg flex items-center justify-center transition-all hover:opacity-80"
+                  style={{ background: "rgba(124,91,245,0.12)", border: "1px solid rgba(124,91,245,0.2)", color: "var(--text-4)" }}>
+                  <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    {svg}
+                  </svg>
+                </a>
+              ))}
+            </div>
+          </div>
+        </div>
+      </footer>
     </div>
   );
 }

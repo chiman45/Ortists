@@ -5,6 +5,7 @@ import StoriesRow from "@/components/feed/StoriesRow";
 import BottomNav from "@/components/layout/BottomNav";
 import MainHeader from "@/components/layout/MainHeader";
 import Sidebar from "@/components/layout/Sidebar";
+import FeedGridSkeleton from "@/components/ui/skeletons/FeedCardSkeleton";
 import { type Post } from "@/lib/db/posts";
 import { useEffect, useState } from "react";
 
@@ -140,12 +141,7 @@ const [activeTab, setActiveTab]   = useState<"Latest" | "Popular">("Latest");
           </div>
 
           {loading ? (
-            <div className="columns-2 sm:columns-3 lg:columns-4 xl:columns-5 gap-4">
-              {Array.from({ length: 12 }).map((_, i) => (
-                <div key={i} className="break-inside-avoid mb-4 rounded-2xl animate-pulse"
-                  style={{ height: 200 + (i % 3) * 80, background: "var(--bg-card)" }} />
-              ))}
-            </div>
+            <FeedGridSkeleton count={12} />
           ) : (
             /* key forces full remount when tag changes or when DB vs mock source changes */
             <MasonryGrid
