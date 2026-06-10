@@ -10,7 +10,6 @@ import { useEffect, useState } from "react";
 
 const NAV_ITEMS: { icon: string | null; lucideIcon: React.ElementType | null; label: string; href: string }[] = [
   { icon: "/icons/1.png", lucideIcon: null,       label: "Feed",        href: "/feed" },
-  { icon: "/icons/dashboard.png", lucideIcon: null,       label: "Dashboard",   href: "/dashboard" },
   { icon: "/icons/3.png", lucideIcon: null,       label: "Messages",    href: "/messages" },
   { icon: "/icons/explore.png",           lucideIcon: Compass,    label: "Explore",     href: "/explore" },
   { icon: "/icons/7.png", lucideIcon: null,       label: "Marketplace", href: "/marketplace" },

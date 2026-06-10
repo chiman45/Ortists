@@ -4,6 +4,11 @@ import BottomNav from "@/components/layout/BottomNav";
 import MainHeader from "@/components/layout/MainHeader";
 import Sidebar from "@/components/layout/Sidebar";
 import ProfileSkeleton from "@/components/ui/skeletons/ProfileSkeleton";
+import StatCard from "@/components/dashboard/StatCard";
+import EngagementChart from "@/components/dashboard/EngagementChart";
+import TrafficSources from "@/components/dashboard/TrafficSources";
+import CategoryBubbles from "@/components/dashboard/CategoryBubbles";
+import RecentCommissions from "@/components/dashboard/RecentCommissions";
 import { type Post as DbPost } from "@/lib/db/posts";
 import { type Profile } from "@/lib/db/profiles";
 import { useUser } from "@clerk/nextjs";
@@ -22,7 +27,7 @@ interface FollowUser {
   tag: string;
 }
 
-const TABS = ["Portfolio", "Marketplace", "Services", "Saved", "About"] as const;
+const TABS = ["Portfolio", "Marketplace", "Services", "Saved", "Dashboard", "About"] as const;
 type Tab = typeof TABS[number];
 
 interface EditForm {
@@ -244,6 +249,15 @@ export default function ProfilePage() {
   const available    = profile?.available ?? true;
   const responseTime = profile?.response_time ?? "Within 24 hours";
 
+  // Dashboard stats derived from existing data
+  const totalSaves  = dbPosts.reduce((s, p) => s + (p.saves_count ?? 0), 0);
+  const dashStats = [
+    { title: "My Posts",    value: dbPosts.length.toString(),         change: "", positive: true, data: [0,0,0,0,0,0,0,0,0,0,0,dbPosts.length],  color: "#10b981", gradId: "dp-posts"  },
+    { title: "Total Likes", value: totalLikes.toLocaleString(),        change: "", positive: true, data: [0,0,0,0,0,0,0,0,0,0,0,totalLikes],       color: "#f43f5e", gradId: "dp-likes"  },
+    { title: "Followers",   value: followers.toLocaleString(),         change: "", positive: true, data: [0,0,0,0,0,0,0,0,0,0,0,followers],        color: "#7C5BF5", gradId: "dp-follow" },
+    { title: "Total Saves", value: totalSaves.toLocaleString(),        change: "", positive: true, data: [0,0,0,0,0,0,0,0,0,0,0,totalSaves],       color: "#F5C842", gradId: "dp-saves"  },
+  ];
+
   // Recent activity from real posts
   const recentActivity = dbPosts.slice(0, 3).map(p => ({
     text:  `Uploaded "${p.title}"`,
@@ -451,7 +465,26 @@ export default function ProfilePage() {
               )
             )}
 
-            {activeTab !== "Portfolio" && activeTab !== "Saved" && activeTab !== "About" && (
+            {/* Dashboard */}
+            {activeTab === "Dashboard" && (
+              <div className="flex flex-col gap-5">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                  {dashStats.map(s => <StatCard key={s.gradId} {...s} />)}
+                </div>
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+                  <div className="lg:col-span-2"><EngagementChart /></div>
+                  <TrafficSources />
+                </div>
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+                  <CategoryBubbles />
+                  <div className="lg:col-span-2">
+                    <RecentCommissions posts={dbPosts} loading={!profile} />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {activeTab !== "Portfolio" && activeTab !== "Saved" && activeTab !== "About" && activeTab !== "Dashboard" && (
               <div className="flex flex-col items-center py-20 gap-3">
                 <p className="text-3xl">🚧</p>
                 <p className="text-sm" style={{ color: "var(--text-5)" }}>

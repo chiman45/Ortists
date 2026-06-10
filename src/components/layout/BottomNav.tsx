@@ -1,6 +1,6 @@
 "use client";
 
-import { BarChart2, LayoutGrid, Mail, Plus } from "lucide-react";
+import { LayoutGrid, Mail, Plus, UserCircle } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
@@ -10,7 +10,7 @@ const LEFT_NAV = [
 ];
 
 const RIGHT_NAV = [
-  { icon: BarChart2, label: "Dashboard", href: "/dashboard" },
+  { icon: UserCircle, label: "Profile", href: "/profile" },
 ];
 
 export default function BottomNav() {
