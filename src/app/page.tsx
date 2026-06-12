@@ -358,7 +358,7 @@ export default function LandingPage() {
             <div className="max-w-xs">
               <div className="flex items-center gap-2.5 mb-3">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src="/login-image/ortists logo.jpeg" alt="Ortist" className="w-8 h-8 rounded-lg object-cover" />
+                <img src="/login-image/ortists logo1.png" alt="Ortist" className="w-8 h-8 rounded-lg object-cover" />
                 <span className="text-lg font-black" style={{ background: "linear-gradient(90deg,#9B7CF5,#F59E0B)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
                   Ortist
                 </span>
