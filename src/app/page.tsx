@@ -1,13 +1,57 @@
 "use client";
 
-import SearchOverlay from "@/components/search/SearchOverlay";
-import { FeaturesGrid, FeaturesHero, FeatureHighlight, StatsBar } from "@/components/features";
-import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
+import { Playfair_Display } from "next/font/google";
 
-/* ── Scroll-reveal helpers ── */
-function useReveal(threshold = 0.25) {
+const playfair = Playfair_Display({
+  subsets: ["latin"],
+  weight: ["400", "500", "700", "900"],
+  style: ["normal", "italic"],
+  display: "swap",
+});
+
+const ACCENT = "#7B4DFF";
+const GOLD   = "#FFB800";
+const BG     = "#050505";
+const SURF   = "#0B0B0F";
+const MUTED  = "#8B8B95";
+
+const NAV_LINKS = [
+  ["Feed",        "/feed"],
+  ["Marketplace", "/marketplace"],
+  ["Hire",        "/hiring"],
+  ["Artists",     "/hiring"],
+  ["About",       "#"],
+] as const;
+
+const FEATURED_ARTISTS = [
+  { id: 1, name: "Aria Chen",      category: "Digital Art",   avatarSeed: "p-aria-1",   workSeed: "abstract-digital-1"  },
+  { id: 2, name: "Marcus Webb",    category: "Photography",   avatarSeed: "p-marcus-2", workSeed: "photo-landscape-22"  },
+  { id: 3, name: "Sofia Laurent",  category: "Oil Painting",  avatarSeed: "p-sofia-3",  workSeed: "painting-oil-33"     },
+  { id: 4, name: "Kenji Mori",     category: "Illustration",  avatarSeed: "p-kenji-4",  workSeed: "illustration-44"     },
+  { id: 5, name: "Amara Osei",     category: "Sculpture",     avatarSeed: "p-amara-5",  workSeed: "sculpture-55"        },
+  { id: 6, name: "Lena Hoffmann",  category: "Mixed Media",   avatarSeed: "p-lena-6",   workSeed: "mixed-media-66"      },
+];
+
+const STATS = [
+  { value: "12,400+", label: "Artists"    },
+  { value: "50,000+", label: "Projects"   },
+  { value: "8,200+",  label: "Commissions"},
+  { value: "2,100+",  label: "Listings"   },
+];
+
+/* Artistic hero slides — moody, painterly picsum seeds */
+const HERO_SLIDES = [
+  { src: "https://picsum.photos/seed/portrait-dark-oil-1/1920/1200", label: "Oil on canvas · c. 1680" },
+  { src: "https://picsum.photos/seed/baroque-figure-2/1920/1200",    label: "Charcoal study · c. 1720" },
+  { src: "https://picsum.photos/seed/dramatic-chiaroscuro-3/1920/1200", label: "Mixed media · c. 1890" },
+  { src: "https://picsum.photos/seed/ethereal-landscape-art-4/1920/1200", label: "Oil on panel · c. 1640" },
+  { src: "https://picsum.photos/seed/classical-museum-5/1920/1200",  label: "Tempera on canvas · c. 1750" },
+];
+
+/* ── Scroll-reveal ── */
+function useReveal(threshold = 0.15) {
   const ref = useRef<HTMLDivElement>(null);
   const [revealed, setRevealed] = useState(false);
   useEffect(() => {
@@ -23,405 +67,595 @@ function useReveal(threshold = 0.25) {
   return { ref, revealed };
 }
 
-function RevealWords({ text, className = "", style = {}, baseDelay = 0, stagger = 0.06 }:
-  { text: string; className?: string; style?: React.CSSProperties; baseDelay?: number; stagger?: number }) {
-  const { ref, revealed } = useReveal(0.3);
-  return (
-    <span ref={ref} className={className} style={style}>
-      {text.split(" ").map((word, i) => (
-        <span key={i} className="word-clip">
-          <span style={{ animation: revealed ? `word-up 0.7s cubic-bezier(0.22,1,0.36,1) ${baseDelay + i * stagger}s both` : "none", opacity: revealed ? undefined : 0 }}>
-            {word}
-          </span>
-          {i < text.split(" ").length - 1 ? " " : ""}
-        </span>
-      ))}
-    </span>
-  );
-}
-
-function RevealFade({ children, delay = 0, className = "", style = {} }:
-  { children: React.ReactNode; delay?: number; className?: string; style?: React.CSSProperties }) {
-  const { ref, revealed } = useReveal(0.2);
+function RevealFade({
+  children, delay = 0, className = "", style = {},
+}: { children: React.ReactNode; delay?: number; className?: string; style?: React.CSSProperties }) {
+  const { ref, revealed } = useReveal(0.12);
   return (
     <div ref={ref} className={className} style={{
       ...style,
-      opacity: revealed ? 1 : 0,
-      transform: revealed ? "translateY(0)" : "translateY(28px)",
-      transition: revealed ? `opacity 0.7s ease ${delay}s, transform 0.7s cubic-bezier(0.22,1,0.36,1) ${delay}s` : "none",
+      opacity:    revealed ? 1 : 0,
+      transform:  revealed ? "translateY(0)" : "translateY(44px)",
+      transition: revealed
+        ? `opacity 0.9s ease ${delay}s, transform 1s cubic-bezier(0.22,1,0.36,1) ${delay}s`
+        : "none",
     }}>
       {children}
     </div>
   );
 }
 
-const CARDS = [
-  { seed: "artwork-urban",    w: 280, h: 375, rotate: -20, x: -235 },
-  { seed: "artwork-collage",  w: 270, h: 360, rotate: -11, x: -138 },
-  { seed: "artwork-poster",   w: 265, h: 348, rotate:  -3, x:  -47 },
-  { seed: "artwork-abstract", w: 268, h: 352, rotate:   5, x:   52  },
-  { seed: "artwork-graffiti", w: 270, h: 360, rotate:  13, x:  150  },
-  { seed: "artwork-street",   w: 265, h: 348, rotate:  22, x:  248  },
-] as const;
-
-const CARD_Z    = [1, 3, 5, 5, 3, 1];
-const FLOAT_DUR = [2.4, 2.8, 2.5, 2.7, 2.6, 2.9];
-const FLOAT_DEL = [0.0, 0.4, 0.2, 0.6, 0.1, 0.5];
-
-const H1_L1 = ["A", "place", "to", "display", "your"];
-const H1_L2 = ["masterpiece."];
-
-const SPRING_IN    = "cubic-bezier(0.34, 1.56, 0.64, 1)";
-const SPRING_HOVER = "cubic-bezier(0.34, 1.56, 0.64, 1)";
-
-type Phase = "hidden" | "appearing" | "floating";
+/* ── Thin divider line ── */
+function Divider() {
+  return <div style={{ height: 1, background: "rgba(255,255,255,0.06)" }} />;
+}
 
 export default function LandingPage() {
-  const [phase,       setPhase]       = useState<Phase>("hidden");
-  const [hoveredCard, setHoveredCard] = useState<number | null>(null);
-  const [searchOpen,  setSearchOpen]  = useState(false);
-
-  const mainRef = useRef<HTMLDivElement>(null);
-  const fanRef  = useRef<HTMLDivElement>(null);
-  const tiltRef = useRef({ x: 0, y: 0 });
+  const [scrolled, setScrolled] = useState(false);
+  const [slide,   setSlide]   = useState(0);
 
   useEffect(() => {
-    const t1 = setTimeout(() => setPhase("appearing"), 80);
-    const t2 = setTimeout(() => setPhase("floating"),  2000);
-    return () => { clearTimeout(t1); clearTimeout(t2); };
+    const fn = () => setScrolled(window.scrollY > 70);
+    window.addEventListener("scroll", fn, { passive: true });
+    return () => window.removeEventListener("scroll", fn);
   }, []);
 
   useEffect(() => {
-    const main = mainRef.current;
-    const fan  = fanRef.current;
-    if (!main || !fan) return;
-    let raf = 0;
-
-    function onMove(e: MouseEvent) {
-      const r = main!.getBoundingClientRect();
-      tiltRef.current = {
-        x: ((e.clientX - r.left) / r.width  - 0.5) * 10,
-        y: ((e.clientY - r.top)  / r.height - 0.5) * 6,
-      };
-      cancelAnimationFrame(raf);
-      raf = requestAnimationFrame(() => {
-        fan!.style.transform =
-          `perspective(900px) rotateY(${tiltRef.current.x}deg) rotateX(${-tiltRef.current.y}deg)`;
-      });
-    }
-    function onLeave() {
-      cancelAnimationFrame(raf);
-      raf = requestAnimationFrame(() => {
-        fan!.style.transform  = "perspective(900px) rotateY(0deg) rotateX(0deg)";
-        fan!.style.transition = "transform 0.9s cubic-bezier(0.22,1,0.36,1)";
-      });
-      setTimeout(() => { if (fan) fan.style.transition = "transform 0.12s ease-out"; }, 950);
-    }
-
-    main.addEventListener("mousemove",  onMove);
-    main.addEventListener("mouseleave", onLeave);
-    fan.style.transition = "transform 0.12s ease-out";
-    return () => {
-      main.removeEventListener("mousemove",  onMove);
-      main.removeEventListener("mouseleave", onLeave);
-      cancelAnimationFrame(raf);
-    };
+    const t = setInterval(() => setSlide(s => (s + 1) % HERO_SLIDES.length), 6000);
+    return () => clearInterval(t);
   }, []);
-
-  const visible  = phase !== "hidden";
-  const floating = phase === "floating";
 
   return (
-    <div className="min-h-screen flex flex-col" style={{ background: "var(--bg)" }}>
-      {/* Background glow orbs */}
-      <div className="fixed inset-0 pointer-events-none" style={{ zIndex: 0 }}>
-        <div style={{ position:"absolute", top:"-15%", left:"-8%", width:700, height:700, borderRadius:"50%",
-          background:"radial-gradient(circle, rgba(54,30,123,0.22) 0%, transparent 65%)" }} />
-        <div style={{ position:"absolute", bottom:"-5%", right:"-3%", width:500, height:500, borderRadius:"50%",
-          background:"radial-gradient(circle, rgba(124,91,245,0.10) 0%, transparent 70%)" }} />
-      </div>
+    <div style={{ background: BG, color: "#fff", overflowX: "hidden" }}>
 
-      {/* ── Hero ── */}
-      <main
-        ref={mainRef}
-        className="flex-1 flex items-center select-none"
-        style={{ minHeight:"100svh", paddingTop:96, paddingLeft:"5%", paddingRight:"5%", paddingBottom:40, position:"relative", zIndex:1 }}
+      {/* ════════════════════════════ NAV ════════════════════════════ */}
+      <nav
+        className="fixed top-0 inset-x-0 z-50 flex items-center justify-between px-8 md:px-14 lg:px-20 py-5 transition-all duration-500"
+        style={{
+          background:    scrolled ? "rgba(5,5,5,0.88)" : "transparent",
+          backdropFilter: scrolled ? "blur(22px)" : "none",
+          borderBottom:  scrolled ? "1px solid rgba(255,255,255,0.05)" : "none",
+        }}
       >
-        <div className="max-w-7xl mx-auto w-full flex flex-col lg:flex-row items-center gap-10 lg:gap-14">
+        <Link href="/" className="flex items-center gap-2.5 shrink-0">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/login-image/ortists logo1.png" alt="Ortist" className="w-7 h-7 rounded-md object-cover" />
+          <span className="text-[15px] font-bold tracking-wide text-white">Ortist</span>
+        </Link>
 
-          {/* Left: Text + Buttons */}
-          <div className="w-full lg:flex-1 text-center lg:text-left" style={{ maxWidth:520 }}>
-            {/* Badge */}
-            <div className="inline-flex items-center gap-2 mb-6 px-3.5 py-1.5 rounded-full text-xs font-semibold"
-              style={{
-                background:"rgba(54,30,123,0.25)", border:"1px solid rgba(124,91,245,0.30)",
-                color:"rgba(255,255,255,0.70)",
-                animation: visible ? "fade-up 0.6s cubic-bezier(0.22,1,0.36,1) 0.1s both" : "none",
-              }}
-            >
-              <span className="w-1.5 h-1.5 rounded-full" style={{ background:"#7C5BF5", animation:"pulse-glow 2s ease-in-out infinite" }} />
-              ✦ Design Platform
-            </div>
-
-            {/* Heading */}
-            <h1 className="font-black tracking-tight leading-[1.06] mb-2"
-              style={{ fontSize:"clamp(36px, 5vw, 66px)", color: "var(--text-1)" }}>
-              <span className="block mb-1">
-                {H1_L1.map((word, i) => (
-                  <span key={word + i} className="word-clip">
-                    <span style={{ animation: visible ? `word-up 0.65s cubic-bezier(0.22,1,0.36,1) ${0.18 + i * 0.07}s both` : "none" }}>
-                      {word}
-                    </span>
-                    {i < H1_L1.length - 1 ? " " : ""}
-                  </span>
-                ))}
-              </span>
-              {/* Spacer between lines */}
-              <span className="block h-5 lg:h-7" aria-hidden="true" />
-              <span className="block" style={{ color:"#7C5BF5" }}>
-                {H1_L2.map((word, i) => (
-                  <span key={word + i} className="word-clip">
-                    <span style={{ animation: visible ? `word-up 0.65s cubic-bezier(0.22,1,0.36,1) ${0.18 + (H1_L1.length + i) * 0.07}s both` : "none" }}>
-                      {word}
-                    </span>
-                  </span>
-                ))}
-              </span>
-            </h1>
-
-            {/* Subtitle */}
-            <p className="text-base leading-relaxed mb-8 mt-5"
-              style={{ color: "var(--text-4)", animation: visible ? "fade-up 0.7s cubic-bezier(0.22,1,0.36,1) 0.65s both" : "none" }}>
-              Artists display their masterpieces. Buyers discover and
-              purchase works that resonate with them.
-            </p>
-
-            {/* CTAs */}
-            <div className="flex items-center justify-center lg:justify-start gap-3 mb-8"
-              style={{ animation: visible ? "fade-up 0.7s cubic-bezier(0.22,1,0.36,1) 0.78s both" : "none" }}>
-              <Link href="/login"
-                className="px-6 py-3 text-sm font-semibold rounded-2xl text-white transition-all duration-200 hover:scale-[1.03] active:scale-[0.98]"
-                style={{ background:"#361E7B", boxShadow:"0 4px 24px rgba(54,30,123,0.50)" }}
-                onMouseEnter={e => (e.currentTarget.style.background="#4B2FA8")}
-                onMouseLeave={e => (e.currentTarget.style.background="#361E7B")}
-              >Join for $9.99/m</Link>
-              <Link href="/login"
-                className="px-5 py-3 text-sm font-medium rounded-2xl transition-all hover:opacity-80"
-                style={{ color: "var(--text-4)", background: "var(--bg-input)", border: "1px solid var(--border)" }}
-              >Read more</Link>
-            </div>
-
-            {/* Social proof */}
-            <div className="flex items-center justify-center lg:justify-start gap-3"
-              style={{ animation: visible ? "fade-up 0.7s cubic-bezier(0.22,1,0.36,1) 0.90s both" : "none" }}>
-              <div className="flex -space-x-2">
-                {[0,1,2,3,4].map(n => (
-                  <div key={n} className="w-7 h-7 rounded-full border-2 shrink-0"
-                    style={{ background:`hsl(${n * 55 + 240}, 65%, 55%)`, borderColor: "var(--ring-bg)" }} />
-                ))}
-              </div>
-              <p className="text-sm" style={{ color: "var(--text-5)" }}>
-                <span className="font-semibold" style={{ color: "var(--text-2)" }}>12,400+</span> artists worldwide
-              </p>
-            </div>
-          </div>
-
-          {/* Card fan — desktop: side column; mobile: below text, scaled to fit */}
-          <div className="relative w-full h-70 sm:h-85 lg:mt-0 lg:flex-1 lg:shrink-0 lg:h-130 lg:max-w-150">
-            {/* Scale wrapper: 56% on mobile → 100% on lg */}
-            <div
-              className="absolute top-0 scale-[0.56] sm:scale-[0.68] origin-top lg:scale-100"
-              style={{ left: "calc(50% - 310px)", width: 620, height: 520 }}
-            >
-              <div ref={fanRef} className="absolute inset-0" style={{ transformStyle:"preserve-3d", width:620, height:520 }}>
-
-                {/* Badge left */}
-                <div className="absolute z-30" style={{
-                  left:"calc(50% - 238px)", top:28,
-                  animation: visible ? "badge-pop 0.6s cubic-bezier(0.34,1.56,0.64,1) 1.1s both, badge-bob 3s ease-in-out 2s infinite alternate" : "none",
-                }}>
-                  <div className="flex items-center gap-2 rounded-2xl px-3.5 py-2"
-                    style={{ background:"rgba(75,139,245,0.88)", backdropFilter:"blur(12px)", boxShadow:"0 4px 16px rgba(75,139,245,0.38)", color:"white" }}>
-                    <div className="w-5 h-5 rounded-full shrink-0" style={{ background:"rgba(255,255,255,0.25)" }} />
-                    <span className="text-sm font-semibold">@coplin</span>
-                  </div>
-                </div>
-
-                {/* Badge right */}
-                <div className="absolute z-30" style={{
-                  right:"calc(50% - 272px)", top:36,
-                  animation: visible ? "badge-pop 0.6s cubic-bezier(0.34,1.56,0.64,1) 1.25s both, badge-bob 2.7s ease-in-out 2.15s infinite alternate" : "none",
-                }}>
-                  <div className="flex items-center gap-2 rounded-2xl px-3.5 py-2"
-                    style={{ background:"rgba(61,191,122,0.88)", backdropFilter:"blur(12px)", boxShadow:"0 4px 16px rgba(61,191,122,0.38)", color:"white" }}>
-                    <div className="w-5 h-5 rounded-full shrink-0" style={{ background:"rgba(255,255,255,0.25)" }} />
-                    <span className="text-sm font-semibold">@andrea</span>
-                  </div>
-                </div>
-
-                {/* Cards */}
-                {CARDS.map((card, i) => {
-                  const isHov    = hoveredCard === i;
-                  const fanDelay = `${0.08 + i * 0.09}s`;
-                  const shadowBase  = "0 4px 10px rgba(0,0,0,0.35), 0 14px 32px rgba(0,0,0,0.45), 0 28px 56px rgba(0,0,0,0.30)";
-                  const shadowHov   = "0 14px 32px rgba(0,0,0,0.55), 0 36px 68px rgba(54,30,123,0.42), 0 52px 100px rgba(0,0,0,0.40)";
-                  const trBase  = visible ? `rotate(${card.rotate}deg) scale(1) translateY(0px)` : `rotate(0deg) scale(0.55) translateY(0px)`;
-                  const trHov   = `rotate(${card.rotate}deg) scale(1.07) translateY(-28px)`;
-                  const trEntry = visible ? `transform 0.88s ${SPRING_IN} ${fanDelay}, opacity 0.45s ease ${fanDelay}, box-shadow 0.3s ease` : "none";
-                  const trStable = `transform 0.45s ${SPRING_HOVER}, box-shadow 0.35s ease`;
-
-                  return (
-                    <div key={card.seed} className="absolute" style={{
-                      left:"calc(50% - 60px)", bottom:0,
-                      zIndex: isHov ? 20 : CARD_Z[i],
-                      animation: floating ? `card-float ${FLOAT_DUR[i]}s ease-in-out ${FLOAT_DEL[i]}s infinite alternate` : "none",
-                    }}>
-                      <div style={{ transform: visible ? `translateX(${card.x}px)` : "translateX(0px)", transition: visible ? `transform 0.88s ${SPRING_IN} ${fanDelay}` : "none" }}>
-                        <div
-                          className="cursor-pointer"
-                          onMouseEnter={() => setHoveredCard(i)}
-                          onMouseLeave={() => setHoveredCard(null)}
-                          style={{
-                            width:120, height:165, borderRadius:16, overflow:"hidden",
-                            transformOrigin:"bottom center", opacity: visible ? 1 : 0,
-                            transform: isHov ? trHov : trBase,
-                            transition: phase === "appearing" ? trEntry : trStable,
-                            boxShadow: isHov ? shadowHov : shadowBase,
-                          }}
-                        >
-                          <Image
-                            src={`https://picsum.photos/seed/${card.seed}/${card.w}/${card.h}`}
-                            alt="Artwork" width={card.w} height={card.h}
-                            className="w-full h-full object-cover"
-                            style={{ transform: isHov ? "scale(1.08)" : "scale(1)", transition:"transform 0.55s ease-out" }}
-                            priority={i < 3}
-                          />
-                          <div className="absolute inset-0 pointer-events-none" style={{
-                            background: isHov ? "linear-gradient(135deg, rgba(255,255,255,0.14) 0%, rgba(255,255,255,0.04) 50%, transparent 100%)" : "transparent",
-                            transition:"background 0.35s ease", borderRadius:16,
-                          }} />
-                          <div className="absolute inset-0 pointer-events-none"
-                            style={{ boxShadow:"inset 0 0 0 1px rgba(255,255,255,0.12)", borderRadius:16 }} />
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          </div>
-
+        <div className="hidden md:flex items-center gap-8 text-[13px] font-medium" style={{ color: MUTED }}>
+          {NAV_LINKS.map(([label, href]) => (
+            <Link key={label} href={href} className="hover:text-white transition-colors duration-200">{label}</Link>
+          ))}
         </div>
-      </main>
 
-      <SearchOverlay isOpen={searchOpen} onClose={() => setSearchOpen(false)} />
+        <Link
+          href="/login"
+          className="hidden md:inline-flex items-center px-5 py-2.5 rounded-full text-[13px] font-semibold text-white transition-all duration-200 hover:opacity-80"
+          style={{ background: ACCENT }}
+        >
+          Join Now
+        </Link>
+      </nav>
 
-      {/* ── Features sections ── */}
-      <FeaturesHero />
-      <StatsBar />
-      <FeaturesGrid />
-      <FeatureHighlight />
+      {/* ════════════════════════════ HERO ════════════════════════════ */}
+      <section className="relative w-full" style={{ height: "100svh", minHeight: 640 }}>
 
-      {/* ── CTA ── */}
-      <section className="relative z-10 py-24 px-6 md:px-10 text-center overflow-hidden"
-        style={{ borderTop: "1px solid rgba(124,91,245,0.10)" }}>
-        <div className="absolute inset-0 pointer-events-none"
-          style={{ background: "radial-gradient(ellipse 80% 70% at 50% 50%, rgba(54,30,123,0.18) 0%, transparent 70%)" }} />
-        <div className="relative max-w-2xl mx-auto">
-          <RevealWords text="Ready to share your" baseDelay={0} stagger={0.07}
-            className="block font-black mb-1" style={{ fontSize: "clamp(28px, 4.5vw, 60px)", color: "var(--text-1)" }} />
-          <RevealWords text="masterpiece?" baseDelay={0.35} stagger={0.09}
-            className="block font-black mb-6" style={{ fontSize: "clamp(28px, 4.5vw, 60px)", background: "linear-gradient(90deg,#9B7CF5,#F59E0B)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }} />
-          <RevealFade delay={0.6}>
-            <p className="text-base mb-8" style={{ color: "var(--text-4)" }}>
-              Join 12,400+ artists already building their creative careers on Ortist.
+        {/* Cinematic background slider */}
+        <div className="absolute inset-0 overflow-hidden">
+          {HERO_SLIDES.map((s, i) => (
+            /* eslint-disable-next-line @next/next/no-img-element */
+            <img
+              key={s.src}
+              src={s.src}
+              alt=""
+              className="absolute inset-0 w-full h-full object-cover"
+              style={{
+                filter: "brightness(0.28) saturate(0.10)",
+                opacity: i === slide ? 1 : 0,
+                transform: i === slide ? "scale(1.04)" : "scale(1)",
+                transition: "opacity 1.6s ease-in-out, transform 8s ease-out",
+                zIndex: i === slide ? 1 : 0,
+              }}
+            />
+          ))}
+          {/* Right-side gradient for text legibility */}
+          <div className="absolute inset-0 z-10" style={{
+            background: `linear-gradient(108deg,
+              rgba(5,5,5,0)     0%,
+              rgba(5,5,5,0.25)  30%,
+              rgba(5,5,5,0.78)  58%,
+              ${BG}             100%)`,
+          }} />
+          {/* Bottom fade */}
+          <div className="absolute bottom-0 inset-x-0 h-56 z-10" style={{
+            background: `linear-gradient(to bottom, transparent, ${BG})`,
+          }} />
+        </div>
+
+        {/* Content */}
+        <div className="relative z-20 h-full flex items-center">
+          <div className="w-full max-w-[1440px] mx-auto px-8 md:px-14 lg:px-20 flex justify-end">
+            <div style={{ maxWidth: 560 }}>
+              <p className="text-[11px] font-semibold tracking-[0.32em] uppercase mb-7" style={{ color: GOLD }}>
+                ✦ &nbsp;The Creative Ecosystem
+              </p>
+              <h1
+                className={`${playfair.className} mb-7 leading-[1.05]`}
+                style={{ fontSize: "clamp(44px, 5.8vw, 80px)", fontWeight: 700 }}
+              >
+                Where Creativity<br />
+                <em style={{ color: ACCENT, fontStyle: "italic" }}>Finds Opportunity</em>
+              </h1>
+              <p
+                className="text-[17px] leading-[1.8] mb-12"
+                style={{ color: "rgba(255,255,255,0.52)", maxWidth: 400 }}
+              >
+                Showcase your work.&nbsp; Build your presence.<br />
+                Get discovered.&nbsp; Get hired.
+              </p>
+              <div className="flex items-center gap-4 flex-wrap">
+                <Link
+                  href="/feed"
+                  className="inline-flex items-center gap-2 px-8 py-4 rounded-full text-sm font-bold text-white transition-all duration-300 hover:scale-[1.04]"
+                  style={{ background: ACCENT, boxShadow: `0 0 44px ${ACCENT}48` }}
+                >
+                  Explore Ortist
+                </Link>
+                <Link
+                  href="/login"
+                  className="inline-flex items-center px-8 py-4 rounded-full text-sm font-semibold transition-all duration-300 hover:bg-white/8"
+                  style={{ border: "1px solid rgba(255,255,255,0.16)", color: "rgba(255,255,255,0.72)" }}
+                >
+                  Join as Creator
+                </Link>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Slide dots + artwork label — bottom left */}
+        <div className="absolute bottom-9 left-8 md:left-14 lg:left-20 z-20 flex flex-col gap-4">
+          <p className="text-[10px] font-medium tracking-[0.22em] uppercase" style={{ color: "rgba(255,255,255,0.28)" }}>
+            {HERO_SLIDES[slide].label}
+          </p>
+          <div className="flex items-center gap-2">
+            {HERO_SLIDES.map((_, i) => (
+              <button
+                key={i}
+                onClick={() => setSlide(i)}
+                aria-label={`Slide ${i + 1}`}
+                className="transition-all duration-500"
+                style={{
+                  width:  i === slide ? 28 : 6,
+                  height: 2,
+                  borderRadius: 9999,
+                  background: i === slide ? "#fff" : "rgba(255,255,255,0.25)",
+                  cursor: "pointer",
+                  border: "none",
+                  padding: 0,
+                }}
+              />
+            ))}
+          </div>
+        </div>
+
+        {/* Scroll indicator — bottom center */}
+        <div
+          className="absolute bottom-9 left-1/2 -translate-x-1/2 z-20 flex flex-col items-center gap-3"
+          style={{ color: MUTED, animation: "pulse 2.4s ease-in-out infinite" }}
+        >
+          <span className="text-[10px] font-medium tracking-[0.28em] uppercase">Scroll</span>
+          <div className="w-px h-14" style={{ background: `linear-gradient(to bottom, ${MUTED}70, transparent)` }} />
+        </div>
+      </section>
+
+      {/* ════════════════════════════ S2 – CREATIVE FEED ════════════════════════════ */}
+      <section className="relative py-28 md:py-44 px-8 md:px-14 lg:px-20">
+        <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-2 items-center gap-16 lg:gap-32">
+
+          {/* Image */}
+          <RevealFade>
+            <div className="relative overflow-hidden" style={{ borderRadius: 3, aspectRatio: "3/4" }}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src="https://picsum.photos/seed/creative-feed-s2/800/1067"
+                alt="Creative Feed"
+                className="w-full h-full object-cover transition-transform duration-1000 hover:scale-[1.04]"
+              />
+              <div className="absolute inset-0 pointer-events-none" style={{
+                background: "linear-gradient(to top, rgba(5,5,5,0.55) 0%, transparent 55%)",
+              }} />
+              <span
+                className="absolute top-5 left-5 text-[10px] font-bold tracking-[0.2em] uppercase px-3 py-1.5"
+                style={{ background: "rgba(5,5,5,0.65)", color: MUTED, backdropFilter: "blur(8px)", border: "1px solid rgba(255,255,255,0.07)" }}
+              >
+                Featured Work
+              </span>
+            </div>
+          </RevealFade>
+
+          {/* Text */}
+          <RevealFade delay={0.18}>
+            <p className="text-[11px] font-semibold tracking-[0.26em] uppercase mb-6" style={{ color: ACCENT }}>
+              01 — Discover
             </p>
-            <Link href="/login"
-              className="inline-flex items-center px-8 py-4 rounded-2xl text-white font-bold text-base transition-all hover:scale-[1.04] active:scale-[0.98]"
-              style={{ background: "linear-gradient(135deg, #361E7B, #7C5BF5)", boxShadow: "0 8px 32px rgba(54,30,123,0.45)" }}>
-              Get started free →
+            <h2 className={`${playfair.className} mb-7 leading-[1.08]`}
+              style={{ fontSize: "clamp(36px, 4.2vw, 62px)", fontWeight: 700 }}>
+              Creative Feed
+            </h2>
+            <p className="text-[17px] leading-[1.8] mb-10" style={{ color: MUTED, maxWidth: 380 }}>
+              Discover artwork, stories, and creative projects from artists around the world.
+            </p>
+            <Link
+              href="/feed"
+              className="inline-flex items-center gap-3 text-sm font-semibold tracking-wide transition-all duration-200 hover:gap-5"
+              style={{ color: ACCENT }}
+            >
+              Enter Feed <span>→</span>
             </Link>
           </RevealFade>
         </div>
       </section>
 
-      {/* Footer */}
-      <footer
-        className="relative z-10 w-full"
-        style={{ borderTop: "1px solid rgba(124,91,245,0.15)", background: "rgba(10,6,28,0.7)", backdropFilter: "blur(20px)" }}
-      >
-        <div className="max-w-7xl mx-auto px-6 md:px-10 py-12">
-          {/* Top row */}
-          <div className="flex flex-col md:flex-row gap-10 md:gap-0 justify-between mb-10">
+      <Divider />
 
-            {/* Brand */}
-            <div className="max-w-xs">
-              <div className="flex items-center gap-2.5 mb-3">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src="/login-image/ortists logo1.png" alt="Ortist" className="w-8 h-8 rounded-lg object-cover" />
-                <span className="text-lg font-black" style={{ background: "linear-gradient(90deg,#9B7CF5,#F59E0B)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
-                  Ortist
-                </span>
-              </div>
-              <p className="text-sm leading-relaxed" style={{ color: "var(--text-5)" }}>
-                A social platform for artists to showcase their masterpieces, connect with buyers, and grow their creative careers.
+      {/* ════════════════════════════ S3 – HIRE ARTISTS ════════════════════════════ */}
+      <section className="relative py-28 md:py-44 px-8 md:px-14 lg:px-20" style={{ background: SURF }}>
+        <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-2 items-center gap-16 lg:gap-32">
+
+          {/* Text */}
+          <RevealFade>
+            <p className="text-[11px] font-semibold tracking-[0.26em] uppercase mb-6" style={{ color: GOLD }}>
+              02 — Commission
+            </p>
+            <h2 className={`${playfair.className} mb-7 leading-[1.08]`}
+              style={{ fontSize: "clamp(36px, 4.2vw, 62px)", fontWeight: 700 }}>
+              Hire Artists
+            </h2>
+            <p className="text-[17px] leading-[1.8] mb-10" style={{ color: MUTED, maxWidth: 380 }}>
+              Browse categories, explore portfolios, and connect with artists that match your vision.
+            </p>
+            <Link
+              href="/hiring"
+              className="inline-flex items-center gap-3 text-sm font-semibold tracking-wide transition-all duration-200 hover:gap-5"
+              style={{ color: GOLD }}
+            >
+              Explore Talent <span>→</span>
+            </Link>
+          </RevealFade>
+
+          {/* Image */}
+          <RevealFade delay={0.18}>
+            <div className="relative overflow-hidden" style={{ borderRadius: 3, aspectRatio: "3/4" }}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src="https://picsum.photos/seed/hire-artists-s3/800/1067"
+                alt="Hire Artists"
+                className="w-full h-full object-cover transition-transform duration-1000 hover:scale-[1.04]"
+              />
+              <div className="absolute inset-0 pointer-events-none" style={{
+                background: "linear-gradient(to bottom, transparent 55%, rgba(5,5,5,0.45) 100%)",
+              }} />
+            </div>
+          </RevealFade>
+        </div>
+      </section>
+
+      <Divider />
+
+      {/* ════════════════════════════ S4 – MARKETPLACE ════════════════════════════ */}
+      <section className="relative py-28 md:py-44 px-8 md:px-14 lg:px-20">
+        <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-2 items-center gap-16 lg:gap-32">
+
+          {/* Image */}
+          <RevealFade>
+            <div className="relative overflow-hidden" style={{ borderRadius: 3, aspectRatio: "3/4" }}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src="https://picsum.photos/seed/marketplace-s4/800/1067"
+                alt="Marketplace"
+                className="w-full h-full object-cover transition-transform duration-1000 hover:scale-[1.04]"
+              />
+              <div className="absolute inset-0 pointer-events-none" style={{
+                background: "linear-gradient(to top, rgba(5,5,5,0.55) 0%, transparent 55%)",
+              }} />
+            </div>
+          </RevealFade>
+
+          {/* Text */}
+          <RevealFade delay={0.18}>
+            <p className="text-[11px] font-semibold tracking-[0.26em] uppercase mb-6" style={{ color: ACCENT }}>
+              03 — Collect
+            </p>
+            <h2 className={`${playfair.className} mb-7 leading-[1.08]`}
+              style={{ fontSize: "clamp(36px, 4.2vw, 62px)", fontWeight: 700 }}>
+              Marketplace
+            </h2>
+            <p className="text-[17px] leading-[1.8] mb-10" style={{ color: MUTED, maxWidth: 380 }}>
+              Discover creative products, commissions, and artwork available directly from creators.
+            </p>
+            <Link
+              href="/marketplace"
+              className="inline-flex items-center gap-3 text-sm font-semibold tracking-wide transition-all duration-200 hover:gap-5"
+              style={{ color: ACCENT }}
+            >
+              Visit Marketplace <span>→</span>
+            </Link>
+          </RevealFade>
+        </div>
+      </section>
+
+      <Divider />
+
+      {/* ════════════════════════════ S5 – CREATE PROFILE ════════════════════════════ */}
+      <section className="relative py-28 md:py-44 px-8 md:px-14 lg:px-20" style={{ background: SURF }}>
+        <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-2 items-center gap-16 lg:gap-32">
+
+          {/* Text */}
+          <RevealFade>
+            <p className="text-[11px] font-semibold tracking-[0.26em] uppercase mb-6" style={{ color: GOLD }}>
+              04 — Grow
+            </p>
+            <h2 className={`${playfair.className} mb-7 leading-[1.08]`}
+              style={{ fontSize: "clamp(36px, 4.2vw, 62px)", fontWeight: 700 }}>
+              Create Your<br />Profile
+            </h2>
+            <p className="text-[17px] leading-[1.8] mb-10" style={{ color: MUTED, maxWidth: 380 }}>
+              Build a portfolio, share your journey, and grow your creative presence.
+            </p>
+            <Link
+              href="/login"
+              className="inline-flex items-center px-8 py-4 rounded-full text-sm font-bold transition-all duration-300 hover:scale-[1.04]"
+              style={{ background: GOLD, color: "#050505" }}
+            >
+              Get Started
+            </Link>
+          </RevealFade>
+
+          {/* Image */}
+          <RevealFade delay={0.18}>
+            <div className="relative overflow-hidden" style={{ borderRadius: 3, aspectRatio: "3/4" }}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src="https://picsum.photos/seed/create-profile-s5/800/1067"
+                alt="Create Profile"
+                className="w-full h-full object-cover transition-transform duration-1000 hover:scale-[1.04]"
+              />
+            </div>
+          </RevealFade>
+        </div>
+      </section>
+
+      {/* ════════════════════════════ S6 – FEATURED ARTISTS ════════════════════════════ */}
+      <section className="py-28 md:py-40 overflow-hidden">
+
+        <RevealFade className="px-8 md:px-14 lg:px-20 mb-14">
+          <div className="max-w-7xl mx-auto flex items-end justify-between">
+            <div>
+              <p className="text-[11px] font-semibold tracking-[0.26em] uppercase mb-4" style={{ color: ACCENT }}>
+                05 — Artists
               </p>
+              <h2 className={`${playfair.className} leading-[1.08]`}
+                style={{ fontSize: "clamp(34px, 4vw, 58px)", fontWeight: 700 }}>
+                Featured Artists
+              </h2>
             </div>
-
-            {/* Links */}
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-8 text-sm">
-              <div>
-                <p className="font-semibold mb-3" style={{ color: "var(--text-2)" }}>Platform</p>
-                <ul className="flex flex-col gap-2">
-                  {[["Feed", "/feed"], ["Explore", "/explore"], ["Marketplace", "/marketplace"], ["Hiring", "/hiring"]].map(([l, h]) => (
-                    <li key={l}><Link href={h} className="transition-opacity hover:opacity-70" style={{ color: "var(--text-5)" }}>{l}</Link></li>
-                  ))}
-                </ul>
-              </div>
-              <div>
-                <p className="font-semibold mb-3" style={{ color: "var(--text-2)" }}>Company</p>
-                <ul className="flex flex-col gap-2">
-                  {[["About", "#"], ["Blog", "#"], ["Careers", "#"], ["Press", "#"]].map(([l, h]) => (
-                    <li key={l}><Link href={h} className="transition-opacity hover:opacity-70" style={{ color: "var(--text-5)" }}>{l}</Link></li>
-                  ))}
-                </ul>
-              </div>
-              <div>
-                <p className="font-semibold mb-3" style={{ color: "var(--text-2)" }}>Legal</p>
-                <ul className="flex flex-col gap-2">
-                  {[["Privacy Policy", "#"], ["Terms of Service", "#"], ["Cookie Policy", "#"], ["DMCA", "#"]].map(([l, h]) => (
-                    <li key={l}><Link href={h} className="transition-opacity hover:opacity-70" style={{ color: "var(--text-5)" }}>{l}</Link></li>
-                  ))}
-                </ul>
-              </div>
-            </div>
+            <Link
+              href="/hiring"
+              className="hidden md:flex items-center gap-2 text-sm font-semibold transition-colors duration-200 hover:text-white"
+              style={{ color: MUTED }}
+            >
+              View All <span>→</span>
+            </Link>
           </div>
+        </RevealFade>
 
-          {/* Divider */}
-          <div style={{ borderTop: "1px solid rgba(124,91,245,0.12)" }} className="mb-6" />
+        {/* Horizontal gallery */}
+        <div
+          className="flex gap-5 pl-8 md:pl-14 lg:pl-20 pr-8 overflow-x-auto pb-3"
+          style={{ scrollbarWidth: "none" }}
+        >
+          {FEATURED_ARTISTS.map((artist, i) => (
+            <RevealFade key={artist.id} delay={i * 0.07} style={{ minWidth: 276, flexShrink: 0 }}>
+              <div
+                className="group cursor-pointer"
+                style={{ background: SURF, borderRadius: 3, overflow: "hidden", border: "1px solid rgba(255,255,255,0.05)" }}
+              >
+                {/* Work */}
+                <div className="relative overflow-hidden" style={{ height: 360 }}>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={`https://picsum.photos/seed/${artist.workSeed}/560/747`}
+                    alt={artist.name}
+                    className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-[1.06]"
+                  />
+                  <div className="absolute inset-0 pointer-events-none" style={{
+                    background: "linear-gradient(to top, rgba(5,5,5,0.75) 0%, transparent 50%)",
+                  }} />
+                </div>
+                {/* Info */}
+                <div className="p-5 flex items-center gap-3">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={`https://picsum.photos/seed/${artist.avatarSeed}/80/80`}
+                    alt={artist.name}
+                    className="w-10 h-10 rounded-full object-cover shrink-0"
+                    style={{ border: `2px solid ${ACCENT}55` }}
+                  />
+                  <div>
+                    <p className="text-[13px] font-semibold text-white">{artist.name}</p>
+                    <p className="text-[11px]" style={{ color: MUTED }}>{artist.category}</p>
+                  </div>
+                </div>
+              </div>
+            </RevealFade>
+          ))}
+        </div>
+      </section>
 
-          {/* Bottom row */}
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-            <p className="text-xs" style={{ color: "var(--text-5)" }}>
+      <Divider />
+
+      {/* ════════════════════════════ S7 – STATS ════════════════════════════ */}
+      <section
+        className="relative py-28 md:py-44 px-8 md:px-14 lg:px-20 overflow-hidden"
+        style={{ background: SURF }}
+      >
+        {/* Glow */}
+        <div className="absolute inset-0 pointer-events-none" style={{
+          background: `radial-gradient(ellipse 80% 60% at 50% 50%, ${ACCENT}10 0%, transparent 70%)`,
+        }} />
+
+        <div className="relative max-w-7xl mx-auto">
+          <RevealFade className="text-center mb-20">
+            <p className="text-[11px] font-semibold tracking-[0.28em] uppercase mb-5" style={{ color: MUTED }}>
+              By the Numbers
+            </p>
+            <h2 className={`${playfair.className} leading-[1.1]`}
+              style={{ fontSize: "clamp(30px, 4vw, 52px)", fontWeight: 700, color: "rgba(255,255,255,0.88)" }}>
+              A Growing Creative Community
+            </h2>
+          </RevealFade>
+
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-px" style={{ background: "rgba(255,255,255,0.05)" }}>
+            {STATS.map((stat, i) => (
+              <RevealFade
+                key={stat.label}
+                delay={i * 0.09}
+                className="flex flex-col items-center justify-center py-16 px-6 text-center"
+                style={{ background: SURF }}
+              >
+                <p
+                  className={`${playfair.className} font-black mb-3`}
+                  style={{ fontSize: "clamp(38px, 5vw, 68px)", color: i % 2 === 0 ? ACCENT : GOLD }}
+                >
+                  {stat.value}
+                </p>
+                <p className="text-sm font-semibold tracking-[0.16em] uppercase" style={{ color: MUTED }}>
+                  {stat.label}
+                </p>
+              </RevealFade>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ════════════════════════════ FOOTER ════════════════════════════ */}
+      <footer
+        className="relative pt-28 md:pt-36 pb-10 px-8 md:px-14 lg:px-20 overflow-hidden"
+        style={{ background: "#08080C", borderTop: "1px solid rgba(255,255,255,0.05)" }}
+      >
+        <div className="max-w-7xl mx-auto">
+
+          {/* Large editorial wordmark */}
+          <RevealFade>
+            <div className="mb-16 pb-16" style={{ borderBottom: "1px solid rgba(255,255,255,0.07)" }}>
+              <h2
+                className={`${playfair.className} font-black leading-none select-none`}
+                style={{
+                  fontSize: "clamp(56px, 11vw, 148px)",
+                  color: "rgba(255,255,255,0.045)",
+                  letterSpacing: "-0.02em",
+                }}
+              >
+                ORTIST
+              </h2>
+            </div>
+          </RevealFade>
+
+          {/* Links grid */}
+          <RevealFade delay={0.1}>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-12 mb-20">
+              {/* Brand */}
+              <div className="col-span-2 md:col-span-1">
+                <div className="flex items-center gap-2.5 mb-4">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src="/login-image/ortists logo1.png" alt="Ortist" className="w-7 h-7 rounded-md object-cover" />
+                  <span className="font-bold text-white text-[15px]">Ortist</span>
+                </div>
+                <p className="text-[13px] leading-relaxed mb-7" style={{ color: MUTED, maxWidth: 220 }}>
+                  A creative ecosystem for artists to showcase, connect, and thrive.
+                </p>
+                {/* Socials */}
+                <div className="flex gap-3">
+                  {[
+                    { label: "X", d: "M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.746l7.73-8.835L1.254 2.25H8.08l4.253 5.622zm-1.161 17.52h1.833L7.084 4.126H5.117z" },
+                    { label: "Instagram", d: "M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37zM17.5 6.5h.01" },
+                  ].map(({ label, d }) => (
+                    <a
+                      key={label}
+                      href="#"
+                      aria-label={label}
+                      className="w-9 h-9 flex items-center justify-center rounded-full transition-all duration-200 hover:opacity-70"
+                      style={{ border: "1px solid rgba(255,255,255,0.1)", color: MUTED }}
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d={d} />
+                      </svg>
+                    </a>
+                  ))}
+                </div>
+              </div>
+
+              {/* Platform */}
+              <div>
+                <p className="text-[11px] font-bold tracking-[0.22em] uppercase mb-5"
+                  style={{ color: "rgba(255,255,255,0.22)" }}>Platform</p>
+                <ul className="flex flex-col gap-3">
+                  {[["Feed", "/feed"], ["Marketplace", "/marketplace"], ["Hiring", "/hiring"], ["Artists", "/hiring"]].map(([l, h]) => (
+                    <li key={l}>
+                      <Link href={h} className="text-[13px] transition-colors duration-200 hover:text-white" style={{ color: MUTED }}>
+                        {l}
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+
+              {/* Company */}
+              <div>
+                <p className="text-[11px] font-bold tracking-[0.22em] uppercase mb-5"
+                  style={{ color: "rgba(255,255,255,0.22)" }}>Company</p>
+                <ul className="flex flex-col gap-3">
+                  {[["About", "#"], ["Blog", "#"], ["Careers", "#"], ["Press", "#"]].map(([l, h]) => (
+                    <li key={l}>
+                      <Link href={h} className="text-[13px] transition-colors duration-200 hover:text-white" style={{ color: MUTED }}>
+                        {l}
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+
+              {/* Legal */}
+              <div>
+                <p className="text-[11px] font-bold tracking-[0.22em] uppercase mb-5"
+                  style={{ color: "rgba(255,255,255,0.22)" }}>Legal</p>
+                <ul className="flex flex-col gap-3">
+                  {[["Privacy Policy", "#"], ["Terms of Service", "#"], ["Cookie Policy", "#"]].map(([l, h]) => (
+                    <li key={l}>
+                      <Link href={h} className="text-[13px] transition-colors duration-200 hover:text-white" style={{ color: MUTED }}>
+                        {l}
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+          </RevealFade>
+
+          {/* Bottom bar */}
+          <div
+            className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-8"
+            style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}
+          >
+            <p className="text-xs" style={{ color: "rgba(255,255,255,0.22)" }}>
               © {new Date().getFullYear()} Ortist. All rights reserved.
             </p>
-            {/* Social icons */}
-            <div className="flex items-center gap-4">
-              {[
-                { label: "Twitter / X", svg: <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.746l7.73-8.835L1.254 2.25H8.08l4.253 5.622zm-1.161 17.52h1.833L7.084 4.126H5.117z" /> },
-                { label: "Instagram",   svg: <><rect width="20" height="20" x="2" y="2" rx="5" ry="5"/><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/><line x1="17.5" x2="17.51" y1="6.5" y2="6.5"/></> },
-                { label: "LinkedIn",    svg: <><path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6z"/><rect width="4" height="12" x="2" y="9"/><circle cx="4" cy="4" r="2"/></> },
-              ].map(({ label, svg }) => (
-                <a key={label} href="#" aria-label={label}
-                  className="w-8 h-8 rounded-lg flex items-center justify-center transition-all hover:opacity-80"
-                  style={{ background: "rgba(124,91,245,0.12)", border: "1px solid rgba(124,91,245,0.2)", color: "var(--text-4)" }}>
-                  <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none"
-                    stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    {svg}
-                  </svg>
-                </a>
-              ))}
-            </div>
+            <p className="text-xs" style={{ color: "rgba(255,255,255,0.22)" }}>
+              Built for creators, by creators.
+            </p>
           </div>
         </div>
       </footer>
