@@ -1,9 +1,9 @@
 "use client";
 
-import { useTheme } from "@/contexts/ThemeContext";
+import { THEMES, useTheme } from "@/contexts/ThemeContext";
 import { useClerk, useUser } from "@clerk/nextjs";
 import CreatePostModal from "@/components/create/CreatePostModal";
-import { LogOut, Moon, Plus, Sun, UserCircle } from "lucide-react";
+import { LogOut, Plus, UserCircle } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -54,7 +54,7 @@ function Tooltip({ label, children }: { label: string; children: React.ReactNode
 export default function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
-  const { theme, toggle } = useTheme();
+  const { theme, setTheme } = useTheme();
   const { signOut } = useClerk();
   const { user } = useUser();
   const [expanded, setExpanded]     = useState(false);
@@ -229,31 +229,50 @@ export default function Sidebar() {
       {/* Divider */}
       <div className="mx-3" style={{ borderTop: "1px solid var(--border)" }} />
 
-      {/* Theme toggle */}
+      {/* Theme picker */}
       <div className="px-2 pt-2 pb-1">
         {!expanded ? (
-          <Tooltip label={theme === "dark" ? "Light Mode" : "Dark Mode"}>
-            <button
-              onClick={e => toggle(e)}
-              className="flex items-center rounded-xl transition-colors w-full"
-              style={{ padding: "11px 0", justifyContent: "center", color: "var(--text-4)" }}
-              onMouseEnter={e => { e.currentTarget.style.background = "var(--bg-hover)"; }}
-              onMouseLeave={e => { e.currentTarget.style.background = "transparent"; }}
-            >
-              {theme === "dark" ? <Sun size={22} strokeWidth={1.8} /> : <Moon size={22} strokeWidth={1.8} />}
-            </button>
+          <Tooltip label="Theme">
+            <div className="flex flex-col items-center gap-1.5 py-2">
+              {THEMES.map(t => (
+                <button
+                  key={t.id}
+                  onClick={e => setTheme(t.id, e)}
+                  aria-label={t.label}
+                  style={{
+                    width: 16, height: 16, borderRadius: "50%",
+                    background: t.swatch,
+                    border: theme === t.id ? "2px solid #9B7CF5" : "2px solid rgba(255,255,255,0.15)",
+                    transition: "border-color 0.2s, transform 0.15s",
+                    transform: theme === t.id ? "scale(1.25)" : "scale(1)",
+                    cursor: "pointer", padding: 0, flexShrink: 0,
+                  }}
+                />
+              ))}
+            </div>
           </Tooltip>
         ) : (
-          <button
-            onClick={e => toggle(e)}
-            className="flex items-center gap-3 rounded-xl transition-colors w-full"
-            style={{ padding: "11px 12px", color: "var(--text-4)" }}
-            onMouseEnter={e => { e.currentTarget.style.background = "var(--bg-hover)"; }}
-            onMouseLeave={e => { e.currentTarget.style.background = "transparent"; }}
-          >
-            {theme === "dark" ? <Sun size={22} strokeWidth={1.8} /> : <Moon size={22} strokeWidth={1.8} />}
-            <span className="text-sm font-medium whitespace-nowrap">{theme === "dark" ? "Light Mode" : "Dark Mode"}</span>
-          </button>
+          <div className="px-2 pb-1">
+            <p className="text-[10px] font-semibold tracking-[0.15em] uppercase mb-2" style={{ color: "var(--text-6)" }}>Theme</p>
+            <div className="flex flex-wrap gap-2">
+              {THEMES.map(t => (
+                <button
+                  key={t.id}
+                  onClick={e => setTheme(t.id, e)}
+                  aria-label={t.label}
+                  className="flex items-center gap-1.5 px-2 py-1 rounded-lg text-xs font-medium transition-all"
+                  style={{
+                    background: theme === t.id ? "rgba(124,91,245,0.15)" : "transparent",
+                    border: theme === t.id ? "1px solid rgba(124,91,245,0.4)" : "1px solid transparent",
+                    color: theme === t.id ? "#9B7CF5" : "var(--text-4)",
+                  }}
+                >
+                  <span style={{ width: 10, height: 10, borderRadius: "50%", background: t.swatch, border: "1px solid rgba(255,255,255,0.2)", flexShrink: 0, display: "inline-block" }} />
+                  {t.label}
+                </button>
+              ))}
+            </div>
+          </div>
         )}
       </div>
 

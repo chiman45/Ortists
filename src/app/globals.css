@@ -53,6 +53,102 @@ html.light {
   --ring-bg:     #EEE9FB;
 }
 
+/* ── Midnight — deep navy blue ── */
+html.midnight {
+  --bg:          #0C0F1E;
+  --bg-header:   rgba(12,15,30,0.85);
+  --bg-sidebar:  rgba(12,15,30,0.92);
+  --bg-nav:      rgba(12,15,30,0.90);
+  --bg-card:     rgba(255,255,255,0.04);
+  --bg-hover:    rgba(255,255,255,0.05);
+  --bg-input:    rgba(255,255,255,0.06);
+  --bg-subtle:   rgba(255,255,255,0.07);
+  --bg-muted:    rgba(255,255,255,0.08);
+  --border:      rgba(99,132,255,0.13);
+  --border-card: rgba(99,132,255,0.16);
+  --text-1:      #ffffff;
+  --text-2:      rgba(255,255,255,0.75);
+  --text-3:      rgba(255,255,255,0.55);
+  --text-4:      rgba(255,255,255,0.42);
+  --text-5:      rgba(255,255,255,0.35);
+  --text-6:      rgba(255,255,255,0.28);
+  --text-icon:   rgba(255,255,255,0.50);
+  --shadow:      rgba(0,0,0,0.40);
+  --ring-bg:     #0C0F1E;
+}
+
+/* ── Forest — dark emerald green ── */
+html.forest {
+  --bg:          #0A1410;
+  --bg-header:   rgba(10,20,16,0.85);
+  --bg-sidebar:  rgba(10,20,16,0.92);
+  --bg-nav:      rgba(10,20,16,0.90);
+  --bg-card:     rgba(255,255,255,0.04);
+  --bg-hover:    rgba(255,255,255,0.05);
+  --bg-input:    rgba(255,255,255,0.06);
+  --bg-subtle:   rgba(255,255,255,0.07);
+  --bg-muted:    rgba(255,255,255,0.08);
+  --border:      rgba(52,211,153,0.11);
+  --border-card: rgba(52,211,153,0.14);
+  --text-1:      #ffffff;
+  --text-2:      rgba(255,255,255,0.75);
+  --text-3:      rgba(255,255,255,0.55);
+  --text-4:      rgba(255,255,255,0.42);
+  --text-5:      rgba(255,255,255,0.35);
+  --text-6:      rgba(255,255,255,0.28);
+  --text-icon:   rgba(255,255,255,0.50);
+  --shadow:      rgba(0,0,0,0.38);
+  --ring-bg:     #0A1410;
+}
+
+/* ── Rose — dark mauve ── */
+html.rose {
+  --bg:          #180D12;
+  --bg-header:   rgba(24,13,18,0.85);
+  --bg-sidebar:  rgba(24,13,18,0.92);
+  --bg-nav:      rgba(24,13,18,0.90);
+  --bg-card:     rgba(255,255,255,0.04);
+  --bg-hover:    rgba(255,255,255,0.05);
+  --bg-input:    rgba(255,255,255,0.06);
+  --bg-subtle:   rgba(255,255,255,0.07);
+  --bg-muted:    rgba(255,255,255,0.08);
+  --border:      rgba(244,114,182,0.11);
+  --border-card: rgba(244,114,182,0.14);
+  --text-1:      #ffffff;
+  --text-2:      rgba(255,255,255,0.75);
+  --text-3:      rgba(255,255,255,0.55);
+  --text-4:      rgba(255,255,255,0.42);
+  --text-5:      rgba(255,255,255,0.35);
+  --text-6:      rgba(255,255,255,0.28);
+  --text-icon:   rgba(255,255,255,0.50);
+  --shadow:      rgba(0,0,0,0.38);
+  --ring-bg:     #180D12;
+}
+
+/* ── Ocean — deep teal ── */
+html.ocean {
+  --bg:          #071419;
+  --bg-header:   rgba(7,20,25,0.85);
+  --bg-sidebar:  rgba(7,20,25,0.92);
+  --bg-nav:      rgba(7,20,25,0.90);
+  --bg-card:     rgba(255,255,255,0.04);
+  --bg-hover:    rgba(255,255,255,0.05);
+  --bg-input:    rgba(255,255,255,0.06);
+  --bg-subtle:   rgba(255,255,255,0.07);
+  --bg-muted:    rgba(255,255,255,0.08);
+  --border:      rgba(34,211,238,0.11);
+  --border-card: rgba(34,211,238,0.14);
+  --text-1:      #ffffff;
+  --text-2:      rgba(255,255,255,0.75);
+  --text-3:      rgba(255,255,255,0.55);
+  --text-4:      rgba(255,255,255,0.42);
+  --text-5:      rgba(255,255,255,0.35);
+  --text-6:      rgba(255,255,255,0.28);
+  --text-icon:   rgba(255,255,255,0.50);
+  --shadow:      rgba(0,0,0,0.38);
+  --ring-bg:     #071419;
+}
+
 body {
   background: var(--bg);
   color: var(--text-1);
@@ -147,6 +243,34 @@ html.light .skeleton-shimmer {
     rgba(54,30,123,0.07) 60%,
     rgba(54,30,123,0.05) 100%
   );
+  background-size: 600px 100%;
+  animation: skeleton-shimmer 1.6s ease-in-out infinite;
+}
+html.midnight .skeleton-shimmer {
+  background: linear-gradient(90deg,
+    rgba(255,255,255,0.03) 0%, rgba(99,132,255,0.12) 40%,
+    rgba(255,255,255,0.05) 60%, rgba(255,255,255,0.03) 100%);
+  background-size: 600px 100%;
+  animation: skeleton-shimmer 1.6s ease-in-out infinite;
+}
+html.forest .skeleton-shimmer {
+  background: linear-gradient(90deg,
+    rgba(255,255,255,0.03) 0%, rgba(52,211,153,0.12) 40%,
+    rgba(255,255,255,0.05) 60%, rgba(255,255,255,0.03) 100%);
+  background-size: 600px 100%;
+  animation: skeleton-shimmer 1.6s ease-in-out infinite;
+}
+html.rose .skeleton-shimmer {
+  background: linear-gradient(90deg,
+    rgba(255,255,255,0.03) 0%, rgba(244,114,182,0.12) 40%,
+    rgba(255,255,255,0.05) 60%, rgba(255,255,255,0.03) 100%);
+  background-size: 600px 100%;
+  animation: skeleton-shimmer 1.6s ease-in-out infinite;
+}
+html.ocean .skeleton-shimmer {
+  background: linear-gradient(90deg,
+    rgba(255,255,255,0.03) 0%, rgba(34,211,238,0.12) 40%,
+    rgba(255,255,255,0.05) 60%, rgba(255,255,255,0.03) 100%);
   background-size: 600px 100%;
   animation: skeleton-shimmer 1.6s ease-in-out infinite;
 }
