@@ -7,39 +7,9 @@ import MainHeader from "@/components/layout/MainHeader";
 import Sidebar from "@/components/layout/Sidebar";
 import FeedGridSkeleton from "@/components/ui/skeletons/FeedCardSkeleton";
 import { type Post } from "@/lib/db/posts";
+import { Search } from "lucide-react";
 import { useEffect, useState } from "react";
 
-const TAGS = [
-  { label: "All",           category: null },
-  { label: "Painting",      category: "Painting" },
-  { label: "Drawing",       category: "Drawing" },
-  { label: "Sketching",     category: "Sketching" },
-  { label: "Illustration",  category: "Illustration" },
-  { label: "Watercolor",    category: "Watercolor" },
-  { label: "Oil Painting",  category: "Oil Painting" },
-  { label: "Acrylic",       category: "Acrylic Painting" },
-  { label: "Gouache",       category: "Gouache" },
-  { label: "Ink Art",       category: "Ink Art" },
-  { label: "Pastel Art",    category: "Pastel Art" },
-  { label: "Charcoal",      category: "Charcoal Art" },
-  { label: "Portrait",      category: "Portrait Art" },
-  { label: "Landscape",     category: "Landscape Art" },
-  { label: "Abstract",      category: "Abstract Art" },
-  { label: "Contemporary",  category: "Contemporary Art" },
-  { label: "Realism",       category: "Realism" },
-  { label: "Hyperrealism",  category: "Hyperrealism" },
-  { label: "Surrealism",    category: "Surrealism" },
-  { label: "Expressionism", category: "Expressionism" },
-  { label: "Figurative",    category: "Figurative Art" },
-  { label: "Miniature",     category: "Miniature Art" },
-  { label: "Religious",     category: "Religious Art" },
-  { label: "Conceptual",    category: "Conceptual Art" },
-  { label: "Mixed Media",   category: "Mixed Media Art" },
-  { label: "Mural",         category: "Mural Art" },
-  { label: "Fresco",        category: "Fresco Art" },
-];
-
-// Shape the mock posts to match the DB Post type so MasonryGrid works with both
 function toGridPost(p: Post) {
   return {
     id: p.id,
@@ -56,22 +26,28 @@ function toGridPost(p: Post) {
 }
 
 export default function FeedPage() {
-const [activeTab, setActiveTab]   = useState<"Latest" | "Popular">("Latest");
-  const [activeTag, setActiveTag]   = useState<string | null>(null);
-  const [dbPosts, setDbPosts]       = useState<Post[]>([]);
-  const [loading, setLoading]       = useState(true);
+  const [activeTab, setActiveTab] = useState<"Latest" | "Popular">("Latest");
+  const [search, setSearch]       = useState("");
+  const [query, setQuery]         = useState("");
+  const [dbPosts, setDbPosts]     = useState<Post[]>([]);
+  const [loading, setLoading]     = useState(true);
 
-  // Load first page from Supabase
+  // Debounce search → query
+  useEffect(() => {
+    const t = setTimeout(() => setQuery(search.trim()), 350);
+    return () => clearTimeout(t);
+  }, [search]);
+
   useEffect(() => {
     setLoading(true);
     setDbPosts([]);
-    const params = new URLSearchParams({ limit: "12", offset: "0" });
-    if (activeTag) params.set("category", activeTag);
+    const params = new URLSearchParams({ limit: "24", offset: "0" });
+    if (query) params.set("search", query);
     fetch(`/api/posts?${params}`)
       .then(r => r.json())
       .then(({ posts }: { posts: Post[] }) => { setDbPosts(posts ?? []); setLoading(false); })
       .catch(() => setLoading(false));
-  }, [activeTag]);
+  }, [query]);
 
   const posts = loading ? [] : dbPosts.map(toGridPost);
 
@@ -89,31 +65,30 @@ const [activeTab, setActiveTab]   = useState<"Latest" | "Popular">("Latest");
 
       <div className="flex-1 flex flex-col lg:ml-17 min-h-screen min-w-0">
         <MainHeader>
-          <div
-            className="flex gap-2 overflow-x-auto pb-1"
-            style={{
-              scrollbarWidth: "thin",
-              scrollbarColor: "rgba(124,91,245,0.4) transparent",
-            }}
-          >
-            {TAGS.map(({ label, category }) => {
-              const active = activeTag === category;
-              return (
+          {/* Search bar — right-aligned */}
+          <div className="px-4 md:px-8 pb-3 flex justify-end">
+            <div
+              className="flex items-center gap-2.5 px-4 py-2.5 rounded-2xl"
+              style={{ background: "var(--bg-subtle)", border: "1px solid var(--border)", width: 300 }}
+            >
+              <Search size={15} style={{ color: "var(--text-5)", flexShrink: 0 }} />
+              <input
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                placeholder="Search artwork, artists…"
+                className="flex-1 bg-transparent text-sm outline-none min-w-0"
+                style={{ color: "var(--text-1)" }}
+              />
+              {search && (
                 <button
-                  key={label}
-                  onClick={() => setActiveTag(category)}
-                  className="shrink-0 px-4 py-1.5 rounded-full text-sm font-medium transition-all"
-                  style={{
-                    background: active ? "linear-gradient(135deg, #361E7B, #7C5BF5)" : "var(--bg-card)",
-                    color: active ? "#fff" : "var(--text-4)",
-                    border: active ? "1px solid transparent" : "1px solid var(--border)",
-                    boxShadow: active ? "0 0 12px rgba(124,91,245,0.35)" : "none",
-                  }}
+                  onClick={() => setSearch("")}
+                  className="text-xs shrink-0 transition-opacity hover:opacity-70"
+                  style={{ color: "var(--text-5)" }}
                 >
-                  {label}
+                  ✕
                 </button>
-              );
-            })}
+              )}
+            </div>
           </div>
         </MainHeader>
 
@@ -121,7 +96,9 @@ const [activeTab, setActiveTab]   = useState<"Latest" | "Popular">("Latest");
           <StoriesRow />
 
           <div className="flex items-center justify-between mb-5">
-            <h2 className="text-2xl font-bold" style={{ color: "var(--text-1)" }}>Feed</h2>
+            <h2 className="text-2xl font-bold" style={{ color: "var(--text-1)" }}>
+              {query ? `Results for "${query}"` : "Feed"}
+            </h2>
             <div className="flex items-center gap-4">
               {(["Latest", "Popular"] as const).map(tab => (
                 <button
@@ -132,8 +109,10 @@ const [activeTab, setActiveTab]   = useState<"Latest" | "Popular">("Latest");
                 >
                   {tab}
                   {activeTab === tab && (
-                    <span className="absolute -bottom-0.5 left-0 right-0 h-0.5 rounded-full"
-                      style={{ background: "linear-gradient(90deg, #361E7B, #7C5BF5)" }} />
+                    <span
+                      className="absolute -bottom-0.5 left-0 right-0 h-0.5 rounded-full"
+                      style={{ background: "linear-gradient(90deg, #361E7B, #7C5BF5)" }}
+                    />
                   )}
                 </button>
               ))}
@@ -143,11 +122,10 @@ const [activeTab, setActiveTab]   = useState<"Latest" | "Popular">("Latest");
           {loading ? (
             <FeedGridSkeleton count={12} />
           ) : (
-            /* key forces full remount when tag changes or when DB vs mock source changes */
             <MasonryGrid
-              key={activeTag ?? "all"}
+              key={query}
               posts={posts as Parameters<typeof MasonryGrid>[0]["posts"]}
-              category={activeTag}
+              category={null}
               loadFromDb={true}
             />
           )}

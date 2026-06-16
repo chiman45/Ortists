@@ -3,7 +3,7 @@
 import { useTheme } from "@/contexts/ThemeContext";
 import { useClerk, useUser } from "@clerk/nextjs";
 import CreatePostModal from "@/components/create/CreatePostModal";
-import { Compass, LogOut, Moon, Plus, Sun, UserCircle } from "lucide-react";
+import { LogOut, Moon, Plus, Sun, UserCircle } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -11,7 +11,6 @@ import { useEffect, useState } from "react";
 const NAV_ITEMS: { icon: string | null; lucideIcon: React.ElementType | null; label: string; href: string }[] = [
   { icon: "/icons/1.png", lucideIcon: null,       label: "Feed",        href: "/feed" },
   { icon: "/icons/3.png", lucideIcon: null,       label: "Messages",    href: "/messages" },
-  { icon: "/icons/explore.png",           lucideIcon: Compass,    label: "Explore",     href: "/explore" },
   { icon: "/icons/7.png", lucideIcon: null,       label: "Marketplace", href: "/marketplace" },
   { icon: "/icons/6.png", lucideIcon: null,       label: "Hiring",      href: "/hiring" },
   { icon: "/icons/4.png",           lucideIcon: UserCircle, label: "Profile",     href: "/profile" },
