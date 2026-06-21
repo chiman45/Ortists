@@ -1,7 +1,9 @@
 {
   "permissions": {
     "allow": [
-      "PowerShell(aws iam get-role --role-name ecsTaskExecutionRole --query \"Role.Arn\" --output text 2>&1)"
+      "PowerShell(aws iam get-role --role-name ecsTaskExecutionRole --query \"Role.Arn\" --output text 2>&1)",
+      "mcp__deployagent-validator__deploy",
+      "mcp__deployagent-validator__get_deploy_logs"
     ]
   }
 }

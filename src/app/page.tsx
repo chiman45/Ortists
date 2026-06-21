@@ -22,7 +22,7 @@ const NAV_LINKS = [
   ["Marketplace", "/marketplace"],
   ["Hire",        "/hiring"],
   ["Artists",     "/hiring"],
-  ["About",       "#"],
+  ["About",       "/about"],
 ] as const;
 
 const FEATURED_ARTISTS = [
@@ -618,7 +618,7 @@ export default function LandingPage() {
                 <p className="text-[11px] font-bold tracking-[0.22em] uppercase mb-5"
                   style={{ color: "rgba(255,255,255,0.22)" }}>Company</p>
                 <ul className="flex flex-col gap-3">
-                  {[["About", "#"], ["Blog", "#"], ["Careers", "#"], ["Press", "#"]].map(([l, h]) => (
+                  {[["About", "/about"], ["Blog", "#"], ["Careers", "#"], ["Press", "#"]].map(([l, h]) => (
                     <li key={l}>
                       <Link href={h} className="text-[13px] transition-colors duration-200 hover:text-white" style={{ color: MUTED }}>
                         {l}

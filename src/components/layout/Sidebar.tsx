@@ -3,7 +3,7 @@
 import { THEMES, useTheme } from "@/contexts/ThemeContext";
 import { useClerk, useUser } from "@clerk/nextjs";
 import CreatePostModal from "@/components/create/CreatePostModal";
-import { LogOut, Plus, UserCircle } from "lucide-react";
+import { LogOut, Palette, Plus, UserCircle } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -57,8 +57,9 @@ export default function Sidebar() {
   const { theme, setTheme } = useTheme();
   const { signOut } = useClerk();
   const { user } = useUser();
-  const [expanded, setExpanded]     = useState(false);
-  const [createOpen, setCreateOpen] = useState(false);
+  const [expanded,    setExpanded]    = useState(false);
+  const [createOpen,  setCreateOpen]  = useState(false);
+  const [themeOpen,   setThemeOpen]   = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
 
   useEffect(() => {
@@ -229,49 +230,71 @@ export default function Sidebar() {
       {/* Divider */}
       <div className="mx-3" style={{ borderTop: "1px solid var(--border)" }} />
 
-      {/* Theme picker */}
-      <div className="px-2 pt-2 pb-1">
+      {/* Theme picker — single button + popover */}
+      <div className="relative px-2 pt-2 pb-1">
         {!expanded ? (
           <Tooltip label="Theme">
-            <div className="flex flex-col items-center gap-1.5 py-2">
-              {THEMES.map(t => (
-                <button
-                  key={t.id}
-                  onClick={e => setTheme(t.id, e)}
-                  aria-label={t.label}
-                  style={{
-                    width: 16, height: 16, borderRadius: "50%",
-                    background: t.swatch,
-                    border: theme === t.id ? "2px solid #9B7CF5" : "2px solid rgba(255,255,255,0.15)",
-                    transition: "border-color 0.2s, transform 0.15s",
-                    transform: theme === t.id ? "scale(1.25)" : "scale(1)",
-                    cursor: "pointer", padding: 0, flexShrink: 0,
-                  }}
-                />
-              ))}
-            </div>
+            <button
+              onClick={() => setThemeOpen(v => !v)}
+              className="flex items-center justify-center w-full rounded-xl transition-colors"
+              style={{ padding: "11px 0", color: themeOpen ? "#9B7CF5" : "var(--text-4)", background: themeOpen ? "rgba(124,91,245,0.12)" : "transparent" }}
+              onMouseEnter={e => { if (!themeOpen) e.currentTarget.style.background = "var(--bg-hover)"; }}
+              onMouseLeave={e => { if (!themeOpen) e.currentTarget.style.background = "transparent"; }}
+            >
+              <Palette size={22} strokeWidth={1.8} />
+            </button>
           </Tooltip>
         ) : (
-          <div className="px-2 pb-1">
-            <p className="text-[10px] font-semibold tracking-[0.15em] uppercase mb-2" style={{ color: "var(--text-6)" }}>Theme</p>
-            <div className="flex flex-wrap gap-2">
-              {THEMES.map(t => (
-                <button
-                  key={t.id}
-                  onClick={e => setTheme(t.id, e)}
-                  aria-label={t.label}
-                  className="flex items-center gap-1.5 px-2 py-1 rounded-lg text-xs font-medium transition-all"
-                  style={{
-                    background: theme === t.id ? "rgba(124,91,245,0.15)" : "transparent",
-                    border: theme === t.id ? "1px solid rgba(124,91,245,0.4)" : "1px solid transparent",
-                    color: theme === t.id ? "#9B7CF5" : "var(--text-4)",
-                  }}
-                >
-                  <span style={{ width: 10, height: 10, borderRadius: "50%", background: t.swatch, border: "1px solid rgba(255,255,255,0.2)", flexShrink: 0, display: "inline-block" }} />
-                  {t.label}
-                </button>
-              ))}
-            </div>
+          <button
+            onClick={() => setThemeOpen(v => !v)}
+            className="flex items-center gap-3 w-full rounded-xl transition-colors"
+            style={{ padding: "11px 12px", color: themeOpen ? "#9B7CF5" : "var(--text-4)", background: themeOpen ? "rgba(124,91,245,0.12)" : "transparent" }}
+            onMouseEnter={e => { if (!themeOpen) e.currentTarget.style.background = "var(--bg-hover)"; }}
+            onMouseLeave={e => { if (!themeOpen) e.currentTarget.style.background = "transparent"; }}
+          >
+            <Palette size={22} strokeWidth={1.8} />
+            <span className="text-sm font-medium whitespace-nowrap">Theme</span>
+          </button>
+        )}
+
+        {/* Popover */}
+        {themeOpen && (
+          <div
+            className="absolute z-50 p-3 rounded-2xl"
+            style={{
+              bottom: "calc(100% + 8px)",
+              left: expanded ? 8 : "calc(100% + 10px)",
+              minWidth: 180,
+              background: "var(--bg-sidebar)",
+              border: "1px solid var(--border)",
+              boxShadow: "0 8px 32px rgba(0,0,0,0.45)",
+              backdropFilter: "blur(20px)",
+            }}
+          >
+            <p className="text-[10px] font-bold tracking-[0.18em] uppercase mb-2.5 px-1" style={{ color: "var(--text-6)" }}>
+              Theme
+            </p>
+            {THEMES.map(t => (
+              <button
+                key={t.id}
+                onClick={e => { setTheme(t.id, e); setThemeOpen(false); }}
+                className="flex items-center gap-2.5 w-full px-2 py-1.5 rounded-xl text-xs font-medium transition-all"
+                style={{
+                  background: theme === t.id ? "rgba(124,91,245,0.14)" : "transparent",
+                  color: theme === t.id ? "#9B7CF5" : "var(--text-3)",
+                }}
+                onMouseEnter={e => { if (theme !== t.id) e.currentTarget.style.background = "var(--bg-hover)"; }}
+                onMouseLeave={e => { if (theme !== t.id) e.currentTarget.style.background = "transparent"; }}
+              >
+                <span style={{
+                  width: 12, height: 12, borderRadius: "50%", flexShrink: 0,
+                  background: t.swatch,
+                  border: theme === t.id ? "2px solid #9B7CF5" : "1.5px solid rgba(255,255,255,0.2)",
+                  display: "inline-block",
+                }} />
+                {t.label}
+              </button>
+            ))}
           </div>
         )}
       </div>

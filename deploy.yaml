@@ -18,7 +18,23 @@ ecs:
   desired_count: 1
   execution_role_arn: arn:aws:iam::213857329085:role/ecsTaskExecutionRole
 
+alb:
+  name: my-app-alb
+  target_group_name: my-app-tg
+  vpc_id: vpc-0a80aa3fc966f5d2d
+  subnets:
+    - subnet-0c1c42c0f03a1e851
+    - subnet-08cf6725be89eb536
+    - subnet-036660e4a597ff4de
+    - subnet-0eaf0b49ff6ccf836
+    - subnet-07e7834dbc847e0ae
+    - subnet-0a7b806e529253256
+  security_groups:
+    - sg-085d20aa23c9ff9a9
+  listener_port: 80
+  internal: false
+
 health:
-  endpoint: /health
+  endpoint: /
   timeout: 30
   retries: 5

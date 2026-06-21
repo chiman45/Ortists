@@ -10,4 +10,3 @@ yarn-error.log*
 README.md
 Dockerfile
 .dockerignore
-package-lock.json
