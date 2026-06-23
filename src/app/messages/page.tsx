@@ -7,7 +7,7 @@ import { type Conversation, type Message } from "@/lib/db/messages";
 import { type Profile } from "@/lib/db/profiles";
 import { useUser } from "@clerk/nextjs";
 import {
-  FileText, Mic, MoreVertical, Paperclip,
+  ArrowLeft, FileText, Mic, MoreVertical, Paperclip,
   Phone, Plus, Search, Send, Video, X,
 } from "lucide-react";
 import Link from "next/link";
@@ -23,7 +23,7 @@ function timeAgo(iso: string) {
 }
 
 export default function MessagesPage() {
-  const { user } = useUser();
+  const { user, isLoaded } = useUser();
 
   const [convs, setConvs]               = useState<Conversation[]>([]);
   const [profiles, setProfiles]         = useState<Record<string, Profile>>({});
@@ -43,6 +43,11 @@ export default function MessagesPage() {
   const otherUserId = activeConv?.participant_ids.find(id => id !== user?.id);
   const otherProfile = otherUserId ? profiles[otherUserId] : null;
 
+  // Stop skeleton if Clerk loaded but user is not signed in
+  useEffect(() => {
+    if (isLoaded && !user) setLoading(false);
+  }, [isLoaded, user]);
+
   // Load conversations + participant profiles
   useEffect(() => {
     if (!user) return;
@@ -50,10 +55,11 @@ export default function MessagesPage() {
       .then(r => r.json())
       .then(({ conversations: data }: { conversations: Conversation[] }) => {
         setConvs(data ?? []);
+        setLoading(false);
         const otherIds = [...new Set(
           (data ?? []).flatMap((c: Conversation) => c.participant_ids.filter((id: string) => id !== user.id))
         )];
-        if (!otherIds.length) { setLoading(false); return; }
+        if (!otherIds.length) return;
         fetch(`/api/profiles?ids=${otherIds.join(",")}`)
           .then(r => r.json())
           .then(({ profiles: profs }: { profiles: Profile[] }) => {
@@ -62,9 +68,10 @@ export default function MessagesPage() {
               (profs ?? []).forEach(p => { next[p.clerk_id] = p; });
               return next;
             });
-            setLoading(false);
-          });
-      });
+          })
+          .catch(() => {});
+      })
+      .catch(() => setLoading(false));
   }, [user]);
 
   // Load messages when active conversation changes
@@ -126,16 +133,22 @@ export default function MessagesPage() {
     if (!user) return;
     setShowNewChat(false);
     setUserSearch("");
-    const res = await fetch("/api/messages", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "get_or_create_conversation", userId1: user.id, userId2: otherUser.clerk_id }),
-    });
-    const { conversation: conv } = await res.json();
-    if (!conv) return;
-    setProfiles(prev => ({ ...prev, [otherUser.clerk_id]: otherUser }));
-    setConvs(prev => prev.find(c => c.id === conv.id) ? prev : [conv, ...prev]);
-    setActiveConvId(conv.id);
+    try {
+      const res = await fetch("/api/messages", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "get_or_create_conversation", userId1: user.id, userId2: otherUser.clerk_id }),
+      });
+      const data = await res.json();
+      console.log("[startConversation] API response:", data);
+      const conv = data.conversation;
+      if (!conv) { console.error("[startConversation] No conversation returned:", data); return; }
+      setProfiles(prev => ({ ...prev, [otherUser.clerk_id]: otherUser }));
+      setConvs(prev => prev.find(c => c.id === conv.id) ? prev : [conv, ...prev]);
+      setActiveConvId(conv.id);
+    } catch (err) {
+      console.error("[startConversation] fetch error:", err);
+    }
   }
 
   async function send() {
@@ -183,9 +196,15 @@ export default function MessagesPage() {
         {loading ? <MessagesSkeleton /> : null}
 
         {/* ── Left: Conversation list ── */}
+        {/* On mobile: visible only when no active conversation; on md+: always visible */}
         {!loading ? (<>
-        <div className="hidden md:flex flex-col w-72 shrink-0 h-full"
-          style={{ borderRight: "1px solid var(--border)", background: "var(--bg-card)" }}>
+        <div
+          className={`${activeConvId ? "hidden md:flex" : "flex"} flex-col shrink-0 h-full w-full md:w-72`}
+          style={{
+            borderRight: "1px solid var(--border)",
+            background: "var(--bg-card)",
+          }}
+        >
           <div className="px-4 pt-5 pb-4 shrink-0">
             <h2 className="text-lg font-bold mb-4" style={{ color: "var(--text-1)" }}>Messages</h2>
             <button
@@ -246,7 +265,8 @@ export default function MessagesPage() {
         </div>
 
         {/* ── Centre: Chat ── */}
-        <div className="flex-1 flex flex-col h-full min-w-0">
+        {/* On mobile: visible only when a conversation is active; on md+: always visible */}
+        <div className={`${!activeConvId ? "hidden md:flex" : "flex"} flex-1 flex-col h-full min-w-0`}>
           {!activeConvId ? (
             <div className="flex-1 flex flex-col items-center justify-center gap-4"
               style={{ color: "var(--text-5)" }}>
@@ -266,6 +286,13 @@ export default function MessagesPage() {
               {/* Header */}
               <div className="flex items-center gap-3 px-5 py-3.5 shrink-0"
                 style={{ borderBottom: "1px solid var(--border)", background: "var(--bg-card)" }}>
+                {/* Back button — mobile only */}
+                <button
+                  className="md:hidden w-8 h-8 flex items-center justify-center rounded-xl shrink-0 transition-opacity hover:opacity-70"
+                  style={{ color: "var(--text-3)" }}
+                  onClick={() => setActiveConvId(null)}>
+                  <ArrowLeft size={18} />
+                </button>
                 {otherProfile && (
                   /* eslint-disable-next-line @next/next/no-img-element */
                   <img

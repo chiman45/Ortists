@@ -274,15 +274,15 @@ export default function ProfilePage() {
 
         <main className="flex-1 flex gap-0 pb-24 lg:pb-0">
 
-          {/* Loading skeleton */}
-          {!isLoaded || !profile ? (
+          {/* Loading skeleton — only while Clerk hasn't resolved yet */}
+          {!isLoaded ? (
             <div className="flex-1 min-w-0 px-4 md:px-8 py-6">
               <ProfileSkeleton />
             </div>
           ) : null}
 
           {/* ── Centre ── */}
-          <div className={`flex-1 min-w-0 px-4 md:px-8 py-6${!isLoaded || !profile ? " hidden" : ""}`}>
+          <div className={`flex-1 min-w-0 px-4 md:px-8 py-6${!isLoaded ? " hidden" : ""}`}>
 
             {/* Profile header */}
             <div className="rounded-2xl overflow-hidden mb-5"

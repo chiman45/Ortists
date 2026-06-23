@@ -1,8 +1,11 @@
-import { clerkMiddleware } from "@clerk/nextjs/server";
+import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
 import { type NextRequest } from "next/server";
 import { updateSession } from "@/utils/supabase/middleware";
 
-export default clerkMiddleware((_auth, request: NextRequest) => {
+const isProtected = createRouteMatcher(["/messages(.*)", "/profile(.*)", "/feed(.*)"]);
+
+export default clerkMiddleware(async (auth, request: NextRequest) => {
+  if (isProtected(request)) await auth.protect();
   return updateSession(request);
 });
 

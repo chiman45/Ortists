@@ -17,6 +17,8 @@ export function getAdminDb(): SupabaseClient {
 // Convenience proxy — behaves like the old `adminDb` but initialises lazily
 export const adminDb = new Proxy({} as SupabaseClient, {
   get(_target, prop) {
-    return (getAdminDb() as unknown as Record<string | symbol, unknown>)[prop];
+    const client = getAdminDb();
+    const value = (client as unknown as Record<string | symbol, unknown>)[prop];
+    return typeof value === "function" ? (value as (...args: unknown[]) => unknown).bind(client) : value;
   },
 });
