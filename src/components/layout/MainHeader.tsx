@@ -66,7 +66,7 @@ export default function MainHeader({ children }: { children?: React.ReactNode })
 
   return (
     <div
-      className="sticky top-0 z-30 flex items-center gap-3 px-4 md:px-8 py-3 sm:py-4"
+      className="sticky top-0 z-30 flex items-center gap-3 px-4 md:px-8 py-2.5"
       style={{
         background: "var(--bg-header)",
         backdropFilter: "blur(24px)",
