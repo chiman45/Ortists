@@ -1,7 +1,7 @@
 "use client";
 
 import { THEMES, useTheme } from "@/contexts/ThemeContext";
-import { useClerk, useUser } from "@clerk/nextjs";
+import { useClerk, useUser, UserButton } from "@clerk/nextjs";
 import CreatePostModal from "@/components/create/CreatePostModal";
 import { LogOut, Palette, Plus, UserCircle } from "lucide-react";
 import Link from "next/link";
@@ -299,31 +299,20 @@ export default function Sidebar() {
         )}
       </div>
 
-      {/* User card + Logout */}
-      <div className="px-2 pb-5 flex flex-col gap-1">
-        {/* Avatar / account row */}
+      {/* Clerk UserButton */}
+      <div className="px-2 pb-5">
         {!expanded ? (
-          <Tooltip label={user?.fullName ?? user?.username ?? "Account"}>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={user?.imageUrl ?? `https://i.pravatar.cc/80?u=${user?.id}`}
-              alt="avatar"
-              className="w-10 h-10 rounded-full object-cover mx-auto mb-1"
-              style={{ border: "2px solid rgba(124,91,245,0.35)" }}
-            />
+          <Tooltip label="Account">
+            <div className="flex justify-center py-1">
+              <UserButton afterSignOutUrl="/" />
+            </div>
           </Tooltip>
         ) : (
           <div
             className="flex items-center gap-3 rounded-xl px-3 py-2.5"
             style={{ background: "var(--bg-subtle)", border: "1px solid var(--border)" }}
           >
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={user?.imageUrl ?? `https://i.pravatar.cc/80?u=${user?.id}`}
-              alt="avatar"
-              className="w-9 h-9 rounded-full object-cover shrink-0"
-              style={{ border: "2px solid rgba(124,91,245,0.35)" }}
-            />
+            <UserButton afterSignOutUrl="/" />
             <div className="flex-1 min-w-0">
               <p className="text-xs font-semibold truncate" style={{ color: "var(--text-1)" }}>
                 {user?.fullName ?? user?.username ?? "Artist"}
@@ -332,39 +321,7 @@ export default function Sidebar() {
                 {user?.primaryEmailAddress?.emailAddress ?? ""}
               </p>
             </div>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src="/login-image/ortists logo1.png"
-              alt="Ortist"
-              className="w-5 h-5 object-contain shrink-0 opacity-60"
-            />
           </div>
-        )}
-
-        {/* Logout button */}
-        {!expanded ? (
-          <Tooltip label="Logout">
-            <button
-              onClick={handleLogout}
-              className="flex items-center rounded-xl transition-colors w-full"
-              style={{ padding: "8px 0", justifyContent: "center", color: "var(--text-5)" }}
-              onMouseEnter={e => { e.currentTarget.style.color = "var(--text-2)"; e.currentTarget.style.background = "var(--bg-hover)"; }}
-              onMouseLeave={e => { e.currentTarget.style.color = "var(--text-5)"; e.currentTarget.style.background = "transparent"; }}
-            >
-              <LogOut size={20} strokeWidth={1.8} />
-            </button>
-          </Tooltip>
-        ) : (
-          <button
-            onClick={handleLogout}
-            className="flex items-center gap-3 rounded-xl transition-colors w-full"
-            style={{ padding: "9px 12px", color: "var(--text-5)" }}
-            onMouseEnter={e => { e.currentTarget.style.color = "var(--text-2)"; e.currentTarget.style.background = "var(--bg-hover)"; }}
-            onMouseLeave={e => { e.currentTarget.style.color = "var(--text-5)"; e.currentTarget.style.background = "transparent"; }}
-          >
-            <LogOut size={20} strokeWidth={1.8} className="shrink-0" />
-            <span className="text-sm font-medium whitespace-nowrap">Logout</span>
-          </button>
         )}
       </div>
     </aside>
