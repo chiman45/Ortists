@@ -2,7 +2,7 @@
 
 import {
   ArrowLeft, ArrowRight, BookmarkCheck, Briefcase,
-  Check, FileText, ImageIcon, MapPin, Send, ShoppingBag, Upload, X,
+  Check, ImageIcon, MapPin, Send, ShoppingBag, Upload, X,
 } from "lucide-react";
 import { useUser } from "@clerk/nextjs";
 import { useCallback, useRef, useState } from "react";
@@ -11,9 +11,7 @@ const STEPS = ["Type", "Media", "Details", "Options", "Preview"] as const;
 
 const CONTENT_TYPES = [
   { id: "portfolio",   Icon: ImageIcon,   title: "Portfolio Post",       desc: "Showcase artwork, photography, designs, sketches, or creative projects." },
-  { id: "story",       Icon: FileText,    title: "Story",                desc: "Share temporary creative updates, behind-the-scenes content, work-in-progress, or announcements." },
   { id: "marketplace", Icon: ShoppingBag, title: "Marketplace Listing",  desc: "List artwork, prints, digital assets, or products available for purchase." },
-  { id: "commission",  Icon: Briefcase,   title: "Commission Service",   desc: "Offer custom creative services and accept hiring requests." },
 ] as const;
 
 const PRESET_TAGS = [

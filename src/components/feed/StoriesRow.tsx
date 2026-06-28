@@ -55,6 +55,19 @@ async function loadStories(): Promise<RichStory[]> {
   return groupStories(stories ?? []);
 }
 
+// localStorage key: map of { [storyUserId]: newestStoryId }
+// When new story is posted, newestStoryId changes → treated as unviewed again
+const LS_KEY = "ortist_viewed_stories";
+
+function loadViewed(): Record<string, string> {
+  try { return JSON.parse(localStorage.getItem(LS_KEY) ?? "{}"); }
+  catch { return {}; }
+}
+
+function saveViewed(viewed: Record<string, string>) {
+  localStorage.setItem(LS_KEY, JSON.stringify(viewed));
+}
+
 export default function StoriesRow() {
   const { user } = useUser();
   const fileRef  = useRef<HTMLInputElement>(null);
@@ -63,8 +76,34 @@ export default function StoriesRow() {
   const [viewingIdx, setViewingIdx] = useState<number | null>(null);
   const [uploading, setUploading]   = useState(false);
   const [error, setError]           = useState<string | null>(null);
+  // Map of storyUserId → newestStoryId that was viewed
+  const [viewed, setViewed]         = useState<Record<string, string>>({});
 
-  useEffect(() => { loadStories().then(setStories); }, []);
+  useEffect(() => {
+    setViewed(loadViewed());
+    loadStories().then(setStories);
+  }, []);
+
+  function markViewed(story: RichStory) {
+    // Use the first storyId (most recent, API returns desc order) as the "newest" marker
+    const newestId = story.storyIds[0];
+    if (!newestId) return;
+    setViewed(prev => {
+      const next = { ...prev, [story.id]: newestId };
+      saveViewed(next);
+      return next;
+    });
+  }
+
+  function isViewed(story: RichStory): boolean {
+    const newestId = story.storyIds[0];
+    return !!newestId && viewed[story.id] === newestId;
+  }
+
+  function openStory(idx: number) {
+    setViewingIdx(idx);
+    markViewed(stories[idx]);
+  }
 
   async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -73,7 +112,6 @@ export default function StoriesRow() {
     setUploading(true);
     setError(null);
     try {
-      // Upload via server-side route (uses admin/service-role key)
       const form = new FormData();
       form.append("file", file);
       const uploadRes = await fetch("/api/upload", { method: "POST", body: form });
@@ -117,12 +155,11 @@ export default function StoriesRow() {
           <h2 className="text-2xl font-bold" style={{ color: "var(--text-1)" }}>Stories</h2>
           {stories.length > 0 && (
             <button
-              onClick={() => setViewingIdx(0)}
+              onClick={() => openStory(0)}
               className="flex items-center gap-1.5 text-sm font-medium transition-opacity hover:opacity-70"
               style={{ color: "var(--text-5)" }}
             >
-              <div className="w-6 h-6 rounded-full flex items-center justify-center"
-                style={{ background: "var(--bg-subtle)" }}>
+              <div className="w-6 h-6 rounded-full flex items-center justify-center" style={{ background: "var(--bg-subtle)" }}>
                 <Play size={10} fill="currentColor" className="ml-0.5" />
               </div>
               Watch all
@@ -157,7 +194,8 @@ export default function StoriesRow() {
           {myStoryIdx !== -1 && (
             <StoryBubble
               story={stories[myStoryIdx]}
-              onClick={() => setViewingIdx(myStoryIdx)}
+              viewed={isViewed(stories[myStoryIdx])}
+              onClick={() => openStory(myStoryIdx)}
               canDelete
               onDelete={() => deleteMyStory(stories[myStoryIdx].storyIds)}
             />
@@ -168,7 +206,8 @@ export default function StoriesRow() {
             <StoryBubble
               key={story.id}
               story={story}
-              onClick={() => setViewingIdx(stories.indexOf(story))}
+              viewed={isViewed(story)}
+              onClick={() => openStory(stories.indexOf(story))}
             />
           ))}
 
@@ -179,9 +218,7 @@ export default function StoriesRow() {
           )}
         </div>
 
-        {error && (
-          <p className="text-xs mt-2" style={{ color: "#EF4444" }}>{error}</p>
-        )}
+        {error && <p className="text-xs mt-2" style={{ color: "#EF4444" }}>{error}</p>}
       </section>
 
       {viewingIdx !== null && (
@@ -189,6 +226,19 @@ export default function StoriesRow() {
           stories={stories}
           startIndex={viewingIdx}
           onClose={() => setViewingIdx(null)}
+          currentUserId={user?.id}
+          onDeleteFrame={async (storyId) => {
+            await fetch(`/api/stories/${storyId}`, { method: "DELETE" });
+            setStories(await loadStories());
+          }}
+          onViewFrame={(storyId) => {
+            if (!user) return;
+            fetch(`/api/stories/${storyId}`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ viewerId: user.id }),
+            }).catch(() => {});
+          }}
         />
       )}
     </>
@@ -196,9 +246,10 @@ export default function StoriesRow() {
 }
 
 function StoryBubble({
-  story, onClick, canDelete, onDelete,
+  story, viewed, onClick, canDelete, onDelete,
 }: {
   story: RichStory;
+  viewed: boolean;
   onClick: () => void;
   canDelete?: boolean;
   onDelete?: () => void;
@@ -209,7 +260,9 @@ function StoryBubble({
         onClick={onClick}
         className="w-14 h-14 rounded-full p-0.5 transition-all hover:scale-105"
         style={{
-          background: "linear-gradient(135deg, #361E7B, #7C5BF5, #F59E0B)",
+          background: viewed
+            ? "rgba(255,255,255,0.15)"
+            : "linear-gradient(135deg, #361E7B, #7C5BF5, #F59E0B)",
           boxShadow: "0 0 0 2px var(--bg)",
         }}
       >
@@ -218,7 +271,10 @@ function StoryBubble({
           src={story.avatar}
           alt={story.displayName}
           className="w-full h-full rounded-full object-cover"
-          style={{ border: "2px solid var(--bg)" }}
+          style={{
+            border: "2px solid var(--bg)",
+            opacity: viewed ? 0.7 : 1,
+          }}
         />
       </button>
 
@@ -232,8 +288,7 @@ function StoryBubble({
         </button>
       )}
 
-      <span className="text-[10px] font-medium text-center"
-        style={{ color: "var(--text-5)", maxWidth: 56 }}>
+      <span className="text-[10px] font-medium text-center" style={{ color: "var(--text-5)", maxWidth: 56 }}>
         {story.displayName.split(" ")[0]}
       </span>
     </div>
