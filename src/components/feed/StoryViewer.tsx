@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Eye, Loader2, Trash2, X } from "lucide-react";
+import { Eye, Heart, Loader2, MessageCircle, Send, Trash2, X } from "lucide-react";
 
 interface StoryFrame { image: string; duration: number }
 export interface StoryItem {
@@ -18,6 +18,14 @@ export interface StoryItem {
 interface ViewerRecord {
   viewerId: string;
   viewedAt: string;
+  profile: { clerk_id: string; display_name: string | null; username: string | null; avatar_url: string | null } | null;
+}
+
+interface CommentRecord {
+  id: string;
+  userId: string;
+  content: string;
+  createdAt: string;
   profile: { clerk_id: string; display_name: string | null; username: string | null; avatar_url: string | null } | null;
 }
 
@@ -40,48 +48,82 @@ function timeAgo(iso: string) {
 }
 
 export default function StoryViewer({ stories, startIndex, onClose, currentUserId, onDeleteFrame, onViewFrame }: Props) {
-  const [storyIdx, setStoryIdx]       = useState(startIndex);
-  const [frameIdx, setFrameIdx]       = useState(0);
-  const [progress, setProgress]       = useState(0);
-  const [confirming, setConfirming]   = useState(false);
-  const [deleting, setDeleting]       = useState(false);
-  const [viewerSheet, setViewerSheet] = useState(false);
-  const [viewers, setViewers]         = useState<ViewerRecord[]>([]);
-  const [viewerCount, setViewerCount] = useState<number | null>(null);
-  const [viewersLoading, setViewersLoading] = useState(false);
+  const [storyIdx, setStoryIdx]     = useState(startIndex);
+  const [frameIdx, setFrameIdx]     = useState(0);
+  const [progress, setProgress]     = useState(0);
+  const [confirming, setConfirming] = useState(false);
+  const [deleting, setDeleting]     = useState(false);
+
+  // Viewer sheet
+  const [viewerSheet, setViewerSheet]         = useState(false);
+  const [viewers, setViewers]                 = useState<ViewerRecord[]>([]);
+  const [viewerCount, setViewerCount]         = useState<number | null>(null);
+  const [viewersLoading, setViewersLoading]   = useState(false);
+
+  // Likes
+  const [liked, setLiked]         = useState(false);
+  const [likeCount, setLikeCount] = useState(0);
+
+  // Comments
+  const [commentInput, setCommentInput]           = useState("");
+  const [composing, setComposing]                 = useState(false);
+  const [sendingComment, setSendingComment]       = useState(false);
+  const [commentSheet, setCommentSheet]           = useState(false);
+  const [comments, setComments]                   = useState<CommentRecord[]>([]);
+  const [commentsLoading, setCommentsLoading]     = useState(false);
+  const [commentCount, setCommentCount]           = useState<number | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
   const startRef = useRef<number>(0);
   const rafRef   = useRef<number>(0);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  const story = stories[storyIdx];
+  // Derive story properties before hooks — use optional chaining so hooks are never skipped
+  const story          = stories[storyIdx];
+  const frame          = story?.frames[frameIdx] ?? story?.frames[0];
+  const total          = story?.frames.length ?? 0;
+  const isOwn          = !!currentUserId && story?.id === currentUserId;
+  const currentStoryId = story?.storyIds?.[frameIdx];
+  const paused         = confirming || viewerSheet || commentSheet || composing;
 
+  // Close viewer when story disappears
   useEffect(() => {
     if (!story) onClose();
   }, [story, onClose]);
 
-  if (!story) return null;
-
-  const frame          = story.frames[frameIdx] ?? story.frames[0];
-  const total          = story.frames.length;
-  const isOwn          = !!currentUserId && story.id === currentUserId;
-  const currentStoryId = story.storyIds?.[frameIdx];
-  const paused         = confirming || viewerSheet;
-
-  // Record view for others' stories & fetch count for own stories when frame changes
+  // Load reactions when frame changes
   useEffect(() => {
     if (!currentStoryId) return;
+
+    setViewerSheet(false);
+    setCommentSheet(false);
+    setViewers([]);
+    setComments([]);
+    setCommentInput("");
+    setLiked(false);
+    setLikeCount(0);
+    setCommentCount(null);
+
     if (isOwn) {
-      // Fetch view count for the current frame
       fetch(`/api/stories/${currentStoryId}?requesterId=${currentUserId}`)
         .then(r => r.json())
         .then(d => { if (typeof d.count === "number") setViewerCount(d.count); })
         .catch(() => {});
-    } else if (onViewFrame) {
-      onViewFrame(currentStoryId);
+      fetch(`/api/stories/${currentStoryId}/like`)
+        .then(r => r.json())
+        .then(d => { if (typeof d.count === "number") setLikeCount(d.count); })
+        .catch(() => {});
+      fetch(`/api/stories/${currentStoryId}/comments?requesterId=${currentUserId}`)
+        .then(r => r.json())
+        .then(d => { if (Array.isArray(d.comments)) setCommentCount(d.comments.length); })
+        .catch(() => {});
+    } else if (currentUserId) {
+      fetch(`/api/stories/${currentStoryId}/like?userId=${currentUserId}`)
+        .then(r => r.json())
+        .then(d => { setLiked(!!d.liked); setLikeCount(d.count ?? 0); })
+        .catch(() => {});
+      if (onViewFrame) onViewFrame(currentStoryId);
     }
-    // Reset viewer sheet when frame changes
-    setViewerSheet(false);
-    setViewers([]);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentStoryId]);
 
@@ -98,6 +140,62 @@ export default function StoryViewer({ stories, startIndex, onClose, currentUserI
       // keep existing count
     } finally {
       setViewersLoading(false);
+    }
+  }
+
+  async function openCommentSheet() {
+    if (!currentStoryId || !currentUserId) return;
+    setCommentSheet(true);
+    setCommentsLoading(true);
+    try {
+      const res  = await fetch(`/api/stories/${currentStoryId}/comments?requesterId=${currentUserId}`);
+      const data = await res.json();
+      setComments(data.comments ?? []);
+      setCommentCount(data.comments?.length ?? 0);
+    } catch {
+      // keep existing count
+    } finally {
+      setCommentsLoading(false);
+    }
+  }
+
+  async function toggleLike() {
+    if (!currentStoryId || !currentUserId || isOwn) return;
+    const wasLiked = liked;
+    setLiked(!wasLiked);
+    setLikeCount(c => !wasLiked ? c + 1 : Math.max(0, c - 1));
+    try {
+      const res = await fetch(`/api/stories/${currentStoryId}/like`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: currentUserId }),
+      });
+      const d = await res.json();
+      setLiked(!!d.liked);
+      setLikeCount(d.count ?? 0);
+    } catch {
+      setLiked(wasLiked);
+      setLikeCount(c => wasLiked ? c + 1 : Math.max(0, c - 1));
+    }
+  }
+
+  async function sendComment() {
+    const text = commentInput.trim();
+    if (!text || !currentStoryId || !currentUserId) return;
+    setSendingComment(true);
+    setCommentInput("");
+    try {
+      await fetch(`/api/stories/${currentStoryId}/comments`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: currentUserId, content: text }),
+      });
+    } catch {
+      setCommentInput(text);
+    } finally {
+      setSendingComment(false);
+      inputRef.current?.blur();
+      setComposing(false);
     }
   }
 
@@ -136,7 +234,7 @@ export default function StoryViewer({ stories, startIndex, onClose, currentUserI
     }
   }
 
-  // Progress animation — pauses when a sheet is open
+  // Progress animation — pauses when any sheet/input is open
   useEffect(() => {
     if (paused) return;
     setProgress(0);
@@ -144,7 +242,7 @@ export default function StoryViewer({ stories, startIndex, onClose, currentUserI
 
     function tick(now: number) {
       const elapsed = now - startRef.current;
-      const pct = Math.min((elapsed / frame.duration) * 100, 100);
+      const pct = Math.min((elapsed / (frame?.duration ?? 5000)) * 100, 100);
       setProgress(pct);
       if (pct < 100) {
         rafRef.current = requestAnimationFrame(tick);
@@ -163,7 +261,15 @@ export default function StoryViewer({ stories, startIndex, onClose, currentUserI
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
-      if (viewerSheet || confirming) { if (e.key === "Escape") { setViewerSheet(false); setConfirming(false); } return; }
+      if (composing) {
+        if (e.key === "Enter") { e.preventDefault(); sendComment(); }
+        if (e.key === "Escape") { setComposing(false); inputRef.current?.blur(); }
+        return;
+      }
+      if (viewerSheet || confirming || commentSheet) {
+        if (e.key === "Escape") { setViewerSheet(false); setConfirming(false); setCommentSheet(false); }
+        return;
+      }
       if (e.key === "ArrowRight") advance();
       if (e.key === "ArrowLeft")  goBack();
       if (e.key === "Escape")     onClose();
@@ -171,7 +277,10 @@ export default function StoryViewer({ stories, startIndex, onClose, currentUserI
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [storyIdx, frameIdx, viewerSheet, confirming]);
+  }, [storyIdx, frameIdx, viewerSheet, confirming, commentSheet, composing]);
+
+  // All hooks above — safe to bail now
+  if (!story || !frame) return null;
 
   return (
     <div
@@ -191,8 +300,8 @@ export default function StoryViewer({ stories, startIndex, onClose, currentUserI
         {/* Top gradient */}
         <div className="absolute inset-x-0 top-0 h-32 pointer-events-none" style={{ background: "linear-gradient(to bottom, rgba(0,0,0,0.6) 0%, transparent 100%)" }} />
 
-        {/* Bottom gradient (for viewer count visibility) */}
-        <div className="absolute inset-x-0 bottom-0 h-28 pointer-events-none" style={{ background: "linear-gradient(to top, rgba(0,0,0,0.6) 0%, transparent 100%)" }} />
+        {/* Bottom gradient */}
+        <div className="absolute inset-x-0 bottom-0 h-40 pointer-events-none" style={{ background: "linear-gradient(to top, rgba(0,0,0,0.7) 0%, transparent 100%)" }} />
 
         {/* Progress bars */}
         <div className="absolute top-3 inset-x-3 flex gap-1 z-10">
@@ -243,24 +352,105 @@ export default function StoryViewer({ stories, startIndex, onClose, currentUserI
 
         {/* Tap zones */}
         {!paused && (
-          <div className="absolute inset-0 flex" style={{ top: 80, bottom: 60 }}>
+          <div className="absolute inset-0 flex" style={{ top: 80, bottom: 72 }}>
             <div className="flex-1 cursor-pointer" onClick={goBack} />
             <div className="flex-1 cursor-pointer" onClick={advance} />
           </div>
         )}
 
-        {/* Viewer count button (bottom, own story only) */}
+        {/* Own story — stats row: views / likes / replies */}
         {isOwn && !confirming && (
-          <button
-            onClick={e => { e.stopPropagation(); openViewerSheet(); }}
-            className="absolute bottom-5 left-1/2 -translate-x-1/2 z-10 flex items-center gap-2 px-4 py-2 rounded-full transition-all hover:opacity-80"
-            style={{ background: "rgba(0,0,0,0.5)", backdropFilter: "blur(10px)", border: "1px solid rgba(255,255,255,0.15)" }}
-          >
-            <Eye size={14} color="rgba(255,255,255,0.9)" />
-            <span className="text-xs font-semibold text-white">
-              {viewerCount === null ? "Views" : viewerCount === 0 ? "No views yet" : `${viewerCount} view${viewerCount !== 1 ? "s" : ""}`}
-            </span>
-          </button>
+          <div className="absolute bottom-5 inset-x-4 z-10 flex items-center justify-center gap-2.5">
+            <button
+              onClick={e => { e.stopPropagation(); openViewerSheet(); }}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full transition-all hover:opacity-80"
+              style={{ background: "rgba(0,0,0,0.55)", backdropFilter: "blur(10px)", border: "1px solid rgba(255,255,255,0.15)" }}
+            >
+              <Eye size={13} color="rgba(255,255,255,0.85)" />
+              <span className="text-[11px] font-semibold text-white">
+                {viewerCount === null ? "—" : viewerCount}
+              </span>
+            </button>
+
+            <div
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full"
+              style={{ background: "rgba(0,0,0,0.55)", backdropFilter: "blur(10px)", border: "1px solid rgba(255,255,255,0.15)" }}
+            >
+              <Heart size={13} color="rgba(255,100,130,0.9)" />
+              <span className="text-[11px] font-semibold text-white">{likeCount}</span>
+            </div>
+
+            <button
+              onClick={e => { e.stopPropagation(); openCommentSheet(); }}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full transition-all hover:opacity-80"
+              style={{ background: "rgba(0,0,0,0.55)", backdropFilter: "blur(10px)", border: "1px solid rgba(255,255,255,0.15)" }}
+            >
+              <MessageCircle size={13} color="rgba(255,255,255,0.85)" />
+              <span className="text-[11px] font-semibold text-white">
+                {commentCount === null ? "—" : commentCount}
+              </span>
+            </button>
+          </div>
+        )}
+
+        {/* Others' story — like + reply bar */}
+        {!isOwn && !confirming && currentUserId && (
+          <div className="absolute bottom-0 inset-x-0 z-10 px-4 pb-5 pt-2 flex items-center gap-3">
+            {/* Like button */}
+            <button
+              onClick={e => { e.stopPropagation(); toggleLike(); }}
+              className="flex items-center gap-1.5 shrink-0 transition-transform active:scale-90"
+            >
+              <Heart
+                size={26}
+                fill={liked ? "#FF4081" : "none"}
+                color={liked ? "#FF4081" : "rgba(255,255,255,0.85)"}
+                style={{
+                  transition: "all 0.15s ease",
+                  filter: liked ? "drop-shadow(0 0 6px rgba(255,64,129,0.5))" : "none",
+                }}
+              />
+              {likeCount > 0 && (
+                <span
+                  className="text-xs font-semibold"
+                  style={{ color: liked ? "#FF4081" : "rgba(255,255,255,0.7)" }}
+                >
+                  {likeCount}
+                </span>
+              )}
+            </button>
+
+            {/* Reply input */}
+            <div
+              className="flex-1 flex items-center gap-2 rounded-full px-4 py-2"
+              style={{
+                background: "rgba(255,255,255,0.12)",
+                backdropFilter: "blur(12px)",
+                border: "1px solid rgba(255,255,255,0.18)",
+              }}
+            >
+              <input
+                ref={inputRef}
+                value={commentInput}
+                onChange={e => setCommentInput(e.target.value)}
+                onFocus={() => setComposing(true)}
+                onBlur={() => { if (!commentInput.trim()) setComposing(false); }}
+                onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); sendComment(); } }}
+                placeholder={`Reply to ${story.displayName.split(" ")[0]}…`}
+                className="flex-1 bg-transparent text-sm text-white placeholder:text-white/40 outline-none"
+                style={{ minWidth: 0 }}
+              />
+              {commentInput.trim() && (
+                <button
+                  onClick={e => { e.stopPropagation(); sendComment(); }}
+                  disabled={sendingComment}
+                  className="shrink-0 transition-opacity disabled:opacity-50"
+                >
+                  <Send size={16} color="#9B7CF5" />
+                </button>
+              )}
+            </div>
+          </div>
         )}
 
         {/* Viewer list sheet */}
@@ -274,12 +464,9 @@ export default function StoryViewer({ stories, startIndex, onClose, currentUserI
               style={{ background: "rgba(18,18,18,0.98)", border: "1px solid rgba(255,255,255,0.08)", maxHeight: "60%" }}
               onClick={e => e.stopPropagation()}
             >
-              {/* Sheet handle */}
               <div className="flex justify-center pt-3 pb-1">
                 <div className="w-10 h-1 rounded-full" style={{ background: "rgba(255,255,255,0.2)" }} />
               </div>
-
-              {/* Header */}
               <div className="flex items-center justify-between px-5 py-3">
                 <div className="flex items-center gap-2">
                   <Eye size={16} color="#9B7CF5" />
@@ -291,10 +478,7 @@ export default function StoryViewer({ stories, startIndex, onClose, currentUserI
                   <X size={13} color="rgba(255,255,255,0.6)" />
                 </button>
               </div>
-
               <div className="h-px mx-4" style={{ background: "rgba(255,255,255,0.07)" }} />
-
-              {/* Viewers list */}
               <div className="overflow-y-auto flex-1 py-2" style={{ scrollbarWidth: "none" }}>
                 {viewersLoading ? (
                   <div className="flex justify-center py-8">
@@ -312,8 +496,10 @@ export default function StoryViewer({ stories, startIndex, onClose, currentUserI
                     const avatar = v.profile?.avatar_url;
                     return (
                       <div key={i} className="flex items-center gap-3 px-5 py-2.5">
-                        <div className="w-9 h-9 rounded-full shrink-0 overflow-hidden flex items-center justify-center text-xs font-bold text-white"
-                          style={{ background: avatar ? undefined : "linear-gradient(135deg,#361E7B,#7C5BF5)" }}>
+                        <div
+                          className="w-9 h-9 rounded-full shrink-0 overflow-hidden flex items-center justify-center text-xs font-bold text-white"
+                          style={{ background: avatar ? undefined : "linear-gradient(135deg,#361E7B,#7C5BF5)" }}
+                        >
                           {avatar
                             // eslint-disable-next-line @next/next/no-img-element
                             ? <img src={avatar} alt={name} className="w-full h-full object-cover" />
@@ -325,6 +511,79 @@ export default function StoryViewer({ stories, startIndex, onClose, currentUserI
                         </div>
                         <span className="text-[10px] shrink-0" style={{ color: "rgba(255,255,255,0.35)" }}>
                           {timeAgo(v.viewedAt)} ago
+                        </span>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Comment sheet (own stories) */}
+        {commentSheet && (
+          <div
+            className="absolute inset-0 z-20 flex flex-col justify-end"
+            onClick={() => setCommentSheet(false)}
+          >
+            <div
+              className="rounded-t-3xl overflow-hidden flex flex-col"
+              style={{ background: "rgba(18,18,18,0.98)", border: "1px solid rgba(255,255,255,0.08)", maxHeight: "60%" }}
+              onClick={e => e.stopPropagation()}
+            >
+              <div className="flex justify-center pt-3 pb-1">
+                <div className="w-10 h-1 rounded-full" style={{ background: "rgba(255,255,255,0.2)" }} />
+              </div>
+              <div className="flex items-center justify-between px-5 py-3">
+                <div className="flex items-center gap-2">
+                  <MessageCircle size={16} color="#9B7CF5" />
+                  <span className="text-white font-semibold text-sm">
+                    {commentsLoading
+                      ? "Loading…"
+                      : `${commentCount ?? 0} repl${(commentCount ?? 0) !== 1 ? "ies" : "y"}`}
+                  </span>
+                </div>
+                <button onClick={() => setCommentSheet(false)} className="w-7 h-7 rounded-full flex items-center justify-center" style={{ background: "rgba(255,255,255,0.08)" }}>
+                  <X size={13} color="rgba(255,255,255,0.6)" />
+                </button>
+              </div>
+              <div className="h-px mx-4" style={{ background: "rgba(255,255,255,0.07)" }} />
+              <div className="overflow-y-auto flex-1 py-2" style={{ scrollbarWidth: "none" }}>
+                {commentsLoading ? (
+                  <div className="flex justify-center py-8">
+                    <Loader2 size={22} className="animate-spin" style={{ color: "#9B7CF5" }} />
+                  </div>
+                ) : comments.length === 0 ? (
+                  <div className="flex flex-col items-center py-8 gap-2">
+                    <MessageCircle size={28} color="rgba(255,255,255,0.2)" />
+                    <p className="text-xs" style={{ color: "rgba(255,255,255,0.35)" }}>No replies yet</p>
+                  </div>
+                ) : (
+                  comments.map(c => {
+                    const name   = c.profile?.display_name ?? c.profile?.username ?? "Unknown";
+                    const handle = c.profile?.username ?? "";
+                    const avatar = c.profile?.avatar_url;
+                    return (
+                      <div key={c.id} className="flex items-start gap-3 px-5 py-2.5">
+                        <div
+                          className="w-8 h-8 rounded-full shrink-0 overflow-hidden flex items-center justify-center text-xs font-bold text-white mt-0.5"
+                          style={{ background: avatar ? undefined : "linear-gradient(135deg,#361E7B,#7C5BF5)" }}
+                        >
+                          {avatar
+                            // eslint-disable-next-line @next/next/no-img-element
+                            ? <img src={avatar} alt={name} className="w-full h-full object-cover" />
+                            : name[0]?.toUpperCase()}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-baseline gap-1.5 mb-0.5">
+                            <span className="text-xs font-semibold text-white">{name}</span>
+                            {handle && <span className="text-[10px]" style={{ color: "rgba(255,255,255,0.35)" }}>@{handle}</span>}
+                          </div>
+                          <p className="text-xs leading-relaxed" style={{ color: "rgba(255,255,255,0.8)" }}>{c.content}</p>
+                        </div>
+                        <span className="text-[10px] shrink-0 mt-0.5" style={{ color: "rgba(255,255,255,0.35)" }}>
+                          {timeAgo(c.createdAt)}
                         </span>
                       </div>
                     );
