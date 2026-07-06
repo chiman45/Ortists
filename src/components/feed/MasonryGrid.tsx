@@ -120,7 +120,12 @@ export default function MasonryGrid({ posts: initial, category, loadFromDb = tru
     <>
       <div className="columns-2 sm:columns-3 lg:columns-4 xl:columns-5 gap-4">
         {visible.map((p, i) => (
-          <FeedCard key={p.id} post={p} priority={i < 6} />
+          <FeedCard
+            key={p.id}
+            post={p}
+            priority={i < 6}
+            onDelete={id => setVisible(v => v.filter(x => x.id !== id))}
+          />
         ))}
       </div>
 

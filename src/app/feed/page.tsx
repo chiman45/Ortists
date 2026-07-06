@@ -12,16 +12,17 @@ import { useEffect, useState } from "react";
 
 function toGridPost(p: Post) {
   return {
-    id: p.id,
-    title: p.title,
-    imageUrl: p.image_url,
-    imageWidth: 400,
+    id:          p.id,
+    userId:      p.user_id,
+    title:       p.title,
+    imageUrl:    p.image_url,
+    imageWidth:  400,
     imageHeight: 500,
-    username: p.author_username,
-    avatar: p.author_avatar ?? `https://i.pravatar.cc/80`,
-    likes: p.likes_count,
-    comments: p.comments_count,
-    category: p.category,
+    username:    p.author_username,
+    avatar:      p.author_avatar ?? `https://i.pravatar.cc/80`,
+    likes:       p.likes_count,
+    comments:    p.comments_count,
+    category:    p.category,
   };
 }
 

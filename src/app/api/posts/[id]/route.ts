@@ -1,6 +1,28 @@
 import { adminDb } from "@/utils/supabase/admin";
 import { NextRequest, NextResponse } from "next/server";
 
+// DELETE /api/posts/[id]?userId= — owner-only post deletion
+export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  const userId = new URL(req.url).searchParams.get("userId");
+
+  const { data: post } = await adminDb.from("posts").select("user_id").eq("id", id).single();
+  if (!post || post.user_id !== userId) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
+  // Clean up related rows before deleting the post (handles DBs without cascade)
+  await Promise.all([
+    adminDb.from("likes").delete().eq("post_id", id),
+    adminDb.from("saves").delete().eq("post_id", id),
+    adminDb.from("user_interactions").delete().eq("post_id", id),
+    adminDb.from("comments").delete().eq("post_id", id),
+  ]);
+
+  await adminDb.from("posts").delete().eq("id", id);
+  return NextResponse.json({ ok: true });
+}
+
 // GET /api/posts/[id]?userId= — fetch single post + liked/saved state
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
