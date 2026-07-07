@@ -162,24 +162,30 @@ export default function FeedPostPage({ params }: { params: Promise<{ id: string 
       <div className="flex-1 flex flex-col lg:ml-17 min-h-screen">
         <MainHeader />
         <main className="flex-1 pb-24 lg:pb-8">
-          <div className="px-4 md:px-8 pt-5 pb-4">
-            <Link href="/feed" className="inline-flex items-center gap-2 text-sm transition-opacity hover:opacity-70"
-              style={{ color: "var(--text-4)" }}>
-              <ArrowLeft size={15} /> Back to Feed
-            </Link>
-          </div>
-
           {loading && isUUID ? (
             <PostDetailSkeleton />
           ) : null}
 
-          <div className={`flex flex-col lg:flex-row${loading && isUUID ? " hidden" : ""}`} style={{ minHeight: "calc(100vh - 180px)" }}>
-            {/* Image */}
-            <div className="lg:sticky lg:top-15 lg:self-start flex-1 flex items-center justify-center px-4 md:px-8 pb-6 lg:pb-0"
+          <div className={`flex flex-col lg:flex-row${loading && isUUID ? " hidden" : ""}`} style={{ minHeight: "calc(100vh - 120px)" }}>
+            {/* Image — back button floats over the image */}
+            <div className="lg:sticky lg:top-15 lg:self-start flex-1 flex items-center justify-center px-4 md:px-8 pt-5 pb-6 lg:pb-0"
               style={{ maxWidth: "55%" }}>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={img} alt={title} className="rounded-2xl w-full object-cover"
-                style={{ maxHeight: "80vh", border: "1px solid var(--border)" }} />
+              <div className="relative w-full">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={img} alt={title} className="rounded-2xl w-full object-cover"
+                  style={{ maxHeight: "80vh", border: "1px solid var(--border)" }} />
+                <Link
+                  href="/feed"
+                  className="absolute top-3 left-3 w-9 h-9 flex items-center justify-center rounded-full transition-all hover:opacity-80"
+                  style={{
+                    background: "rgba(0,0,0,0.55)",
+                    backdropFilter: "blur(10px)",
+                    border: "1px solid rgba(255,255,255,0.15)",
+                  }}
+                >
+                  <ArrowLeft size={16} color="#fff" />
+                </Link>
+              </div>
             </div>
 
             {/* Right panel */}

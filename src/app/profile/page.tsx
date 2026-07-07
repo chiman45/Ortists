@@ -15,9 +15,34 @@ import { useUser } from "@clerk/nextjs";
 import {
   MapPin, Star, Heart, Bookmark, Users, TrendingUp,
   Clock, X, Check, Share2, Link as LinkIcon, Camera, Loader2,
+  HelpCircle, ChevronRight, ArrowLeft, MessageSquare, FileText, Shield,
+  Briefcase, Tag, Calendar, MessageCircle, Inbox,
 } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
+
+interface HireRequest {
+  id: string;
+  client_id: string;
+  artist_id: string;
+  client_name: string | null;
+  client_avatar: string | null;
+  what: string;
+  categories: string[];
+  budget: string | null;
+  job_description: string | null;
+  personal_note: string | null;
+  hiring_for: string;
+  status: "pending" | "accepted" | "declined" | "completed";
+  created_at: string;
+}
+
+const HR_STATUS = {
+  pending:   { label: "Pending",   color: "#F59E0B", bg: "rgba(245,158,11,0.12)",  border: "rgba(245,158,11,0.3)"  },
+  accepted:  { label: "Accepted",  color: "#10B981", bg: "rgba(16,185,129,0.12)",  border: "rgba(16,185,129,0.3)"  },
+  declined:  { label: "Declined",  color: "#EF4444", bg: "rgba(239,68,68,0.12)",   border: "rgba(239,68,68,0.3)"   },
+  completed: { label: "Completed", color: "#9B7CF5", bg: "rgba(124,91,245,0.12)",  border: "rgba(124,91,245,0.3)"  },
+};
 
 interface FollowUser {
   clerk_id: string;
@@ -27,8 +52,9 @@ interface FollowUser {
   tag: string;
 }
 
-const TABS = ["Portfolio", "Marketplace", "Services", "Saved", "Dashboard", "About"] as const;
+const TABS = ["Portfolio", "Marketplace", "Services", "About", "Settings"] as const;
 type Tab = typeof TABS[number];
+type SettingsSection = "saved" | "dashboard" | "help" | "received-hires" | null;
 
 interface EditForm {
   display_name: string;
@@ -52,7 +78,10 @@ function timeAgo(iso: string) {
 export default function ProfilePage() {
   const { user, isLoaded } = useUser();
 
-  const [activeTab, setActiveTab]       = useState<Tab>("Portfolio");
+  const [activeTab, setActiveTab]             = useState<Tab>("Portfolio");
+  const [settingsSection, setSettingsSection] = useState<SettingsSection>(null);
+  const [receivedHires, setReceivedHires]     = useState<HireRequest[]>([]);
+  const [hiresLoading, setHiresLoading]       = useState(false);
   const [profile, setProfile]           = useState<Profile | null>(null);
   const [dbPosts, setDbPosts]           = useState<DbPost[]>([]);
   const [savedPosts, setSavedPosts]     = useState<DbPost[]>([]);
@@ -109,6 +138,13 @@ export default function ProfilePage() {
         const others = (profiles ?? []).filter((p: Profile) => p.clerk_id !== user.id).slice(0, 4);
         setRecommended(others);
       });
+
+    // Load received hire requests (artist side)
+    setHiresLoading(true);
+    fetch(`/api/hire-requests?artistId=${user.id}`)
+      .then(r => r.json())
+      .then(({ requests }) => { if (requests) setReceivedHires(requests); })
+      .finally(() => setHiresLoading(false));
   }, [user, isLoaded]);
 
   function openEdit() {
@@ -433,58 +469,352 @@ export default function ProfilePage() {
               )
             )}
 
-            {/* Saved */}
-            {activeTab === "Saved" && (
-              savedPosts.length > 0 ? (
-                <div className="columns-2 sm:columns-3 gap-3">
-                  {savedPosts.map(post => (
-                    <Link key={post.id} href={`/feed/${post.id}`}
-                      className="break-inside-avoid mb-3 rounded-xl overflow-hidden group cursor-pointer relative block">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={post.image_url} alt={post.title}
-                        className="w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]" />
-                      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-all duration-200 flex items-end p-2">
-                        <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-2">
-                          <span className="flex items-center gap-1 text-[11px] text-white">
-                            <Heart size={11} /> {post.likes_count}
-                          </span>
-                          <span className="flex items-center gap-1 text-[11px] text-white">
-                            <Bookmark size={11} /> {post.saves_count}
-                          </span>
-                        </div>
-                      </div>
-                    </Link>
-                  ))}
-                </div>
-              ) : (
-                <div className="flex flex-col items-center py-20 gap-3">
-                  <p className="text-4xl">🔖</p>
-                  <p className="text-sm font-semibold" style={{ color: "var(--text-2)" }}>No saved posts yet</p>
-                  <p className="text-xs" style={{ color: "var(--text-5)" }}>Posts you save will appear here</p>
-                </div>
-              )
+            {/* Settings — home menu */}
+            {activeTab === "Settings" && settingsSection === null && (
+              <div className="flex flex-col gap-3 max-w-lg">
+                {[
+                  {
+                    id:    "saved"     as SettingsSection,
+                    icon:  <Bookmark size={18} style={{ color: "#9B7CF5" }} />,
+                    label: "Saved Posts",
+                    desc:  `${savedPosts.length} saved`,
+                  },
+                  {
+                    id:    "dashboard" as SettingsSection,
+                    icon:  <TrendingUp size={18} style={{ color: "#10B981" }} />,
+                    label: "Dashboard",
+                    desc:  "Analytics & performance",
+                  },
+                  {
+                    id:    "help"      as SettingsSection,
+                    icon:  <HelpCircle size={18} style={{ color: "#F59E0B" }} />,
+                    label: "Help Center",
+                    desc:  "FAQs & support",
+                  },
+                  {
+                    id:    "received-hires" as SettingsSection,
+                    icon:  <Inbox size={18} style={{ color: "#10B981" }} />,
+                    label: "Received Hires",
+                    desc:  `${receivedHires.length} request${receivedHires.length !== 1 ? "s" : ""}`,
+                  },
+                ].map(row => (
+                  <button
+                    key={row.label}
+                    onClick={() => setSettingsSection(row.id)}
+                    className="flex items-center gap-4 px-5 py-4 rounded-2xl text-left transition-all hover:opacity-85 w-full"
+                    style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}
+                  >
+                    <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
+                      style={{ background: "var(--bg-subtle)" }}>
+                      {row.icon}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold" style={{ color: "var(--text-1)" }}>{row.label}</p>
+                      <p className="text-xs" style={{ color: "var(--text-5)" }}>{row.desc}</p>
+                    </div>
+                    <ChevronRight size={16} style={{ color: "var(--text-5)" }} />
+                  </button>
+                ))}
+
+                {/* My Hires — link to dedicated page */}
+                <Link
+                  href="/my-hires"
+                  className="flex items-center gap-4 px-5 py-4 rounded-2xl text-left transition-all hover:opacity-85 w-full"
+                  style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}
+                >
+                  <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
+                    style={{ background: "var(--bg-subtle)" }}>
+                    <Briefcase size={18} style={{ color: "#9B7CF5" }} />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold" style={{ color: "var(--text-1)" }}>My Hires</p>
+                    <p className="text-xs" style={{ color: "var(--text-5)" }}>Artists you have hired</p>
+                  </div>
+                  <ChevronRight size={16} style={{ color: "var(--text-5)" }} />
+                </Link>
+              </div>
             )}
 
-            {/* Dashboard */}
-            {activeTab === "Dashboard" && (
-              <div className="flex flex-col gap-5">
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                  {dashStats.map(s => <StatCard key={s.gradId} {...s} />)}
-                </div>
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-                  <div className="lg:col-span-2"><EngagementChart /></div>
-                  <TrafficSources />
-                </div>
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-                  <CategoryBubbles />
-                  <div className="lg:col-span-2">
-                    <RecentCommissions posts={dbPosts} loading={!profile} />
+            {/* Settings — Saved Posts */}
+            {activeTab === "Settings" && settingsSection === "saved" && (
+              <div>
+                <button onClick={() => setSettingsSection(null)}
+                  className="inline-flex items-center gap-1.5 text-sm mb-5 transition-opacity hover:opacity-70"
+                  style={{ color: "var(--text-4)" }}>
+                  <ArrowLeft size={14} /> Back to Settings
+                </button>
+                {savedPosts.length > 0 ? (
+                  <div className="columns-2 sm:columns-3 gap-3">
+                    {savedPosts.map(post => (
+                      <Link key={post.id} href={`/feed/${post.id}`}
+                        className="break-inside-avoid mb-3 rounded-xl overflow-hidden group cursor-pointer relative block">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={post.image_url} alt={post.title}
+                          className="w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]" />
+                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-all duration-200 flex items-end p-2">
+                          <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-2">
+                            <span className="flex items-center gap-1 text-[11px] text-white"><Heart size={11} /> {post.likes_count}</span>
+                            <span className="flex items-center gap-1 text-[11px] text-white"><Bookmark size={11} /> {post.saves_count}</span>
+                          </div>
+                        </div>
+                      </Link>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center py-20 gap-3">
+                    <p className="text-4xl">🔖</p>
+                    <p className="text-sm font-semibold" style={{ color: "var(--text-2)" }}>No saved posts yet</p>
+                    <p className="text-xs" style={{ color: "var(--text-5)" }}>Posts you save will appear here</p>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Settings — Dashboard */}
+            {activeTab === "Settings" && settingsSection === "dashboard" && (
+              <div>
+                <button onClick={() => setSettingsSection(null)}
+                  className="inline-flex items-center gap-1.5 text-sm mb-5 transition-opacity hover:opacity-70"
+                  style={{ color: "var(--text-4)" }}>
+                  <ArrowLeft size={14} /> Back to Settings
+                </button>
+                <div className="flex flex-col gap-5">
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                    {dashStats.map(s => <StatCard key={s.gradId} {...s} />)}
+                  </div>
+                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+                    <div className="lg:col-span-2"><EngagementChart /></div>
+                    <TrafficSources />
+                  </div>
+                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+                    <CategoryBubbles />
+                    <div className="lg:col-span-2">
+                      <RecentCommissions posts={dbPosts} loading={!profile} />
+                    </div>
                   </div>
                 </div>
               </div>
             )}
 
-            {activeTab !== "Portfolio" && activeTab !== "Saved" && activeTab !== "About" && activeTab !== "Dashboard" && (
+            {/* Settings — Help Center */}
+            {activeTab === "Settings" && settingsSection === "help" && (
+              <div className="max-w-lg">
+                <button onClick={() => setSettingsSection(null)}
+                  className="inline-flex items-center gap-1.5 text-sm mb-5 transition-opacity hover:opacity-70"
+                  style={{ color: "var(--text-4)" }}>
+                  <ArrowLeft size={14} /> Back to Settings
+                </button>
+                <div className="flex flex-col gap-3">
+                  {[
+                    {
+                      icon: <MessageSquare size={15} style={{ color: "#9B7CF5" }} />,
+                      q: "How do I post artwork?",
+                      a: "Click the purple + Create Post button in the sidebar. You can upload an image and add a title, description, and category.",
+                    },
+                    {
+                      icon: <FileText size={15} style={{ color: "#10B981" }} />,
+                      q: "How do I get hired on Ortist?",
+                      a: "Keep your profile up to date, mark yourself as available, and post high-quality work. Clients can send you a Hire request directly from your posts or profile.",
+                    },
+                    {
+                      icon: <Shield size={15} style={{ color: "#F59E0B" }} />,
+                      q: "How do I delete my account?",
+                      a: "Go to your Clerk account settings (click your avatar in the sidebar) and select Manage Account to delete or update your account details.",
+                    },
+                    {
+                      icon: <HelpCircle size={15} style={{ color: "#f43f5e" }} />,
+                      q: "Why can't I see my story views?",
+                      a: "Story views are only visible to you as the owner. Tap the eye icon at the bottom of your story to see who has viewed it.",
+                    },
+                    {
+                      icon: <MessageSquare size={15} style={{ color: "#9B7CF5" }} />,
+                      q: "How do commissions work?",
+                      a: "Clients can hire you by clicking the Hire button on your post or profile. You'll receive a message with their requirements. All communication happens through the Messages section.",
+                    },
+                  ].map(({ icon, q, a }, i) => (
+                    <div key={i} className="rounded-2xl p-5"
+                      style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}>
+                      <div className="flex items-center gap-2 mb-2">
+                        {icon}
+                        <p className="text-sm font-semibold" style={{ color: "var(--text-1)" }}>{q}</p>
+                      </div>
+                      <p className="text-xs leading-relaxed" style={{ color: "var(--text-4)" }}>{a}</p>
+                    </div>
+                  ))}
+
+                  {/* Contact */}
+                  <div className="rounded-2xl p-5 mt-1"
+                    style={{ background: "rgba(124,91,245,0.08)", border: "1px solid rgba(124,91,245,0.25)" }}>
+                    <p className="text-sm font-semibold mb-1" style={{ color: "#9B7CF5" }}>Still need help?</p>
+                    <p className="text-xs" style={{ color: "var(--text-4)" }}>
+                      Reach out to us at{" "}
+                      <a href="mailto:support@ortist.art" className="underline" style={{ color: "#9B7CF5" }}>
+                        support@ortist.art
+                      </a>
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Settings — Received Hires */}
+            {activeTab === "Settings" && settingsSection === "received-hires" && (
+              <div className="max-w-2xl">
+                <button onClick={() => setSettingsSection(null)}
+                  className="inline-flex items-center gap-1.5 text-sm mb-5 transition-opacity hover:opacity-70"
+                  style={{ color: "var(--text-4)" }}>
+                  <ArrowLeft size={14} /> Back to Settings
+                </button>
+
+                {hiresLoading && (
+                  <div className="flex justify-center py-20">
+                    <Loader2 size={28} className="animate-spin" style={{ color: "#7C5BF5" }} />
+                  </div>
+                )}
+
+                {!hiresLoading && receivedHires.length === 0 && (
+                  <div className="flex flex-col items-center py-20 gap-3">
+                    <div className="w-16 h-16 rounded-2xl flex items-center justify-center"
+                      style={{ background: "rgba(16,185,129,0.1)", border: "1px solid rgba(16,185,129,0.2)" }}>
+                      <Inbox size={28} style={{ color: "rgba(16,185,129,0.5)" }} />
+                    </div>
+                    <p className="text-sm font-semibold" style={{ color: "var(--text-2)" }}>No hire requests yet</p>
+                    <p className="text-xs text-center max-w-xs" style={{ color: "var(--text-5)" }}>
+                      When clients send you a hire request it will appear here. Keep your profile updated to attract more work.
+                    </p>
+                  </div>
+                )}
+
+                {!hiresLoading && receivedHires.length > 0 && (
+                  <div className="flex flex-col gap-4">
+                    {receivedHires.map(req => {
+                      const sc = HR_STATUS[req.status] ?? HR_STATUS.pending;
+                      const clientInitial = req.client_name?.[0]?.toUpperCase() ?? "C";
+                      return (
+                        <div key={req.id} className="rounded-2xl overflow-hidden"
+                          style={{ background: "var(--bg-card)", border: "1px solid var(--border)", boxShadow: "0 2px 16px rgba(0,0,0,0.12)" }}>
+
+                          {/* Header */}
+                          <div className="flex items-center gap-4 px-5 py-4"
+                            style={{ borderBottom: "1px solid var(--border)" }}>
+                            {req.client_avatar ? (
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img src={req.client_avatar} alt={req.client_name ?? "Client"}
+                                className="w-11 h-11 rounded-full object-cover shrink-0"
+                                style={{ border: "2px solid rgba(124,91,245,0.35)" }} />
+                            ) : (
+                              <div className="w-11 h-11 rounded-full shrink-0 flex items-center justify-center text-sm font-bold text-white"
+                                style={{ background: "linear-gradient(135deg,#1a6b4a,#10B981)" }}>
+                                {clientInitial}
+                              </div>
+                            )}
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-bold truncate" style={{ color: "var(--text-1)" }}>
+                                {req.client_name ?? "Client"}
+                              </p>
+                              <p className="text-xs truncate font-medium" style={{ color: "var(--text-4)" }}>
+                                {req.what}
+                              </p>
+                            </div>
+                            <span className="shrink-0 text-[11px] font-bold px-2.5 py-1 rounded-full"
+                              style={{ background: sc.bg, color: sc.color, border: `1px solid ${sc.border}` }}>
+                              {sc.label}
+                            </span>
+                          </div>
+
+                          {/* Body */}
+                          <div className="px-5 py-4 flex flex-col gap-3">
+                            {/* Meta */}
+                            <div className="flex flex-wrap gap-3 text-xs" style={{ color: "var(--text-5)" }}>
+                              {req.budget && (
+                                <span className="flex items-center gap-1"><Tag size={11} /> {req.budget}</span>
+                              )}
+                              <span className="flex items-center gap-1">
+                                <Calendar size={11} />
+                                {new Date(req.created_at).toLocaleDateString("en-US", { day: "numeric", month: "short", year: "numeric" })}
+                              </span>
+                              <span className="px-2 py-0.5 rounded-full text-[10px]"
+                                style={{ background: "var(--bg-subtle)", border: "1px solid var(--border)", color: "var(--text-4)" }}>
+                                {req.hiring_for}
+                              </span>
+                            </div>
+
+                            {/* Categories */}
+                            {req.categories?.length > 0 && (
+                              <div className="flex flex-wrap gap-1.5">
+                                {req.categories.map(c => (
+                                  <span key={c} className="text-[10px] px-2 py-0.5 rounded-full font-medium"
+                                    style={{ background: "rgba(124,91,245,0.1)", color: "#9B7CF5", border: "1px solid rgba(124,91,245,0.2)" }}>
+                                    {c}
+                                  </span>
+                                ))}
+                              </div>
+                            )}
+
+                            {/* Description */}
+                            {req.job_description && (
+                              <p className="text-xs leading-relaxed line-clamp-2" style={{ color: "var(--text-4)" }}>
+                                {req.job_description}
+                              </p>
+                            )}
+
+                            {/* Personal note */}
+                            {req.personal_note && (
+                              <div className="rounded-xl px-4 py-3"
+                                style={{ background: "rgba(124,91,245,0.07)", border: "1px solid rgba(124,91,245,0.18)" }}>
+                                <p className="text-[10px] font-semibold mb-1" style={{ color: "#9B7CF5" }}>Personal note</p>
+                                <p className="text-xs leading-relaxed" style={{ color: "var(--text-4)" }}>{req.personal_note}</p>
+                              </div>
+                            )}
+
+                            {/* Actions */}
+                            <div className="flex flex-wrap gap-2 pt-1">
+                              <Link href="/messages"
+                                className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold transition-opacity hover:opacity-80"
+                                style={{ background: "rgba(124,91,245,0.12)", color: "#9B7CF5", border: "1px solid rgba(124,91,245,0.25)" }}>
+                                <MessageCircle size={13} /> Message
+                              </Link>
+                              {req.status === "pending" && user && (
+                                <>
+                                  <button
+                                    onClick={async () => {
+                                      await fetch(`/api/hire-requests/${req.id}`, {
+                                        method: "PATCH",
+                                        headers: { "Content-Type": "application/json" },
+                                        body: JSON.stringify({ status: "accepted", artistId: user.id }),
+                                      });
+                                      setReceivedHires(prev => prev.map(r => r.id === req.id ? { ...r, status: "accepted" } : r));
+                                    }}
+                                    className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold transition-opacity hover:opacity-80"
+                                    style={{ background: "rgba(16,185,129,0.12)", color: "#10B981", border: "1px solid rgba(16,185,129,0.3)" }}>
+                                    <Check size={13} /> Accept
+                                  </button>
+                                  <button
+                                    onClick={async () => {
+                                      await fetch(`/api/hire-requests/${req.id}`, {
+                                        method: "PATCH",
+                                        headers: { "Content-Type": "application/json" },
+                                        body: JSON.stringify({ status: "declined", artistId: user.id }),
+                                      });
+                                      setReceivedHires(prev => prev.map(r => r.id === req.id ? { ...r, status: "declined" } : r));
+                                    }}
+                                    className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold transition-opacity hover:opacity-80"
+                                    style={{ background: "rgba(239,68,68,0.1)", color: "#EF4444", border: "1px solid rgba(239,68,68,0.25)" }}>
+                                    <X size={13} /> Decline
+                                  </button>
+                                </>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {activeTab !== "Portfolio" && activeTab !== "About" && activeTab !== "Settings" && (
               <div className="flex flex-col items-center py-20 gap-3">
                 <p className="text-3xl">🚧</p>
                 <p className="text-sm" style={{ color: "var(--text-5)" }}>
