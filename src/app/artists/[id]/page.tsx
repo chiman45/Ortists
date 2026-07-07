@@ -3,6 +3,7 @@
 import BottomNav from "@/components/layout/BottomNav";
 import MainHeader from "@/components/layout/MainHeader";
 import Sidebar from "@/components/layout/Sidebar";
+import HireModal from "@/components/hire/HireModal";
 import { ARTISTS } from "@/lib/hiringData";
 import { Heart, Bookmark, MapPin, MessageCircle, Star, Users, TrendingUp, Clock, UserPlus } from "lucide-react";
 import Link from "next/link";
@@ -32,6 +33,7 @@ export default function ArtistProfilePage({ params }: { params: Promise<{ id: st
 
   const [following, setFollowing] = useState(false);
   const [activeTab, setActiveTab] = useState<Tab>("Portfolio");
+  const [showHire, setShowHire]   = useState(false);
 
   const portfolioSeeds = PORTFOLIO_SEEDS[(artist.id - 1) % PORTFOLIO_SEEDS.length];
 
@@ -121,10 +123,11 @@ export default function ArtistProfilePage({ params }: { params: Promise<{ id: st
                     <MessageCircle size={14} /> Message
                   </Link>
                   <button
+                    onClick={() => setShowHire(true)}
                     className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold transition-all hover:opacity-85"
-                    style={{ background: "rgba(245,158,11,0.15)", color: "#F59E0B", border: "1px solid rgba(245,158,11,0.3)" }}
+                    style={{ background: "linear-gradient(135deg,#361E7B,#7C5BF5)", color: "#fff", boxShadow: "0 2px 12px rgba(124,91,245,0.35)" }}
                   >
-                    Hire · ${artist.price.toLocaleString()}
+                    Hire {artist.name.split(" ")[0]}
                   </button>
                 </div>
               </div>
@@ -270,6 +273,7 @@ export default function ArtistProfilePage({ params }: { params: Promise<{ id: st
 
             {/* Hire CTA */}
             <button
+              onClick={() => setShowHire(true)}
               className="w-full py-3 rounded-2xl text-sm font-bold text-white transition-opacity hover:opacity-85"
               style={{ background: "linear-gradient(135deg,#361E7B,#7C5BF5)", boxShadow: "0 4px 20px rgba(124,91,245,0.35)" }}
             >
@@ -281,6 +285,15 @@ export default function ArtistProfilePage({ params }: { params: Promise<{ id: st
       </div>
 
       <BottomNav />
+
+      {showHire && (
+        <HireModal
+          authorUserId={artist.id.toString()}
+          authorName={artist.name}
+          authorAvatar={artist.avatar}
+          onClose={() => setShowHire(false)}
+        />
+      )}
     </div>
   );
 }

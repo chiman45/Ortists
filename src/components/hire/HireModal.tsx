@@ -67,41 +67,6 @@ export default function HireModal({ authorUserId, authorName, authorAvatar, onCl
         }),
       });
 
-      // Also notify artist via message (if real user, not mock)
-      if (authorUserId) {
-        const convRes = await fetch("/api/messages", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ action: "get_or_create_conversation", userId1: user.id, userId2: authorUserId }),
-        });
-        const { conversation } = await convRes.json();
-        if (conversation) {
-          const lines = [
-            `💼 **New Hire Request from ${user.fullName ?? user.username}**`,
-            `**Project:** ${what}`,
-            categories.length ? `**Skills needed:** ${categories.join(", ")}` : null,
-            budget ? `**Budget:** ${budget}` : null,
-            jobDesc.trim() ? `**Description:** ${jobDesc.trim()}` : null,
-            note.trim() ? `**Personal note:** ${note.trim()}` : null,
-            `**Type:** ${hiringFor}`,
-            `\nReply to discuss further details!`,
-          ].filter(Boolean).join("\n");
-
-          await fetch("/api/messages", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              action:          "send_message",
-              conversation_id: conversation.id,
-              sender_id:       user.id,
-              sender_name:     user.fullName ?? user.username ?? "Client",
-              sender_avatar:   user.imageUrl,
-              text:            lines,
-            }),
-          });
-        }
-      }
-
       setSent(true);
     } catch {
       // silent fail
@@ -168,7 +133,7 @@ export default function HireModal({ authorUserId, authorName, authorAvatar, onCl
               <p className="text-sm leading-relaxed" style={{ color: "rgba(255,255,255,0.5)" }}>
                 Your hire request has been sent to{" "}
                 <span style={{ color: "#9B7CF5", fontWeight: 600 }}>{authorName}</span>
-                .<br />They'll see it in their messages and hires dashboard.
+                .<br />They&apos;ll review it in their hiring dashboard and get back to you.
               </p>
             </div>
 
@@ -323,7 +288,7 @@ export default function HireModal({ authorUserId, authorName, authorAvatar, onCl
                 style={{ background: "rgba(124,91,245,0.07)", border: "1px solid rgba(124,91,245,0.15)" }}>
                 <ExternalLink size={13} style={{ color: "#9B7CF5", marginTop: 1, flexShrink: 0 }} />
                 <p className="text-[11px] leading-relaxed" style={{ color: "rgba(255,255,255,0.4)" }}>
-                  The artist will receive your request in their messages and hiring dashboard. You can track your hire status in{" "}
+                  The artist will receive your request in their hiring dashboard only — no message will be sent. You can track your hire status in{" "}
                   <Link href="/my-hires" onClick={onClose} className="underline" style={{ color: "#9B7CF5" }}>My Hires</Link>.
                 </p>
               </div>
