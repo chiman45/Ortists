@@ -4,9 +4,174 @@ import BottomNav from "@/components/layout/BottomNav";
 import MainHeader from "@/components/layout/MainHeader";
 import Sidebar from "@/components/layout/Sidebar";
 import { ARTISTS } from "@/lib/hiringData";
-import { ChevronRight, MapPin, Search, SlidersHorizontal, Star, Users } from "lucide-react";
+import { Briefcase, CheckCircle2, ChevronRight, Clock, MapPin, Plus, Search, SlidersHorizontal, Star, Users, XCircle } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
+
+type ProjectStatus = "active" | "pending" | "completed" | "cancelled";
+
+interface Project {
+  id: string;
+  title: string;
+  artist: string;
+  avatar: string;
+  budget: number;
+  deadline: string;
+  lastActivity: string;
+  progress: number;
+  status: ProjectStatus;
+}
+
+const MOCK_PROJECTS: Project[] = [
+  { id: "1", title: "Ortist Brand Refresh",      artist: "Kai Nakamura",  avatar: "https://i.pravatar.cc/80?img=11", budget: 1200, deadline: "Aug 15, 2026", lastActivity: "2 hours ago",  progress: 65, status: "active"    },
+  { id: "2", title: "Summer Campaign Visuals",   artist: "Mara Solis",    avatar: "https://i.pravatar.cc/80?img=23", budget: 840,  deadline: "Jul 28, 2026", lastActivity: "Yesterday",    progress: 40, status: "active"    },
+  { id: "3", title: "Product Launch Motion",     artist: "Zoë Abramov",   avatar: "https://i.pravatar.cc/80?img=47", budget: 2400, deadline: "Sep 3, 2026",  lastActivity: "3 days ago",   progress: 0,  status: "pending"   },
+  { id: "4", title: "Annual Report Layout",      artist: "Lena Fourie",   avatar: "https://i.pravatar.cc/80?img=32", budget: 560,  deadline: "Jun 12, 2026", lastActivity: "Jun 12, 2026", progress: 100, status: "completed" },
+  { id: "5", title: "App Icon Set",              artist: "Priya Mehta",   avatar: "https://i.pravatar.cc/80?img=5",  budget: 320,  deadline: "May 30, 2026", lastActivity: "May 30, 2026", progress: 100, status: "completed" },
+  { id: "6", title: "Podcast Cover Art",         artist: "Darius Osei",   avatar: "https://i.pravatar.cc/80?img=68", budget: 180,  deadline: "N/A",          lastActivity: "Jun 5, 2026",  progress: 20, status: "cancelled" },
+];
+
+const STATUS_CONFIG: Record<ProjectStatus, { label: string; dot: string; bar: string; badge: string; badgeText: string }> = {
+  active:    { label: "ACTIVE PROJECTS",   dot: "#3B82F6", bar: "#3B82F6", badge: "rgba(59,130,246,0.15)",  badgeText: "#60A5FA" },
+  pending:   { label: "PENDING REQUESTS",  dot: "#F59E0B", bar: "#6B7280", badge: "rgba(245,158,11,0.15)",  badgeText: "#FCD34D" },
+  completed: { label: "COMPLETED",         dot: "#10B981", bar: "#10B981", badge: "rgba(16,185,129,0.15)",  badgeText: "#34D399" },
+  cancelled: { label: "CANCELLED",         dot: "#EF4444", bar: "#EF4444", badge: "rgba(239,68,68,0.15)",   badgeText: "#F87171" },
+};
+
+const STATUS_ORDER: ProjectStatus[] = ["active", "pending", "completed", "cancelled"];
+
+function StatCard({ icon, count, label, color }: { icon: React.ReactNode; count: number; label: string; color: string }) {
+  return (
+    <div
+      className="flex-1 flex flex-col gap-2 p-4 rounded-2xl min-w-0"
+      style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}
+    >
+      <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: `${color}1a` }}>
+        <span style={{ color }}>{icon}</span>
+      </div>
+      <p className="text-2xl font-bold" style={{ color: "var(--text-1)" }}>{count}</p>
+      <p className="text-xs leading-snug" style={{ color: "var(--text-5)" }}>{label}</p>
+    </div>
+  );
+}
+
+function ProjectCard({ project }: { project: Project }) {
+  const cfg = STATUS_CONFIG[project.status];
+  const isDelivered = project.status === "completed";
+  return (
+    <div
+      className="p-4 rounded-2xl flex flex-col gap-3"
+      style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex items-center gap-3 min-w-0">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={project.avatar} alt={project.artist} className="w-9 h-9 rounded-full object-cover shrink-0" />
+          <div className="min-w-0">
+            <p className="text-sm font-semibold truncate" style={{ color: "var(--text-1)" }}>{project.title}</p>
+            <p className="text-xs" style={{ color: "var(--text-5)" }}>with {project.artist}</p>
+          </div>
+        </div>
+        <span
+          className="shrink-0 text-[11px] font-semibold px-2.5 py-1 rounded-full"
+          style={{ background: cfg.badge, color: cfg.badgeText }}
+        >
+          {cfg.label.split(" ")[0] === "ACTIVE" ? "Active"
+            : cfg.label.split(" ")[0] === "PENDING" ? "Pending"
+            : cfg.label.split(" ")[0] === "COMPLETED" ? "Completed"
+            : "Cancelled"}
+        </span>
+      </div>
+
+      <div className="flex flex-wrap gap-x-4 gap-y-1 text-[11px]" style={{ color: "var(--text-5)" }}>
+        <span className="flex items-center gap-1">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="2" y="5" width="20" height="16" rx="2"/><path d="M16 3v4M8 3v4M2 9h20"/></svg>
+          ${project.budget.toLocaleString()}
+        </span>
+        <span className="flex items-center gap-1">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+          {isDelivered ? `Delivered ${project.lastActivity}` : project.deadline}
+        </span>
+        <span className="flex items-center gap-1">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          {project.lastActivity}
+        </span>
+      </div>
+
+      <div>
+        <div className="flex justify-between text-[10px] mb-1.5" style={{ color: "var(--text-6)" }}>
+          <span>PROGRESS</span>
+          <span>{project.progress}%</span>
+        </div>
+        <div className="h-1.5 rounded-full overflow-hidden" style={{ background: "var(--bg-subtle)" }}>
+          <div
+            className="h-full rounded-full transition-all"
+            style={{ width: `${project.progress}%`, background: cfg.bar }}
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function MyProjectsView() {
+  const counts = {
+    pending:   MOCK_PROJECTS.filter(p => p.status === "pending").length,
+    active:    MOCK_PROJECTS.filter(p => p.status === "active").length,
+    completed: MOCK_PROJECTS.filter(p => p.status === "completed").length,
+    cancelled: MOCK_PROJECTS.filter(p => p.status === "cancelled").length,
+  };
+
+  return (
+    <div className="flex-1 px-4 md:px-8 py-6 pb-28 lg:pb-8 flex flex-col gap-6">
+      <div>
+        <h2 className="text-2xl font-bold mb-1" style={{ color: "var(--text-1)" }}>My Projects</h2>
+        <p className="text-sm" style={{ color: "var(--text-5)" }}>Track commissions and collaborate with your artists</p>
+      </div>
+
+      {/* Stat cards */}
+      <div className="flex gap-3 overflow-x-auto" style={{ scrollbarWidth: "none" }}>
+        <StatCard icon={<Clock size={18} />}        count={counts.pending}   label="Pending Requests"  color="#F59E0B" />
+        <StatCard icon={<Briefcase size={18} />}    count={counts.active}    label="Active Projects"   color="#3B82F6" />
+        <StatCard icon={<CheckCircle2 size={18} />} count={counts.completed} label="Completed"         color="#10B981" />
+        <StatCard icon={<XCircle size={18} />}      count={counts.cancelled} label="Cancelled"         color="#EF4444" />
+      </div>
+
+      {/* Grouped sections */}
+      {STATUS_ORDER.map(status => {
+        const group = MOCK_PROJECTS.filter(p => p.status === status);
+        if (!group.length) return null;
+        const cfg = STATUS_CONFIG[status];
+        return (
+          <section key={status}>
+            <div className="flex items-center gap-2 mb-3">
+              <span className="w-2 h-2 rounded-full shrink-0" style={{ background: cfg.dot }} />
+              <span className="text-xs font-bold tracking-wider" style={{ color: "var(--text-5)" }}>{cfg.label}</span>
+              <span
+                className="text-[10px] font-bold w-5 h-5 rounded-full flex items-center justify-center"
+                style={{ background: "var(--bg-subtle)", color: "var(--text-4)" }}
+              >
+                {group.length}
+              </span>
+            </div>
+            <div className="flex flex-col gap-3">
+              {group.map(p => <ProjectCard key={p.id} project={p} />)}
+            </div>
+          </section>
+        );
+      })}
+
+      {/* Floating new project button */}
+      <button
+        className="fixed bottom-24 lg:bottom-8 right-6 flex items-center gap-2 px-5 py-3 rounded-2xl font-semibold text-sm text-white shadow-xl transition-all hover:opacity-90 active:scale-95"
+        style={{ background: "#7C5BF5", boxShadow: "0 8px 24px rgba(124,91,245,0.4)" }}
+      >
+        <Plus size={18} />
+        New Project
+      </button>
+    </div>
+  );
+}
 
 const HIRING_CATEGORIES = [
   "All", "Portraits", "Watercolours", "Acrylic Paint", "Charcoal Sketch",
@@ -19,6 +184,7 @@ const FILTER_OPTIONS = [
 ];
 
 export default function HiringPage() {
+  const [tab, setTab] = useState<"hire" | "projects">("hire");
   const [activeCategory, setActiveCategory] = useState("All");
   const [search, setSearch] = useState("");
   const [showFilters, setShowFilters] = useState(false);
@@ -66,9 +232,27 @@ export default function HiringPage() {
 
       <div className="flex-1 flex flex-col lg:ml-17 min-h-screen">
 
-        {/* Sticky header — search + filter + category chips */}
+        {/* Sticky header */}
         <MainHeader>
-          <div className="px-4 md:px-8 pb-3 flex flex-col gap-2">
+          {/* Tab switcher */}
+          <div className="px-4 md:px-8 pb-3 flex items-center gap-2">
+            {(["hire", "projects"] as const).map(t => (
+              <button
+                key={t}
+                onClick={() => setTab(t)}
+                className="px-4 py-1.5 rounded-full text-sm font-semibold transition-all"
+                style={{
+                  background: tab === t ? "#7C5BF5" : "transparent",
+                  color: tab === t ? "#fff" : "var(--text-4)",
+                }}
+              >
+                {t === "hire" ? "Hire Artists" : "My Projects"}
+              </button>
+            ))}
+          </div>
+
+          {/* Search + filter — only for Hire Artists tab */}
+          {tab === "hire" && <div className="px-4 md:px-8 pb-3 flex flex-col gap-2">
             {/* Search + filter row */}
             <div className="flex gap-2">
               <div
@@ -119,10 +303,12 @@ export default function HiringPage() {
                 );
               })}
             </div>
-          </div>
+          </div>}
         </MainHeader>
 
-        <main className="flex-1 px-4 md:px-8 py-6 pb-24 lg:pb-8">
+        {tab === "projects" && <MyProjectsView />}
+
+        {tab === "hire" && <main className="flex-1 px-4 md:px-8 py-6 pb-24 lg:pb-8">
 
           {/* Page title */}
           <div className="mb-6">
@@ -315,7 +501,7 @@ export default function HiringPage() {
             )}
           </section>
 
-        </main>
+        </main>}
       </div>
 
       <BottomNav />
