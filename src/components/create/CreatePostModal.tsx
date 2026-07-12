@@ -1,8 +1,8 @@
 "use client";
 
 import {
-  ArrowLeft, ArrowRight, BookmarkCheck, Briefcase,
-  Check, ImageIcon, MapPin, Send, ShoppingBag, Upload, X,
+  ArrowLeft, ArrowRight, BookmarkCheck,
+  Check, ImageIcon, MapPin, Send, Upload, X,
 } from "lucide-react";
 import { useUser } from "@clerk/nextjs";
 import { useCallback, useRef, useState } from "react";
@@ -10,8 +10,7 @@ import { useCallback, useRef, useState } from "react";
 const STEPS = ["Type", "Media", "Details", "Options", "Preview"] as const;
 
 const CONTENT_TYPES = [
-  { id: "portfolio",   Icon: ImageIcon,   title: "Portfolio Post",       desc: "Showcase artwork, photography, designs, sketches, or creative projects." },
-  { id: "marketplace", Icon: ShoppingBag, title: "Marketplace Listing",  desc: "List artwork, prints, digital assets, or products available for purchase." },
+  { id: "portfolio", Icon: ImageIcon, title: "Portfolio Post", desc: "Showcase artwork, photography, designs, sketches, or creative projects." },
 ] as const;
 
 const PRESET_TAGS = [
@@ -322,16 +321,6 @@ export default function CreatePostModal({ onClose }: Props) {
                   </button>
                 </div>
               ))}
-              {type === "marketplace" && (
-                <div>
-                  <label className="text-xs font-medium mb-1.5 block" style={{ color: "var(--text-4)" }}>Price (USD)</label>
-                  <input
-                    placeholder="e.g. 250"
-                    className="w-full px-3 py-2.5 rounded-xl text-sm outline-none"
-                    style={{ background: "var(--bg-card)", border: "1px solid var(--border)", color: "var(--text-1)" }}
-                  />
-                </div>
-              )}
             </div>
           )}
 
