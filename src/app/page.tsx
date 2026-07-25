@@ -19,12 +19,12 @@ const SURF   = "#0B0B0F";
 const MUTED  = "#8B8B95";
 
 const FEATURED_ARTISTS = [
-  { id: 1, name: "Aria Chen",      category: "Digital Art",   avatarSeed: "p-aria-1",   workSeed: "abstract-digital-1"  },
-  { id: 2, name: "Marcus Webb",    category: "Photography",   avatarSeed: "p-marcus-2", workSeed: "photo-landscape-22"  },
-  { id: 3, name: "Sofia Laurent",  category: "Oil Painting",  avatarSeed: "p-sofia-3",  workSeed: "painting-oil-33"     },
-  { id: 4, name: "Kenji Mori",     category: "Illustration",  avatarSeed: "p-kenji-4",  workSeed: "illustration-44"     },
-  { id: 5, name: "Amara Osei",     category: "Sculpture",     avatarSeed: "p-amara-5",  workSeed: "sculpture-55"        },
-  { id: 6, name: "Lena Hoffmann",  category: "Mixed Media",   avatarSeed: "p-lena-6",   workSeed: "mixed-media-66"      },
+  { id: 1, name: "Aria Chen",      category: "Digital Art",   avatarSeed: "p-aria-1",   workImg: "/Landing-Images/33.jpeg" },
+  { id: 2, name: "Marcus Webb",    category: "Photography",   avatarSeed: "p-marcus-2", workImg: "/Landing-Images/36.jpeg" },
+  { id: 3, name: "Sofia Laurent",  category: "Oil Painting",  avatarSeed: "p-sofia-3",  workImg: "/Landing-Images/39.jpeg" },
+  { id: 4, name: "Kenji Mori",     category: "Illustration",  avatarSeed: "p-kenji-4",  workImg: "/Landing-Images/42.jpeg" },
+  { id: 5, name: "Amara Osei",     category: "Sculpture",     avatarSeed: "p-amara-5",  workImg: "/Landing-Images/45.jpeg" },
+  { id: 6, name: "Lena Hoffmann",  category: "Mixed Media",   avatarSeed: "p-lena-6",   workImg: "/Landing-Images/47.jpeg" },
 ];
 
 const STATS = [
@@ -34,13 +34,12 @@ const STATS = [
   { value: "2,100+",  label: "Listings"   },
 ];
 
-/* Artistic hero slides — moody, painterly picsum seeds */
 const HERO_SLIDES = [
-  { src: "https://picsum.photos/seed/portrait-dark-oil-1/1920/1200", label: "Oil on canvas · c. 1680" },
-  { src: "https://picsum.photos/seed/baroque-figure-2/1920/1200",    label: "Charcoal study · c. 1720" },
-  { src: "https://picsum.photos/seed/dramatic-chiaroscuro-3/1920/1200", label: "Mixed media · c. 1890" },
-  { src: "https://picsum.photos/seed/ethereal-landscape-art-4/1920/1200", label: "Oil on panel · c. 1640" },
-  { src: "https://picsum.photos/seed/classical-museum-5/1920/1200",  label: "Tempera on canvas · c. 1750" },
+  { src: "/Landing-Images/1.jpeg",  label: "Oil on canvas · c. 1680"      },
+  { src: "/Landing-Images/4.jpeg",  label: "Charcoal study · c. 1720"     },
+  { src: "/Landing-Images/30.jpeg", label: "Mixed media · c. 1890"        },
+  { src: "/Landing-Images/40.jpeg", label: "Oil on panel · c. 1640"       },
+  { src: "/Landing-Images/37.jpeg", label: "Tempera on canvas · c. 1750"  },
 ];
 
 /* ── Scroll-reveal ── */
@@ -217,7 +216,7 @@ export default function LandingPage() {
             <div className="relative overflow-hidden" style={{ borderRadius: 3, aspectRatio: "3/4" }}>
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
-                src="https://picsum.photos/seed/creative-feed-s2/800/1067"
+                src="/Landing-Images/5.jpeg"
                 alt="Creative Feed"
                 className="w-full h-full object-cover transition-transform duration-1000 hover:scale-[1.04]"
               />
@@ -288,7 +287,7 @@ export default function LandingPage() {
             <div className="relative overflow-hidden" style={{ borderRadius: 3, aspectRatio: "3/4" }}>
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
-                src="https://picsum.photos/seed/hire-artists-s3/800/1067"
+                src="/Landing-Images/10.jpeg"
                 alt="Hire Artists"
                 className="w-full h-full object-cover transition-transform duration-1000 hover:scale-[1.04]"
               />
@@ -311,7 +310,7 @@ export default function LandingPage() {
             <div className="relative overflow-hidden" style={{ borderRadius: 3, aspectRatio: "3/4" }}>
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
-                src="https://picsum.photos/seed/marketplace-s4/800/1067"
+                src="/Landing-Images/5.jpeg"
                 alt="Marketplace"
                 className="w-full h-full object-cover transition-transform duration-1000 hover:scale-[1.04]"
               />
@@ -376,7 +375,7 @@ export default function LandingPage() {
             <div className="relative overflow-hidden" style={{ borderRadius: 3, aspectRatio: "3/4" }}>
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
-                src="https://picsum.photos/seed/create-profile-s5/800/1067"
+                src="/Landing-Images/25.jpeg"
                 alt="Create Profile"
                 className="w-full h-full object-cover transition-transform duration-1000 hover:scale-[1.04]"
               />
@@ -424,7 +423,7 @@ export default function LandingPage() {
                 <div className="relative overflow-hidden" style={{ height: 360 }}>
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
-                    src={`https://picsum.photos/seed/${artist.workSeed}/560/747`}
+                    src={artist.workImg}
                     alt={artist.name}
                     className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-[1.06]"
                   />

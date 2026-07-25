@@ -1,7 +1,6 @@
 "use client";
 
 import { type Post as DbPost } from "@/lib/db/posts";
-import { allPosts } from "@/lib/mockData";
 import { Post } from "@/lib/types";
 import { useEffect, useRef, useState } from "react";
 import FeedCard from "./FeedCard";
@@ -34,19 +33,15 @@ export default function MasonryGrid({ posts: initial, category, loadFromDb = tru
   const [visible, setVisible] = useState<Post[]>(initial);
   const [loading, setLoading] = useState(false);
   const [done, setDone]       = useState(false);
-  const dbOffset   = useRef(initial.length);
-  const mockOffset = useRef(0);
-  const dbExhausted = useRef(false);
-  const busy       = useRef(false);
-  const endRef     = useRef<HTMLDivElement>(null);
+  const dbOffset = useRef(initial.length);
+  const busy     = useRef(false);
+  const endRef   = useRef<HTMLDivElement>(null);
 
   // Reset when initial posts or category changes
   useEffect(() => {
     setVisible(initial);
     setDone(false);
-    dbOffset.current   = initial.length;
-    mockOffset.current = 0;
-    dbExhausted.current = false;
+    dbOffset.current = initial.length;
   }, [initial]);
 
   useEffect(() => {
@@ -60,55 +55,28 @@ export default function MasonryGrid({ posts: initial, category, loadFromDb = tru
       busy.current = true;
       setLoading(true);
 
-      if (!dbExhausted.current) {
-        // Try loading real posts from DB first
-        const params = new URLSearchParams({
-          limit:  String(PAGE),
-          offset: String(dbOffset.current),
-        });
-        if (category) params.set("category", category);
+      const params = new URLSearchParams({
+        limit:  String(PAGE),
+        offset: String(dbOffset.current),
+      });
+      if (category) params.set("category", category);
 
-        fetch(`/api/posts?${params}`)
-          .then(r => r.json())
-          .then(({ posts: raw }: { posts: DbPost[] }) => {
-            if (raw && raw.length > 0) {
-              const posts = raw.map(toGridPost);
-              setVisible(v => {
-                const ids = new Set(v.map(p => p.id));
-                return [...v, ...posts.filter(p => !ids.has(p.id))];
-              });
-              dbOffset.current += posts.length;
-            } else {
-              // DB exhausted — fall through to mock data
-              dbExhausted.current = true;
-              loadMock();
-              return;
-            }
-          })
-          .catch(() => { dbExhausted.current = true; })
-          .finally(() => { busy.current = false; setLoading(false); });
-      } else {
-        loadMock();
-      }
-
-      function loadMock() {
-        const mockFiltered = category
-          ? allPosts.filter(p => p.category === category)
-          : allPosts;
-        const slice = mockFiltered.slice(mockOffset.current, mockOffset.current + PAGE);
-        if (slice.length === 0) {
-          setDone(true);
-        } else {
-          setVisible(v => {
-            const ids = new Set(v.map(p => p.id));
-            return [...v, ...slice.filter(p => !ids.has(p.id))];
-          });
-          mockOffset.current += slice.length;
-          if (mockOffset.current >= mockFiltered.length) setDone(true);
-        }
-        busy.current = false;
-        setLoading(false);
-      }
+      fetch(`/api/posts?${params}`)
+        .then(r => r.json())
+        .then(({ posts: raw }: { posts: DbPost[] }) => {
+          if (raw && raw.length > 0) {
+            const posts = raw.map(toGridPost);
+            setVisible(v => {
+              const ids = new Set(v.map(p => p.id));
+              return [...v, ...posts.filter(p => !ids.has(p.id))];
+            });
+            dbOffset.current += posts.length;
+          } else {
+            setDone(true);
+          }
+        })
+        .catch(() => setDone(true))
+        .finally(() => { busy.current = false; setLoading(false); });
     }, { rootMargin: "400px" });
 
     obs.observe(el);

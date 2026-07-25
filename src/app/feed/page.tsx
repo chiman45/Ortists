@@ -6,6 +6,7 @@ import BottomNav from "@/components/layout/BottomNav";
 import MainHeader from "@/components/layout/MainHeader";
 import Sidebar from "@/components/layout/Sidebar";
 import FeedGridSkeleton from "@/components/ui/skeletons/FeedCardSkeleton";
+import { AuthPromptProvider } from "@/context/AuthPromptContext";
 import { type Post } from "@/lib/db/posts";
 import { Search } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -53,6 +54,7 @@ export default function FeedPage() {
   const posts = loading ? [] : dbPosts.map(toGridPost);
 
   return (
+    <AuthPromptProvider>
     <div
       className="flex min-h-screen overflow-x-hidden"
       style={{
@@ -135,5 +137,6 @@ export default function FeedPage() {
 
       <BottomNav />
     </div>
+    </AuthPromptProvider>
   );
 }

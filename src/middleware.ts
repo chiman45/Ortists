@@ -5,12 +5,12 @@ import { updateSession } from "@/utils/supabase/middleware";
 const isProtected = createRouteMatcher([
   "/messages(.*)",
   "/profile(.*)",
-  "/feed(.*)",
   "/upload(.*)",
   "/dashboard(.*)",
   "/notifications(.*)",
   "/onboarding(.*)",
-  // /marketplace and /hiring are intentionally public (guest browsing allowed)
+  // /feed, /marketplace and /hiring are intentionally public (guest browsing allowed)
+  // Interactions inside feed are gated by the login-prompt modal
 ]);
 
 export default clerkMiddleware(async (auth, request: NextRequest) => {
