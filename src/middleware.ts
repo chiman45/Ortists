@@ -1,24 +1,32 @@
 import { clerkMiddleware } from "@clerk/nextjs/server";
-import { type NextRequest, NextResponse } from "next/server";
+import { type NextRequest } from "next/server";
+
 import { updateSession } from "@/utils/supabase/middleware";
 
-// Only the landing page is public — everything else requires auth
-const PUBLIC_PATHS = ["/"];
+// Prefixes that must remain public (no auth required)
+// /login is the actual Clerk auth page (SignIn/SignUp embedded at that path)
+// /sign-in and /sign-up are Clerk's default redirect targets
+// All Clerk internal callbacks (__clerk_*) must also be allowed
+const PUBLIC_PREFIXES = [
+  "/",           // exact landing page — handled below with === check
+  "/login",      // Clerk embedded auth page + sub-routes (verify, sso-callback, etc.)
+  "/sign-in",    // Clerk default redirect target
+  "/sign-up",    // Clerk default redirect target
+];
+
+function isPublic(pathname: string): boolean {
+  if (pathname === "/") return true;
+  return PUBLIC_PREFIXES.slice(1).some(p => pathname.startsWith(p));
+}
 
 export default clerkMiddleware(async (auth, request: NextRequest) => {
   const { pathname } = request.nextUrl;
 
-  // Allow the root landing page without auth
-  if (PUBLIC_PATHS.includes(pathname)) {
+  if (isPublic(pathname)) {
     return updateSession(request);
   }
 
-  // Allow Clerk's own sign-in / sign-up pages (they start with /sign)
-  if (pathname.startsWith("/sign-in") || pathname.startsWith("/sign-up")) {
-    return updateSession(request);
-  }
-
-  // Everything else — pages and API routes — requires authentication
+  // Everything else requires a valid Clerk session
   await auth.protect();
   return updateSession(request);
 });
