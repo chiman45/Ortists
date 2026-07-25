@@ -3,20 +3,23 @@ import { type NextRequest } from "next/server";
 
 import { updateSession } from "@/utils/supabase/middleware";
 
-// Prefixes that must remain public (no auth required)
-// /login is the actual Clerk auth page (SignIn/SignUp embedded at that path)
-// /sign-in and /sign-up are Clerk's default redirect targets
-// All Clerk internal callbacks (__clerk_*) must also be allowed
+// Exact paths that need no auth (no prefix matching)
+const PUBLIC_EXACT = new Set([
+  "/",          // landing page
+  "/feed",      // feed listing — guests can browse
+  "/api/posts", // feed data loader — guests need this to load posts
+]);
+
+// Path prefixes that are publicly accessible
 const PUBLIC_PREFIXES = [
-  "/",           // exact landing page — handled below with === check
-  "/login",      // Clerk embedded auth page + sub-routes (verify, sso-callback, etc.)
-  "/sign-in",    // Clerk default redirect target
-  "/sign-up",    // Clerk default redirect target
+  "/login",    // Clerk embedded auth page + sub-routes (verify, sso-callback, etc.)
+  "/sign-in",  // Clerk default redirect target
+  "/sign-up",  // Clerk default redirect target
 ];
 
 function isPublic(pathname: string): boolean {
-  if (pathname === "/") return true;
-  return PUBLIC_PREFIXES.slice(1).some(p => pathname.startsWith(p));
+  if (PUBLIC_EXACT.has(pathname)) return true;
+  return PUBLIC_PREFIXES.some(p => pathname.startsWith(p));
 }
 
 export default clerkMiddleware(async (auth, request: NextRequest) => {

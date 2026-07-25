@@ -2,6 +2,7 @@
 
 import { Post } from "@/lib/types";
 import Avatar from "@/components/ui/Avatar";
+import AuthPromptModal from "@/components/ui/AuthPromptModal";
 import { Heart, Loader2, MessageCircle, Trash2 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
@@ -24,6 +25,7 @@ export default function FeedCard({ post, priority = false, onDelete }: FeedCardP
   const [pending, setPending]       = useState(false);
   const [deleteMode, setDeleteMode] = useState(false);
   const [deleting, setDeleting]     = useState(false);
+  const [promptOpen, setPromptOpen] = useState(false);
 
   const isOwn = !!user && !!post.userId && post.userId === user.id;
 
@@ -42,7 +44,8 @@ export default function FeedCard({ post, priority = false, onDelete }: FeedCardP
   async function handleLike(e: React.MouseEvent) {
     e.preventDefault();
     e.stopPropagation();
-    if (!user || !isUUID(post.id) || pending) return;
+    if (!user) { setPromptOpen(true); return; }
+    if (!isUUID(post.id) || pending) return;
     setPending(true);
     if (liked) {
       setLiked(false);
@@ -75,7 +78,12 @@ export default function FeedCard({ post, priority = false, onDelete }: FeedCardP
   }
 
   return (
-    <Link href={`/feed/${post.id}`} className="block break-inside-avoid mb-4 group">
+    <>
+    <Link
+      href={`/feed/${post.id}`}
+      className="block break-inside-avoid mb-4 group"
+      onClick={e => { if (!user) { e.preventDefault(); setPromptOpen(true); } }}
+    >
       {/* Image + delete overlay */}
       <div className="relative overflow-hidden rounded-2xl transition-all duration-300"
         style={{ boxShadow: "0 4px 20px var(--shadow)" }}>
@@ -156,5 +164,7 @@ export default function FeedCard({ post, priority = false, onDelete }: FeedCardP
         </div>
       </div>
     </Link>
+    {promptOpen && <AuthPromptModal onClose={() => setPromptOpen(false)} />}
+    </>
   );
 }
