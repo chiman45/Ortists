@@ -3,16 +3,16 @@
 import BottomNav from "@/components/layout/BottomNav";
 import MainHeader from "@/components/layout/MainHeader";
 import Sidebar from "@/components/layout/Sidebar";
-import HireModal from "@/components/hire/HireModal";
 import PostDetailSkeleton from "@/components/ui/skeletons/PostDetailSkeleton";
 import { type Comment } from "@/lib/db/comments";
 import { type Post } from "@/lib/db/posts";
 import { allPosts } from "@/lib/mockData";
 import { useUser } from "@clerk/nextjs";
-import { ArrowLeft, Bookmark, Briefcase, Heart, Send, Share2, UserPlus } from "lucide-react";
+import { ArrowLeft, Bookmark, Heart, Send, Share2, UserPlus } from "lucide-react";
 import Link from "next/link";
 import { use, useEffect, useState } from "react";
 import MasonryGrid from "@/components/feed/MasonryGrid";
+import ShareModal from "@/components/ui/ShareModal";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -30,7 +30,7 @@ export default function FeedPostPage({ params }: { params: Promise<{ id: string 
   const [comments, setComments]       = useState<Comment[]>([]);
   const [commentText, setCommentText] = useState("");
   const [loading, setLoading]         = useState(true);
-  const [hireOpen, setHireOpen]       = useState(false);
+  const [shareOpen, setShareOpen]     = useState(false);
 
   const mockPost = allPosts.find(p => p.id === id) ?? allPosts[0];
   const related  = allPosts.filter(p => p.id !== mockPost.id && p.category === mockPost.category).slice(0, 8);
@@ -111,13 +111,14 @@ export default function FeedPostPage({ params }: { params: Promise<{ id: string 
 
   async function handleFollow() {
     if (!user || !post?.user_id) return;
-    const method = following ? "DELETE" : "POST";
-    setFollowing(!following);
-    await fetch("/api/follows", {
-      method,
+    const wasFollowing = following;
+    setFollowing(!wasFollowing);
+    const res = await fetch("/api/follows", {
+      method: wasFollowing ? "DELETE" : "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ followerId: user.id, followingId: post.user_id }),
     });
+    if (!res.ok) setFollowing(wasFollowing); // revert on failure
   }
 
   async function submitComment() {
@@ -232,26 +233,12 @@ export default function FeedPostPage({ params }: { params: Promise<{ id: string 
                     <Bookmark size={16} fill={saved ? "#9B7CF5" : "none"} stroke={saved ? "#9B7CF5" : "currentColor"} />
                     {saved ? "Saved" : "Save"}
                   </button>
-                  <button onClick={() => navigator.clipboard?.writeText(window.location.href)}
+                  <button onClick={() => setShareOpen(true)}
                     className="flex items-center gap-1.5 text-xs transition-opacity hover:opacity-70"
                     style={{ color: "var(--text-4)" }}>
                     <Share2 size={16} /> Share
                   </button>
 
-                  {/* Hire button — only on other people's posts */}
-                  {user && post?.user_id && user.id !== post.user_id && (
-                    <button
-                      onClick={() => setHireOpen(true)}
-                      className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-full ml-auto transition-all hover:opacity-90"
-                      style={{
-                        background: "linear-gradient(135deg,#361E7B,#7C5BF5)",
-                        color: "#fff",
-                        boxShadow: "0 2px 12px rgba(124,91,245,0.4)",
-                      }}
-                    >
-                      <Briefcase size={13} /> Hire
-                    </button>
-                  )}
                 </div>
               </div>
 
@@ -306,12 +293,11 @@ export default function FeedPostPage({ params }: { params: Promise<{ id: string 
       </div>
       <BottomNav />
 
-      {hireOpen && post?.user_id && (
-        <HireModal
-          authorUserId={post.user_id}
-          authorName={udisp}
-          authorAvatar={avatar}
-          onClose={() => setHireOpen(false)}
+      {shareOpen && (
+        <ShareModal
+          url={typeof window !== "undefined" ? window.location.href : ""}
+          title={post?.title ?? "Check this out on Ortist!"}
+          onClose={() => setShareOpen(false)}
         />
       )}
     </div>

@@ -69,22 +69,31 @@ export default function UserProfilePage({ params }: { params: Promise<{ username
 
   async function handleFollow() {
     if (!user || !profile) return;
-    if (following) {
-      await fetch("/api/follows", {
-        method: "DELETE",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ followerId: user.id, followingId: profile.clerk_id }),
-      });
-      setFollowing(false);
-      setProfile(p => p ? { ...p, followers_count: Math.max(0, p.followers_count - 1) } : p);
-    } else {
-      await fetch("/api/follows", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ followerId: user.id, followingId: profile.clerk_id }),
-      });
-      setFollowing(true);
-      setProfile(p => p ? { ...p, followers_count: p.followers_count + 1 } : p);
+    const wasFollowing = following;
+    // Optimistic update
+    setFollowing(!wasFollowing);
+    setProfile(p => p ? {
+      ...p,
+      followers_count: wasFollowing
+        ? Math.max(0, p.followers_count - 1)
+        : p.followers_count + 1,
+    } : p);
+
+    const res = await fetch("/api/follows", {
+      method: wasFollowing ? "DELETE" : "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ followerId: user.id, followingId: profile.clerk_id }),
+    });
+
+    if (!res.ok) {
+      // Revert on failure
+      setFollowing(wasFollowing);
+      setProfile(p => p ? {
+        ...p,
+        followers_count: wasFollowing
+          ? p.followers_count + 1
+          : Math.max(0, p.followers_count - 1),
+      } : p);
     }
   }
 
@@ -122,8 +131,8 @@ export default function UserProfilePage({ params }: { params: Promise<{ username
           <div className="flex-1 flex flex-col items-center justify-center gap-3">
             <p className="text-4xl">🎨</p>
             <p className="text-sm font-semibold" style={{ color: "var(--text-2)" }}>Artist not found</p>
-            <Link href="/explore" className="text-xs transition-opacity hover:opacity-70" style={{ color: "#9B7CF5" }}>
-              Browse all artists
+            <Link href="/feed" className="text-xs transition-opacity hover:opacity-70" style={{ color: "#9B7CF5" }}>
+              Back to feed
             </Link>
           </div>
         </div>
@@ -143,10 +152,10 @@ export default function UserProfilePage({ params }: { params: Promise<{ username
           <div className="flex-1 min-w-0 px-4 md:px-8 py-6">
 
             {/* Back */}
-            <Link href="/explore"
+            <Link href="/feed"
               className="inline-flex items-center gap-1.5 text-sm mb-5 transition-opacity hover:opacity-70"
               style={{ color: "var(--text-5)" }}>
-              ← Explore
+              ← Feed
             </Link>
 
             {/* Profile card */}

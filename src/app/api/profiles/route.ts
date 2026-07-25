@@ -25,10 +25,18 @@ export async function GET(req: NextRequest) {
 
   const username = searchParams.get("username");
   if (username) {
+    // Try exact clerk_id first, then case-insensitive username match
+    const { data: byId } = await adminDb
+      .from("profiles")
+      .select("*")
+      .eq("clerk_id", username)
+      .maybeSingle();
+    if (byId) return NextResponse.json({ profile: byId });
+
     const { data } = await adminDb
       .from("profiles")
       .select("*")
-      .or(`username.eq.${username},clerk_id.eq.${username}`)
+      .ilike("username", username)
       .maybeSingle();
     return NextResponse.json({ profile: data ?? null });
   }

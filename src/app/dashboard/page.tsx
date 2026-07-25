@@ -19,6 +19,7 @@ export default function DashboardPage() {
   const [searchOpen, setSearchOpen] = useState(false);
   const [profile, setProfile]       = useState<Profile | null>(null);
   const [posts, setPosts]           = useState<Post[]>([]);
+  const [stats, setStats]           = useState({ followers: 0, following: 0, posts: 0, totalLikes: 0, totalSaves: 0 });
   const [loading, setLoading]       = useState(true);
 
   useEffect(() => {
@@ -26,17 +27,25 @@ export default function DashboardPage() {
     Promise.all([
       fetch(`/api/profiles?username=${user.id}`).then(r => r.json()),
       fetch(`/api/posts?userId=${user.id}&limit=50`).then(r => r.json()),
-    ]).then(([profileData, postsData]) => {
+      fetch(`/api/stats?userId=${user.id}`).then(r => r.json()),
+    ]).then(([profileData, postsData, statsData]) => {
       setProfile(profileData.profile ?? null);
       setPosts(postsData.posts ?? []);
+      setStats({
+        followers:  statsData.followers  ?? 0,
+        following:  statsData.following  ?? 0,
+        posts:      statsData.posts      ?? 0,
+        totalLikes: statsData.totalLikes ?? 0,
+        totalSaves: statsData.totalSaves ?? 0,
+      });
       setLoading(false);
     });
   }, [user, isLoaded]);
 
-  const totalPosts  = posts.length;
-  const totalLikes  = posts.reduce((sum, p) => sum + (p.likes_count ?? 0), 0);
-  const totalSaves  = posts.reduce((sum, p) => sum + (p.saves_count ?? 0), 0);
-  const followers   = profile?.followers_count ?? 0;
+  const totalPosts  = stats.posts;
+  const totalLikes  = stats.totalLikes;
+  const totalSaves  = stats.totalSaves;
+  const followers   = stats.followers;
   const firstName   = user?.firstName ?? user?.fullName?.split(" ")[0] ?? "Artist";
 
   const STATS = [

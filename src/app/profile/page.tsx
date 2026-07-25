@@ -11,10 +11,11 @@ import CategoryBubbles from "@/components/dashboard/CategoryBubbles";
 import RecentCommissions from "@/components/dashboard/RecentCommissions";
 import { type Post as DbPost } from "@/lib/db/posts";
 import { type Profile } from "@/lib/db/profiles";
+import ShareModal from "@/components/ui/ShareModal";
 import { useUser } from "@clerk/nextjs";
 import {
   MapPin, Star, Heart, Bookmark, Users, TrendingUp,
-  Clock, X, Check, Share2, Link as LinkIcon, Camera, Loader2,
+  Clock, X, Check, Share2, Camera, Loader2,
   HelpCircle, ChevronRight, ArrowLeft, MessageSquare, FileText, Shield,
   Briefcase, Tag, Calendar, MessageCircle, Inbox,
 } from "lucide-react";
@@ -87,10 +88,11 @@ export default function ProfilePage() {
   const [savedPosts, setSavedPosts]     = useState<DbPost[]>([]);
   const [recommended, setRecommended]   = useState<Profile[]>([]);
   const [followed, setFollowed]         = useState<Set<string>>(new Set());
+  const [liveStats, setLiveStats]       = useState({ followers: 0, following: 0, totalLikes: 0, totalSaves: 0 });
   const [showEdit, setShowEdit]         = useState(false);
   const [saving, setSaving]             = useState(false);
   const [saveError, setSaveError]       = useState<string | null>(null);
-  const [copied, setCopied]             = useState(false);
+  const [shareOpen, setShareOpen]        = useState(false);
   const [avatarPreview, setAvatarPreview]   = useState<string | null>(null);
   const [avatarUploading, setAvatarUploading] = useState(false);
   const avatarInputRef                        = useRef<HTMLInputElement>(null);
@@ -137,6 +139,26 @@ export default function ProfilePage() {
       .then(({ profiles }) => {
         const others = (profiles ?? []).filter((p: Profile) => p.clerk_id !== user.id).slice(0, 4);
         setRecommended(others);
+      });
+
+    // Load who the user is already following → initialise the followed Set
+    fetch(`/api/follows/list?userId=${user.id}&type=following`)
+      .then(r => r.json())
+      .then(({ users }) => {
+        const ids = (users ?? []).map((u: { clerk_id: string }) => u.clerk_id);
+        setFollowed(new Set(ids));
+      });
+
+    // Load accurate counts directly from source tables
+    fetch(`/api/stats?userId=${user.id}`)
+      .then(r => r.json())
+      .then(data => {
+        setLiveStats({
+          followers:  data.followers  ?? 0,
+          following:  data.following  ?? 0,
+          totalLikes: data.totalLikes ?? 0,
+          totalSaves: data.totalSaves ?? 0,
+        });
       });
 
     // Load received hire requests (artist side)
@@ -233,13 +255,9 @@ export default function ProfilePage() {
     }
   }
 
-  function shareProfile() {
-    const url = `${window.location.origin}/u/${profile?.username ?? user?.id}`;
-    navigator.clipboard.writeText(url).then(() => {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    });
-  }
+  const shareUrl = typeof window !== "undefined"
+    ? `${window.location.origin}/u/${profile?.username ?? user?.id}`
+    : "";
 
   async function openFollowList(type: "followers" | "following") {
     if (!user) return;
@@ -252,24 +270,31 @@ export default function ProfilePage() {
 
   async function toggleFollow(p: Profile) {
     if (!user) return;
-    const isFollowing = followed.has(p.clerk_id);
+    const wasFollowing = followed.has(p.clerk_id);
+
+    // Optimistic update
     const next = new Set(followed);
-    if (isFollowing) {
-      await fetch("/api/follows", {
-        method: "DELETE",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ followerId: user.id, followingId: p.clerk_id }),
-      });
-      next.delete(p.clerk_id);
-    } else {
-      await fetch("/api/follows", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ followerId: user.id, followingId: p.clerk_id }),
-      });
-      next.add(p.clerk_id);
-    }
+    if (wasFollowing) next.delete(p.clerk_id); else next.add(p.clerk_id);
     setFollowed(next);
+    setLiveStats(s => ({
+      ...s,
+      following: wasFollowing ? Math.max(0, s.following - 1) : s.following + 1,
+    }));
+
+    const res = await fetch("/api/follows", {
+      method: wasFollowing ? "DELETE" : "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ followerId: user.id, followingId: p.clerk_id }),
+    });
+
+    if (!res.ok) {
+      // Revert
+      setFollowed(followed);
+      setLiveStats(s => ({
+        ...s,
+        following: wasFollowing ? s.following + 1 : Math.max(0, s.following - 1),
+      }));
+    }
   }
 
   const name         = profile?.display_name ?? user?.fullName ?? "Your Name";
@@ -278,9 +303,9 @@ export default function ProfilePage() {
   const tag          = profile?.tag ?? "Artist";
   const bio          = profile?.bio ?? "Tell the world about your art. Click Edit Profile to update.";
   const avatar       = profile?.avatar_url ?? user?.imageUrl ?? "https://i.pravatar.cc/200?img=33";
-  const followers    = profile?.followers_count ?? 0;
-  const following    = profile?.following_count ?? 0;
-  const totalLikes   = profile?.total_likes ?? 0;
+  const followers    = liveStats.followers;
+  const following    = liveStats.following;
+  const totalLikes   = liveStats.totalLikes;
   const rating       = profile?.rating ?? 0;
   const available    = profile?.available ?? true;
   const responseTime = profile?.response_time ?? "Within 24 hours";
@@ -366,10 +391,10 @@ export default function ProfilePage() {
                       style={{ background: "#7C5BF5", color: "#fff" }}>
                       Edit Profile
                     </button>
-                    <button onClick={shareProfile}
+                    <button onClick={() => setShareOpen(true)}
                       className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold transition-all hover:opacity-85"
                       style={{ background: "rgba(245,158,11,0.15)", color: "#F59E0B", border: "1px solid rgba(245,158,11,0.3)" }}>
-                      {copied ? <><LinkIcon size={13} /> Copied!</> : <><Share2 size={13} /> Share</>}
+                      <Share2 size={13} /> Share
                     </button>
                   </div>
                 </div>
@@ -1163,6 +1188,13 @@ export default function ProfilePage() {
             </div>
           </div>
         </div>
+      )}
+      {shareOpen && (
+        <ShareModal
+          url={shareUrl}
+          title={`${profile?.display_name ?? profile?.username ?? "Artist"} on Ortist`}
+          onClose={() => setShareOpen(false)}
+        />
       )}
     </div>
   );

@@ -2,7 +2,6 @@
 
 import { Post } from "@/lib/types";
 import Avatar from "@/components/ui/Avatar";
-import { useAuthPrompt } from "@/context/AuthPromptContext";
 import { Heart, Loader2, MessageCircle, Trash2 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
@@ -20,7 +19,6 @@ const isUUID = (s: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-
 
 export default function FeedCard({ post, priority = false, onDelete }: FeedCardProps) {
   const { user } = useUser();
-  const { showLoginPrompt } = useAuthPrompt();
   const [liked, setLiked]           = useState(false);
   const [count, setCount]           = useState(post.likes);
   const [pending, setPending]       = useState(false);
@@ -41,15 +39,10 @@ export default function FeedCard({ post, priority = false, onDelete }: FeedCardP
       .catch(() => {});
   }, [post.id, user]);
 
-  function handleCardClick(e: React.MouseEvent) {
-    if (!user) { e.preventDefault(); showLoginPrompt(); }
-  }
-
   async function handleLike(e: React.MouseEvent) {
     e.preventDefault();
     e.stopPropagation();
-    if (!user) { showLoginPrompt(); return; }
-    if (!isUUID(post.id) || pending) return;
+    if (!user || !isUUID(post.id) || pending) return;
     setPending(true);
     if (liked) {
       setLiked(false);
@@ -82,7 +75,7 @@ export default function FeedCard({ post, priority = false, onDelete }: FeedCardP
   }
 
   return (
-    <Link href={`/feed/${post.id}`} onClick={handleCardClick} className="block break-inside-avoid mb-4 group">
+    <Link href={`/feed/${post.id}`} className="block break-inside-avoid mb-4 group">
       {/* Image + delete overlay */}
       <div className="relative overflow-hidden rounded-2xl transition-all duration-300"
         style={{ boxShadow: "0 4px 20px var(--shadow)" }}>
@@ -157,14 +150,10 @@ export default function FeedCard({ post, priority = false, onDelete }: FeedCardP
           <Heart size={13} fill={liked ? "currentColor" : "none"} />
           <span>{fmt(count)}</span>
         </button>
-        <button
-          onClick={e => { e.preventDefault(); e.stopPropagation(); if (!user) showLoginPrompt(); }}
-          className="flex items-center gap-1 text-xs shrink-0 transition-colors hover:opacity-70"
-          style={{ color: "var(--text-5)" }}
-        >
+        <div className="flex items-center gap-1 text-xs shrink-0" style={{ color: "var(--text-5)" }}>
           <MessageCircle size={13} />
           <span>{post.comments}</span>
-        </button>
+        </div>
       </div>
     </Link>
   );
