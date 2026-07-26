@@ -1,17 +1,27 @@
 import { adminDb } from "@/utils/supabase/admin";
 import { NextRequest, NextResponse } from "next/server";
 
-// GET /api/hire-requests?clientId= | ?artistId=
+// GET /api/hire-requests?clientId= | ?artistId= | ?artistClerkId=
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
-  const clientId = searchParams.get("clientId");
-  const artistId = searchParams.get("artistId");
+  const clientId      = searchParams.get("clientId");
+  const artistId      = searchParams.get("artistId");
+  const artistClerkId = searchParams.get("artistClerkId");
 
   if (clientId) {
     const { data } = await adminDb
       .from("hire_requests")
       .select("*")
       .eq("client_id", clientId)
+      .order("created_at", { ascending: false });
+    return NextResponse.json({ requests: data ?? [] });
+  }
+
+  if (artistClerkId) {
+    const { data } = await adminDb
+      .from("hire_requests")
+      .select("*")
+      .eq("artist_clerk_id", artistClerkId)
       .order("created_at", { ascending: false });
     return NextResponse.json({ requests: data ?? [] });
   }
@@ -52,7 +62,10 @@ export async function POST(req: NextRequest) {
     .from("hire_requests")
     .insert({
       client_id:           body.client_id,
-      artist_id:           body.artist_id,
+      client_name:         body.client_name ?? null,
+      client_avatar:       body.client_avatar ?? null,
+      artist_id:           body.artist_id ?? 0,
+      artist_clerk_id:     body.artist_clerk_id ?? null,
       artist_name:         body.artist_name,
       artist_avatar:       body.artist_avatar ?? null,
       artist_location:     body.artist_location ?? null,

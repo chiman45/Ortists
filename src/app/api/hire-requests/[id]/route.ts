@@ -23,17 +23,19 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
   const { data: hr } = await adminDb
     .from("hire_requests")
-    .select("client_id, artist_id")
+    .select("client_id, artist_id, artist_clerk_id")
     .eq("id", id)
     .single();
 
   if (!hr) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
-  // Artist action
-  if (body.artistId !== undefined) {
-    if (String(hr.artist_id) !== String(body.artistId)) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
+  // Artist action — supports both numeric artistId and string artistClerkId
+  if (body.artistId !== undefined || body.artistClerkId !== undefined) {
+    const isArtist = body.artistClerkId
+      ? hr.artist_clerk_id === body.artistClerkId
+      : String(hr.artist_id) === String(body.artistId);
+    if (!isArtist) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+
     const allowed = ["accepted", "declined"];
     if (!allowed.includes(body.status)) {
       return NextResponse.json({ error: "Invalid status" }, { status: 400 });

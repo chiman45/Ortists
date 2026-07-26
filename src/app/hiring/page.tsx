@@ -3,8 +3,13 @@
 import BottomNav from "@/components/layout/BottomNav";
 import MainHeader from "@/components/layout/MainHeader";
 import Sidebar from "@/components/layout/Sidebar";
+import HireModal from "@/components/hiring/HireModal";
+import type { Artist } from "@/lib/hiringData";
 import { useUser } from "@clerk/nextjs";
-import { Briefcase, CheckCircle2, Clock, MapPin, Search, SlidersHorizontal, Star, Users, XCircle } from "lucide-react";
+import {
+  ArrowRight, Briefcase, CheckCircle2, Clock, MapPin,
+  Search, SlidersHorizontal, Star, XCircle,
+} from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -56,25 +61,40 @@ interface ArtistProfile {
 
 // ── Helpers ───────────────────────────────────────────────────
 
-function fmtFollowers(n: number) {
-  return n >= 1000 ? `${(n / 1000).toFixed(1)}k` : String(n);
+function estimatePrice(a: ArtistProfile): number {
+  return Math.round((80 + a.rating * 60 + Math.min(a.followers_count, 5000) * 0.02) / 10) * 10;
+}
+
+function toArtist(a: ArtistProfile): Artist {
+  return {
+    id:        0,
+    name:      a.display_name ?? a.username ?? "Unknown",
+    avatar:    a.avatar_url ?? `https://i.pravatar.cc/80?u=${a.clerk_id}`,
+    location:  a.location ?? "Remote",
+    price:     estimatePrice(a),
+    rating:    a.rating,
+    available: a.available,
+    medium:    a.tag ? a.tag.split(",").map(t => t.trim()) : [],
+    followers: String(a.followers_count),
+    cover:     "",
+    bio:       a.bio ?? "",
+  };
 }
 
 function mapStatus(s: string): ProjectStatus {
-  if (s === "accepted") return "active";
+  if (s === "accepted")  return "active";
   if (s === "completed") return "completed";
-  if (s === "declined") return "cancelled";
+  if (s === "declined")  return "cancelled";
   return "pending";
 }
 
 function mapRequest(r: HireRequest): Project {
-  const ts = r.updated_at ?? r.created_at;
+  const ts   = r.updated_at ?? r.created_at;
   const diff = Date.now() - new Date(ts).getTime();
   const mins = Math.floor(diff / 60000);
   const hrs  = Math.floor(mins / 60);
   const days = Math.floor(hrs / 24);
-  const ago = days > 1 ? `${days} days ago` : days === 1 ? "Yesterday" : hrs > 0 ? `${hrs} hours ago` : "Just now";
-
+  const ago  = days > 1 ? `${days} days ago` : days === 1 ? "Yesterday" : hrs > 0 ? `${hrs} hours ago` : "Just now";
   return {
     id:           r.id,
     title:        r.project_title,
@@ -99,11 +119,199 @@ const STATUS_CONFIG: Record<ProjectStatus, { label: string; dot: string; bar: st
 
 const STATUS_ORDER: ProjectStatus[] = ["active", "pending", "completed", "cancelled"];
 
-const FILTER_OPTIONS = [
-  "Available Now", "Rating 4.5+", "Rating 5.0", "Fast Delivery",
-];
+const FILTER_OPTIONS = ["Available Now", "Rating 4.5+", "Rating 5.0", "Fast Delivery"];
 
-// ── Sub-components ─────────────────────────────────────────────
+// ── Featured card ──────────────────────────────────────────────
+
+function FeaturedCard({ a, price, onHire }: { a: ArtistProfile; price: number; onHire: () => void }) {
+  const banner = a.banner_url ?? `https://picsum.photos/seed/${a.clerk_id}featured/480/300`;
+  const name   = a.display_name ?? a.username ?? "Artist";
+
+  return (
+    <div
+      className="shrink-0 rounded-2xl overflow-hidden transition-all hover:scale-[1.02] cursor-pointer"
+      style={{ width: 260, border: "1px solid rgba(255,255,255,0.08)", boxShadow: "0 8px 32px rgba(0,0,0,0.4)" }}
+    >
+      {/* Image with overlays */}
+      <div className="relative" style={{ height: 160 }}>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={banner} alt={name} className="w-full h-full object-cover" />
+
+        {/* Gradient overlay */}
+        <div className="absolute inset-0" style={{ background: "linear-gradient(to top, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.1) 55%, transparent 100%)" }} />
+
+        {/* FEATURED badge */}
+        <div
+          className="absolute top-2.5 right-2.5 text-[9px] font-black tracking-widest px-2 py-1 rounded-full"
+          style={{ background: "linear-gradient(135deg,#361E7B,#7C5BF5)", color: "#fff", boxShadow: "0 2px 8px rgba(124,91,245,0.5)" }}
+        >
+          ✦ FEATURED
+        </div>
+
+        {/* Artist name + specialty overlay */}
+        <div className="absolute bottom-2.5 left-3 right-3">
+          <p className="text-sm font-bold text-white leading-tight truncate">{name}</p>
+          <p className="text-[11px] mt-0.5 truncate" style={{ color: "rgba(255,255,255,0.65)" }}>{a.tag}</p>
+        </div>
+
+        {/* Rating badge */}
+        {a.rating > 0 && (
+          <div
+            className="absolute bottom-2.5 right-3 flex items-center gap-0.5 text-[11px] font-bold px-2 py-0.5 rounded-full"
+            style={{ background: "rgba(0,0,0,0.55)", backdropFilter: "blur(6px)", color: "#FBBF24" }}
+          >
+            <Star size={9} fill="currentColor" /> {a.rating % 1 === 0 ? a.rating : a.rating.toFixed(1)}
+          </div>
+        )}
+      </div>
+
+      {/* Footer */}
+      <div
+        className="flex items-center justify-between px-3 py-2.5 gap-2"
+        style={{ background: "rgba(18,12,40,0.97)", borderTop: "1px solid rgba(255,255,255,0.07)" }}
+      >
+        <div>
+          <p className="text-[9px] font-semibold tracking-wider" style={{ color: "rgba(255,255,255,0.35)" }}>FROM</p>
+          <p className="text-sm font-bold" style={{ color: "var(--text-1)" }}>${price}</p>
+        </div>
+        <button
+          onClick={onHire}
+          className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-xl transition-all hover:opacity-90 active:scale-95"
+          style={{ background: "linear-gradient(135deg,#361E7B,#7C5BF5)", color: "#fff", boxShadow: "0 2px 10px rgba(124,91,245,0.4)" }}
+        >
+          Request Work <ArrowRight size={11} />
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ── Artist grid card ───────────────────────────────────────────
+
+function ArtistCard({ a, price, onHire }: { a: ArtistProfile; price: number; onHire: () => void }) {
+  const banner   = a.banner_url ?? `https://picsum.photos/seed/${a.clerk_id}/400/240`;
+  const avatar   = a.avatar_url ?? `https://i.pravatar.cc/80?u=${a.clerk_id}`;
+  const name     = a.display_name ?? a.username ?? "Artist";
+  const tags     = a.tag ? a.tag.split(",").map(t => t.trim()).filter(Boolean).slice(0, 3) : [];
+
+  const availColor = a.available ? "#10B981" : "#F59E0B";
+  const availBg    = a.available ? "rgba(16,185,129,0.15)" : "rgba(245,158,11,0.15)";
+  const availLabel = a.available ? "Available" : "Busy";
+
+  return (
+    <div
+      className="rounded-2xl overflow-hidden transition-all hover:scale-[1.015]"
+      style={{
+        background: "rgba(22,14,50,0.97)",
+        border: "1px solid rgba(255,255,255,0.08)",
+        boxShadow: "0 4px 24px rgba(0,0,0,0.3)",
+      }}
+      onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = "rgba(124,91,245,0.35)"; }}
+      onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = "rgba(255,255,255,0.08)"; }}
+    >
+      {/* Banner */}
+      <div className="relative" style={{ height: 180 }}>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={banner} alt={name} className="w-full h-full object-cover" />
+
+        {/* Gradient overlay (bottom) */}
+        <div className="absolute inset-0" style={{ background: "linear-gradient(to top, rgba(14,8,36,0.9) 0%, transparent 55%)" }} />
+
+        {/* Availability badge */}
+        <div
+          className="absolute top-3 right-3 text-[10px] font-bold px-2.5 py-1 rounded-full flex items-center gap-1.5"
+          style={{ background: availBg, color: availColor, border: `1px solid ${availColor}40`, backdropFilter: "blur(6px)" }}
+        >
+          <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: availColor }} />
+          {availLabel}
+        </div>
+
+        {/* Skill tag chips — bottom of image */}
+        {tags.length > 0 && (
+          <div className="absolute bottom-3 left-3 flex flex-wrap gap-1.5">
+            {tags.map(tag => (
+              <span
+                key={tag}
+                className="text-[10px] font-semibold px-2 py-0.5 rounded-full"
+                style={{ background: "rgba(255,255,255,0.12)", color: "rgba(255,255,255,0.9)", backdropFilter: "blur(6px)", border: "1px solid rgba(255,255,255,0.15)" }}
+              >
+                {tag}
+              </span>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Artist info */}
+      <div className="px-4 pt-3 pb-4 flex flex-col gap-3">
+        <div className="flex items-center gap-2.5">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={avatar} alt={name} className="w-8 h-8 rounded-full object-cover shrink-0"
+            style={{ border: "2px solid rgba(124,91,245,0.4)" }} />
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-bold leading-tight truncate" style={{ color: "var(--text-1)" }}>{name}</p>
+            <p className="text-[11px] truncate" style={{ color: "rgba(255,255,255,0.45)" }}>
+              {a.tag}{a.location ? ` · ${a.location}` : ""}
+            </p>
+          </div>
+          {a.rating > 0 && (
+            <div className="flex items-center gap-0.5 shrink-0 text-xs font-bold" style={{ color: "#FBBF24" }}>
+              <Star size={12} fill="currentColor" />
+              <span>{a.rating % 1 === 0 ? a.rating : a.rating.toFixed(1)}</span>
+            </div>
+          )}
+        </div>
+
+        {/* Price */}
+        <div>
+          <p className="text-[9px] font-bold tracking-widest mb-0.5" style={{ color: "rgba(255,255,255,0.3)" }}>STARTING FROM</p>
+          <p className="text-base font-extrabold" style={{ color: "var(--text-1)" }}>${price}</p>
+        </div>
+
+        {/* Action buttons */}
+        <div className="flex gap-2">
+          <Link
+            href={`/u/${a.username ?? a.clerk_id}`}
+            className="flex-1 py-2.5 rounded-xl text-xs font-semibold text-center transition-all hover:opacity-80"
+            style={{ background: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.75)", border: "1px solid rgba(255,255,255,0.1)" }}
+          >
+            View Profile
+          </Link>
+          <button
+            onClick={onHire}
+            className="flex-1 py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-1 transition-all hover:opacity-90 active:scale-[0.98]"
+            style={{ background: "linear-gradient(135deg,#361E7B,#7C5BF5)", color: "#fff", boxShadow: "0 2px 12px rgba(124,91,245,0.35)" }}
+          >
+            Request Work <ArrowRight size={10} />
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Skeleton ───────────────────────────────────────────────────
+
+function ArtistSkeleton() {
+  return (
+    <div className="rounded-2xl overflow-hidden animate-pulse" style={{ background: "rgba(22,14,50,0.97)", border: "1px solid rgba(255,255,255,0.08)" }}>
+      <div className="h-44 w-full" style={{ background: "rgba(255,255,255,0.05)" }} />
+      <div className="px-4 pt-3 pb-4 flex flex-col gap-3">
+        <div className="flex items-center gap-2.5">
+          <div className="w-8 h-8 rounded-full shrink-0" style={{ background: "rgba(255,255,255,0.07)" }} />
+          <div className="flex-1 flex flex-col gap-1.5">
+            <div className="h-3 w-24 rounded-full" style={{ background: "rgba(255,255,255,0.07)" }} />
+            <div className="h-2.5 w-16 rounded-full" style={{ background: "rgba(255,255,255,0.05)" }} />
+          </div>
+        </div>
+        <div className="h-3 w-20 rounded-full" style={{ background: "rgba(255,255,255,0.07)" }} />
+        <div className="h-9 w-full rounded-xl" style={{ background: "rgba(255,255,255,0.05)" }} />
+      </div>
+    </div>
+  );
+}
+
+// ── Projects sub-components (unchanged) ───────────────────────
 
 function StatCard({ icon, count, label, color }: { icon: React.ReactNode; count: number; label: string; color: string }) {
   return (
@@ -141,7 +349,6 @@ function ProjectCard({ project, onClick }: { project: Project; onClick: () => vo
           {cfg.displayLabel}
         </span>
       </div>
-
       <div className="flex flex-wrap gap-x-4 gap-y-1 text-[11px]" style={{ color: "var(--text-5)" }}>
         <span className="flex items-center gap-1">
           <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="2" y="5" width="20" height="16" rx="2"/><path d="M16 3v4M8 3v4M2 9h20"/></svg>
@@ -151,12 +358,7 @@ function ProjectCard({ project, onClick }: { project: Project; onClick: () => vo
           <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
           {isDelivered ? "Delivered" : project.deadline}
         </span>
-        <span className="flex items-center gap-1">
-          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-          {project.lastActivity}
-        </span>
       </div>
-
       <div>
         <div className="flex justify-between text-[10px] mb-1.5" style={{ color: "var(--text-6)" }}>
           <span>PROGRESS</span><span>{project.progress}%</span>
@@ -190,22 +392,141 @@ function EmptyProjects({ onHire }: { onHire: () => void }) {
   );
 }
 
+// ── Incoming request card (artist side) ───────────────────────
+
+interface IncomingRequest {
+  id: string;
+  client_id: string;
+  client_name: string | null;
+  client_avatar: string | null;
+  project_title: string;
+  project_description: string | null;
+  budget: number | null;
+  deadline: string | null;
+  priority: string;
+  status: string;
+  created_at: string;
+}
+
+function IncomingCard({ req, onDecide }: { req: IncomingRequest; onDecide: (id: string, status: "accepted" | "declined") => void }) {
+  const [deciding, setDeciding] = useState<"accepted" | "declined" | null>(null);
+
+  async function decide(status: "accepted" | "declined") {
+    setDeciding(status);
+    await onDecide(req.id, status);
+    setDeciding(null);
+  }
+
+  const isPending = req.status === "pending";
+  const statusColors: Record<string, { bg: string; color: string; label: string }> = {
+    pending:  { bg: "rgba(245,158,11,0.15)",  color: "#FCD34D", label: "Pending"  },
+    accepted: { bg: "rgba(16,185,129,0.15)",  color: "#34D399", label: "Accepted" },
+    declined: { bg: "rgba(239,68,68,0.15)",   color: "#F87171", label: "Declined" },
+  };
+  const sc = statusColors[req.status] ?? statusColors.pending;
+
+  return (
+    <div
+      className="p-4 rounded-2xl flex flex-col gap-3"
+      style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}
+    >
+      {/* Client + status */}
+      <div className="flex items-center gap-3">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={req.client_avatar ?? `https://i.pravatar.cc/48?u=${req.client_id}`}
+          alt={req.client_name ?? "Client"}
+          className="w-9 h-9 rounded-full object-cover shrink-0"
+        />
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-semibold truncate" style={{ color: "var(--text-1)" }}>
+            {req.project_title}
+          </p>
+          <p className="text-xs" style={{ color: "var(--text-5)" }}>
+            from {req.client_name ?? "a client"}
+          </p>
+        </div>
+        <span className="text-[11px] font-semibold px-2.5 py-1 rounded-full shrink-0" style={{ background: sc.bg, color: sc.color }}>
+          {sc.label}
+        </span>
+      </div>
+
+      {/* Details */}
+      <div className="flex flex-wrap gap-x-4 gap-y-1 text-[11px]" style={{ color: "var(--text-5)" }}>
+        {req.budget && (
+          <span>💰 ${Number(req.budget).toLocaleString()}</span>
+        )}
+        {req.deadline && (
+          <span>📅 {req.deadline}</span>
+        )}
+        <span className="capitalize">⚡ {req.priority} priority</span>
+      </div>
+
+      {req.project_description && (
+        <p className="text-xs leading-relaxed line-clamp-2" style={{ color: "var(--text-4)" }}>
+          {req.project_description}
+        </p>
+      )}
+
+      {/* Accept / Decline — only for pending */}
+      {isPending && (
+        <div className="flex gap-2 pt-1">
+          <button
+            onClick={() => decide("accepted")}
+            disabled={!!deciding}
+            className="flex-1 py-2 rounded-xl text-xs font-bold transition-all hover:opacity-90 disabled:opacity-50"
+            style={{ background: "rgba(16,185,129,0.15)", color: "#34D399", border: "1px solid rgba(16,185,129,0.35)" }}
+          >
+            {deciding === "accepted" ? "Accepting…" : "✓ Accept"}
+          </button>
+          <button
+            onClick={() => decide("declined")}
+            disabled={!!deciding}
+            className="flex-1 py-2 rounded-xl text-xs font-bold transition-all hover:opacity-90 disabled:opacity-50"
+            style={{ background: "rgba(239,68,68,0.1)", color: "#F87171", border: "1px solid rgba(239,68,68,0.3)" }}
+          >
+            {deciding === "declined" ? "Declining…" : "✕ Decline"}
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── My Projects view ───────────────────────────────────────────
+
 function MyProjectsView({ userId, onSwitchToHire }: { userId: string; onSwitchToHire: () => void }) {
   const router = useRouter();
-  const [projects, setProjects] = useState<Project[]>([]);
-  const [loading, setLoading]   = useState(true);
+  const [projects, setProjects]           = useState<Project[]>([]);
+  const [incoming, setIncoming]           = useState<IncomingRequest[]>([]);
+  const [loading, setLoading]             = useState(true);
+  const [loadingIncoming, setLoadingIncoming] = useState(true);
 
   useEffect(() => {
     if (!userId) return;
     setLoading(true);
     fetch(`/api/hire-requests?clientId=${userId}`)
       .then(r => r.json())
-      .then(({ requests }: { requests: HireRequest[] }) => {
-        setProjects((requests ?? []).map(mapRequest));
-        setLoading(false);
-      })
+      .then(({ requests }: { requests: HireRequest[] }) => { setProjects((requests ?? []).map(mapRequest)); setLoading(false); })
       .catch(() => setLoading(false));
+
+    setLoadingIncoming(true);
+    fetch(`/api/hire-requests?artistClerkId=${userId}`)
+      .then(r => r.json())
+      .then(({ requests }: { requests: IncomingRequest[] }) => { setIncoming(requests ?? []); setLoadingIncoming(false); })
+      .catch(() => setLoadingIncoming(false));
   }, [userId]);
+
+  async function handleDecide(id: string, status: "accepted" | "declined") {
+    const res = await fetch(`/api/hire-requests/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ artistClerkId: userId, status }),
+    });
+    if (res.ok) {
+      setIncoming(prev => prev.map(r => r.id === id ? { ...r, status } : r));
+    }
+  }
 
   const counts = {
     pending:   projects.filter(p => p.status === "pending").length,
@@ -214,69 +535,87 @@ function MyProjectsView({ userId, onSwitchToHire }: { userId: string; onSwitchTo
     cancelled: projects.filter(p => p.status === "cancelled").length,
   };
 
-  return (
-    <div className="flex-1 px-4 md:px-8 py-6 pb-28 lg:pb-8 flex flex-col gap-6">
-      <div>
-        <h2 className="text-2xl font-bold mb-1" style={{ color: "var(--text-1)" }}>My Projects</h2>
-        <p className="text-sm" style={{ color: "var(--text-5)" }}>Track commissions and collaborate with your artists</p>
-      </div>
+  const pendingIncoming = incoming.filter(r => r.status === "pending").length;
 
-      {loading ? (
-        <div className="flex flex-col gap-3">
-          {[1,2,3].map(i => (
-            <div key={i} className="h-28 rounded-2xl animate-pulse" style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }} />
-          ))}
+  return (
+    <div className="flex-1 px-4 md:px-8 py-6 pb-28 lg:pb-8 flex flex-col gap-8">
+
+      {/* ── Incoming requests section (artist side) ── */}
+      <section>
+        <div className="flex items-center gap-2 mb-4">
+          <h2 className="text-lg font-bold" style={{ color: "var(--text-1)" }}>Incoming Requests</h2>
+          {pendingIncoming > 0 && (
+            <span className="text-[10px] font-bold w-5 h-5 rounded-full flex items-center justify-center" style={{ background: "#7C5BF5", color: "#fff" }}>
+              {pendingIncoming}
+            </span>
+          )}
         </div>
-      ) : projects.length === 0 ? (
-        <EmptyProjects onHire={onSwitchToHire} />
-      ) : (
-        <>
-          <div className="flex gap-3 overflow-x-auto" style={{ scrollbarWidth: "none" }}>
-            <StatCard icon={<Clock size={18} />}        count={counts.pending}   label="Pending Requests"  color="#F59E0B" />
-            <StatCard icon={<Briefcase size={18} />}    count={counts.active}    label="Active Projects"   color="#3B82F6" />
-            <StatCard icon={<CheckCircle2 size={18} />} count={counts.completed} label="Completed"         color="#10B981" />
-            <StatCard icon={<XCircle size={18} />}      count={counts.cancelled} label="Cancelled"         color="#EF4444" />
+
+        {loadingIncoming ? (
+          <div className="flex flex-col gap-3">
+            {[1, 2].map(i => (
+              <div key={i} className="h-24 rounded-2xl animate-pulse" style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }} />
+            ))}
           </div>
+        ) : incoming.length === 0 ? (
+          <div
+            className="flex flex-col items-center justify-center py-10 rounded-2xl text-center"
+            style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}
+          >
+            <p className="text-2xl mb-2">📬</p>
+            <p className="text-sm font-semibold mb-1" style={{ color: "var(--text-2)" }}>No requests yet</p>
+            <p className="text-xs" style={{ color: "var(--text-5)" }}>Clients who request your work will appear here</p>
+          </div>
+        ) : (
+          <div className="flex flex-col gap-3">
+            {incoming.map(r => (
+              <IncomingCard key={r.id} req={r} onDecide={handleDecide} />
+            ))}
+          </div>
+        )}
+      </section>
 
-          {STATUS_ORDER.map(status => {
-            const group = projects.filter(p => p.status === status);
-            if (!group.length) return null;
-            const cfg = STATUS_CONFIG[status];
-            return (
-              <section key={status}>
-                <div className="flex items-center gap-2 mb-3">
-                  <span className="w-2 h-2 rounded-full shrink-0" style={{ background: cfg.dot }} />
-                  <span className="text-xs font-bold tracking-wider" style={{ color: "var(--text-5)" }}>{cfg.label}</span>
-                  <span className="text-[10px] font-bold w-5 h-5 rounded-full flex items-center justify-center" style={{ background: "var(--bg-subtle)", color: "var(--text-4)" }}>
-                    {group.length}
-                  </span>
-                </div>
-                <div className="flex flex-col gap-3">
-                  {group.map(p => (
-                    <ProjectCard key={p.id} project={p} onClick={() => router.push(`/hiring/projects/${p.id}`)} />
-                  ))}
-                </div>
-              </section>
-            );
-          })}
-        </>
-      )}
-    </div>
-  );
-}
+      {/* ── My commissions section (client side) ── */}
+      <section>
+        <h2 className="text-lg font-bold mb-4" style={{ color: "var(--text-1)" }}>My Commissions</h2>
+        <p className="text-sm mb-4" style={{ color: "var(--text-5)" }}>Projects you&apos;ve sent to artists</p>
 
-// ── Skeleton card ──────────────────────────────────────────────
-
-function ArtistSkeleton() {
-  return (
-    <div className="break-inside-avoid mb-4 rounded-2xl overflow-hidden animate-pulse"
-      style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}>
-      <div className="h-36 w-full" style={{ background: "var(--bg-subtle)" }} />
-      <div className="pt-8 px-4 pb-4 flex flex-col gap-2">
-        <div className="h-3.5 w-24 rounded-full" style={{ background: "var(--bg-subtle)" }} />
-        <div className="h-3 w-16 rounded-full" style={{ background: "var(--bg-subtle)" }} />
-        <div className="h-7 w-full rounded-xl mt-2" style={{ background: "var(--bg-subtle)" }} />
-      </div>
+        {loading ? (
+          <div className="flex flex-col gap-3">
+            {[1,2,3].map(i => <div key={i} className="h-28 rounded-2xl animate-pulse" style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }} />)}
+          </div>
+        ) : projects.length === 0 ? (
+          <EmptyProjects onHire={onSwitchToHire} />
+        ) : (
+          <>
+            <div className="flex gap-3 overflow-x-auto mb-6" style={{ scrollbarWidth: "none" }}>
+              <StatCard icon={<Clock size={18} />}        count={counts.pending}   label="Pending Requests" color="#F59E0B" />
+              <StatCard icon={<Briefcase size={18} />}    count={counts.active}    label="Active Projects"  color="#3B82F6" />
+              <StatCard icon={<CheckCircle2 size={18} />} count={counts.completed} label="Completed"        color="#10B981" />
+              <StatCard icon={<XCircle size={18} />}      count={counts.cancelled} label="Cancelled"        color="#EF4444" />
+            </div>
+            {STATUS_ORDER.map(status => {
+              const group = projects.filter(p => p.status === status);
+              if (!group.length) return null;
+              const cfg = STATUS_CONFIG[status];
+              return (
+                <section key={status} className="mb-5">
+                  <div className="flex items-center gap-2 mb-3">
+                    <span className="w-2 h-2 rounded-full shrink-0" style={{ background: cfg.dot }} />
+                    <span className="text-xs font-bold tracking-wider" style={{ color: "var(--text-5)" }}>{cfg.label}</span>
+                    <span className="text-[10px] font-bold w-5 h-5 rounded-full flex items-center justify-center" style={{ background: "var(--bg-subtle)", color: "var(--text-4)" }}>
+                      {group.length}
+                    </span>
+                  </div>
+                  <div className="flex flex-col gap-3">
+                    {group.map(p => <ProjectCard key={p.id} project={p} onClick={() => router.push(`/hiring/projects/${p.id}`)} />)}
+                  </div>
+                </section>
+              );
+            })}
+          </>
+        )}
+      </section>
     </div>
   );
 }
@@ -285,6 +624,7 @@ function ArtistSkeleton() {
 
 export default function HiringPage() {
   const { user } = useUser();
+
   const [tab, setTab]                       = useState<"hire" | "projects">("hire");
   const [search, setSearch]                 = useState("");
   const [showFilters, setShowFilters]       = useState(false);
@@ -292,41 +632,30 @@ export default function HiringPage() {
   const [artists, setArtists]               = useState<ArtistProfile[]>([]);
   const [loadingArtists, setLoadingArtists] = useState(true);
   const [activeCategory, setActiveCategory] = useState("All");
+  const [hireTarget, setHireTarget]         = useState<ArtistProfile | null>(null);
 
-  // Fetch real profiles from DB
   useEffect(() => {
     setLoadingArtists(true);
     fetch("/api/profiles")
       .then(r => r.json())
-      .then(({ profiles }: { profiles: ArtistProfile[] }) => {
-        setArtists(profiles ?? []);
-        setLoadingArtists(false);
-      })
+      .then(({ profiles }: { profiles: ArtistProfile[] }) => { setArtists(profiles ?? []); setLoadingArtists(false); })
       .catch(() => setLoadingArtists(false));
   }, []);
 
-  // Build category list from unique tags in real profiles
   const categories = ["All", ...Array.from(new Set(artists.map(a => a.tag).filter(Boolean))).sort()];
 
   function toggleFilter(f: string) {
-    setActiveFilters(prev => {
-      const next = new Set(prev);
-      next.has(f) ? next.delete(f) : next.add(f);
-      return next;
-    });
+    setActiveFilters(prev => { const n = new Set(prev); n.has(f) ? n.delete(f) : n.add(f); return n; });
   }
 
   const filtered = artists.filter(a => {
-    const name = (a.display_name ?? a.username ?? "").toLowerCase();
-    const matchSearch = !search || name.includes(search.toLowerCase())
-      || a.tag.toLowerCase().includes(search.toLowerCase())
-      || (a.location ?? "").toLowerCase().includes(search.toLowerCase())
-      || (a.bio ?? "").toLowerCase().includes(search.toLowerCase());
-    const matchCat    = activeCategory === "All" || a.tag.toLowerCase() === activeCategory.toLowerCase();
-    const matchAvail  = !activeFilters.has("Available Now") || a.available;
-    const matchR45    = !activeFilters.has("Rating 4.5+") || a.rating >= 4.5;
-    const matchR5     = !activeFilters.has("Rating 5.0")  || a.rating >= 5.0;
-    const matchFast   = !activeFilters.has("Fast Delivery")|| (a.response_time ?? "").toLowerCase().includes("hour");
+    const name       = (a.display_name ?? a.username ?? "").toLowerCase();
+    const matchSearch = !search || name.includes(search.toLowerCase()) || a.tag.toLowerCase().includes(search.toLowerCase()) || (a.location ?? "").toLowerCase().includes(search.toLowerCase());
+    const matchCat   = activeCategory === "All" || a.tag.toLowerCase() === activeCategory.toLowerCase();
+    const matchAvail = !activeFilters.has("Available Now") || a.available;
+    const matchR45   = !activeFilters.has("Rating 4.5+")   || a.rating >= 4.5;
+    const matchR5    = !activeFilters.has("Rating 5.0")    || a.rating >= 5.0;
+    const matchFast  = !activeFilters.has("Fast Delivery") || (a.response_time ?? "").toLowerCase().includes("hour");
     return matchSearch && matchCat && matchAvail && matchR45 && matchR5 && matchFast;
   });
 
@@ -336,10 +665,7 @@ export default function HiringPage() {
     <div
       className="flex min-h-screen"
       style={{
-        background:
-          "radial-gradient(ellipse 60% 50% at 8% 50%, rgba(54,30,123,0.16) 0%, transparent 55%)," +
-          "radial-gradient(ellipse 50% 40% at 92% 20%, rgba(124,91,245,0.08) 0%, transparent 50%)," +
-          "var(--bg)",
+        background: "radial-gradient(ellipse 70% 50% at 5% 40%, rgba(54,30,123,0.18) 0%, transparent 55%), radial-gradient(ellipse 50% 40% at 95% 15%, rgba(124,91,245,0.08) 0%, transparent 50%), var(--bg)",
       }}
     >
       <Sidebar />
@@ -353,17 +679,14 @@ export default function HiringPage() {
                 key={t}
                 onClick={() => setTab(t)}
                 className="px-4 py-1.5 rounded-full text-sm font-semibold transition-all"
-                style={{
-                  background: tab === t ? "#7C5BF5" : "transparent",
-                  color: tab === t ? "#fff" : "var(--text-4)",
-                }}
+                style={{ background: tab === t ? "#7C5BF5" : "transparent", color: tab === t ? "#fff" : "var(--text-4)" }}
               >
                 {t === "hire" ? "Hire Artists" : "My Projects"}
               </button>
             ))}
           </div>
 
-          {/* Search + filter + category chips — only for Hire tab */}
+          {/* Search + filter + categories — Hire tab only */}
           {tab === "hire" && (
             <div className="px-4 md:px-8 pb-3 flex flex-col gap-2">
               <div className="flex gap-2">
@@ -372,7 +695,7 @@ export default function HiringPage() {
                   <input
                     value={search}
                     onChange={e => setSearch(e.target.value)}
-                    placeholder="Search artists, tags, locations…"
+                    placeholder="Search artists, skills, locations…"
                     className="flex-1 bg-transparent text-sm outline-none min-w-0"
                     style={{ color: "var(--text-1)" }}
                   />
@@ -389,15 +712,12 @@ export default function HiringPage() {
                   <SlidersHorizontal size={13} />
                   <span className="hidden sm:inline">Filter</span>
                   {activeFilters.size > 0 && (
-                    <span className="w-4 h-4 rounded-full text-[9px] font-bold flex items-center justify-center"
-                      style={{ background: "#7C5BF5", color: "#fff" }}>
+                    <span className="w-4 h-4 rounded-full text-[9px] font-bold flex items-center justify-center" style={{ background: "#7C5BF5", color: "#fff" }}>
                       {activeFilters.size}
                     </span>
                   )}
                 </button>
               </div>
-
-              {/* Category chips — built from real tags */}
               <div className="flex gap-2 overflow-x-auto" style={{ scrollbarWidth: "none" }}>
                 {categories.map(cat => {
                   const active = activeCategory === cat;
@@ -429,15 +749,11 @@ export default function HiringPage() {
 
         {/* Hire Artists tab */}
         {tab === "hire" && (
-          <main className="flex-1 px-4 md:px-8 py-6 pb-24 lg:pb-8">
-            <div className="mb-6">
-              <h2 className="text-2xl font-bold mb-1" style={{ color: "var(--text-1)" }}>Hiring</h2>
-              <p className="text-sm" style={{ color: "var(--text-5)" }}>Find and commission talented artists for your next project</p>
-            </div>
+          <main className="flex-1 pb-24 lg:pb-8">
 
             {/* Filter drawer */}
             {showFilters && (
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-6 p-4 rounded-2xl" style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}>
+              <div className="mx-4 md:mx-8 mt-4 grid grid-cols-2 sm:grid-cols-4 gap-2 p-4 rounded-2xl" style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}>
                 {FILTER_OPTIONS.map(f => {
                   const on = activeFilters.has(f);
                   return (
@@ -445,11 +761,7 @@ export default function HiringPage() {
                       key={f}
                       onClick={() => toggleFilter(f)}
                       className="px-3 py-2 rounded-xl text-xs font-medium text-left transition-all"
-                      style={{
-                        background: on ? "rgba(124,91,245,0.12)" : "var(--bg-subtle)",
-                        border: on ? "1px solid rgba(124,91,245,0.45)" : "1px solid var(--border)",
-                        color: on ? "#9B7CF5" : "var(--text-3)",
-                      }}
+                      style={{ background: on ? "rgba(124,91,245,0.12)" : "var(--bg-subtle)", border: on ? "1px solid rgba(124,91,245,0.45)" : "1px solid var(--border)", color: on ? "#9B7CF5" : "var(--text-3)" }}
                     >
                       {f}
                     </button>
@@ -458,61 +770,38 @@ export default function HiringPage() {
               </div>
             )}
 
-            {/* Top Artists horizontal scroll — available, by followers */}
+            {/* ── Featured section ───────────────────────── */}
             {activeCategory === "All" && !search && !loadingArtists && featured.length > 0 && (
-              <section className="mb-10">
-                <h3 className="text-lg font-bold mb-4" style={{ color: "var(--text-1)" }}>Top Artists</h3>
+              <section className="px-4 md:px-8 pt-6 pb-8">
+                <h3 className="text-base font-bold mb-4" style={{ color: "var(--text-1)" }}>Featured</h3>
                 <div className="flex gap-3 overflow-x-auto pb-2" style={{ scrollbarWidth: "none" }}>
                   {featured.map(a => (
-                    <Link
+                    <FeaturedCard
                       key={a.clerk_id}
-                      href={`/u/${a.username ?? a.clerk_id}`}
-                      className="shrink-0 flex flex-col items-center gap-2 p-4 rounded-2xl transition-all hover:scale-[1.02]"
-                      style={{ background: "var(--bg-card)", border: "1px solid var(--border)", minWidth: 136, textDecoration: "none" }}
-                      onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = "rgba(124,91,245,0.4)"; }}
-                      onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = "var(--border)"; }}
-                    >
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
-                        src={a.avatar_url ?? `https://i.pravatar.cc/80?u=${a.clerk_id}`}
-                        alt={a.display_name ?? "Artist"}
-                        className="w-12 h-12 rounded-full object-cover"
-                        style={{ border: "2px solid rgba(124,91,245,0.4)" }}
-                      />
-                      <div className="text-center">
-                        <p className="text-xs font-semibold truncate max-w-25" style={{ color: "var(--text-1)" }}>
-                          {a.display_name ?? a.username}
-                        </p>
-                        <p className="text-[10px] mb-0.5" style={{ color: "var(--text-5)" }}>{a.tag}</p>
-                        {a.rating > 0 && (
-                          <p className="text-[10px] flex items-center justify-center gap-0.5" style={{ color: "#FBBF24" }}>
-                            <Star size={9} fill="currentColor" /> {a.rating.toFixed(1)}
-                          </p>
-                        )}
-                      </div>
-                      <span
-                        className="text-[11px] font-semibold px-3 py-1 rounded-full"
-                        style={{ background: "rgba(124,91,245,0.15)", color: "#9B7CF5", border: "1px solid rgba(124,91,245,0.3)" }}
-                      >
-                        View
-                      </span>
-                    </Link>
+                      a={a}
+                      price={estimatePrice(a)}
+                      onHire={() => setHireTarget(a)}
+                    />
                   ))}
                 </div>
               </section>
             )}
 
-            {/* All Artists grid */}
-            <section>
-              <h3 className="text-lg font-bold mb-4" style={{ color: "var(--text-1)" }}>
-                {activeCategory === "All" ? "All Artists" : `${activeCategory} Artists`}
+            {/* ── All Artists grid ───────────────────────── */}
+            <section className="px-4 md:px-8 pb-8">
+              <div className="flex items-baseline gap-2 mb-5">
+                <h3 className="text-base font-bold" style={{ color: "var(--text-1)" }}>
+                  {activeCategory === "All" ? "All Artists" : `${activeCategory} Artists`}
+                </h3>
                 {!loadingArtists && (
-                  <span className="text-sm font-normal ml-2" style={{ color: "var(--text-5)" }}>({filtered.length})</span>
+                  <span className="text-xs font-semibold px-2 py-0.5 rounded-full" style={{ background: "rgba(124,91,245,0.12)", color: "#9B7CF5" }}>
+                    {filtered.length}
+                  </span>
                 )}
-              </h3>
+              </div>
 
               {loadingArtists ? (
-                <div className="columns-1 sm:columns-2 lg:columns-3 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                   {Array.from({ length: 6 }).map((_, i) => <ArtistSkeleton key={i} />)}
                 </div>
               ) : filtered.length === 0 ? (
@@ -521,97 +810,17 @@ export default function HiringPage() {
                   <p className="text-sm font-semibold mb-1" style={{ color: "var(--text-2)" }}>
                     No artists found{search ? ` for "${search}"` : ""}
                   </p>
-                  <p className="text-xs" style={{ color: "var(--text-5)" }}>
-                    Try adjusting your filters or search term
-                  </p>
+                  <p className="text-xs" style={{ color: "var(--text-5)" }}>Try adjusting your filters or search term</p>
                 </div>
               ) : (
-                <div className="columns-1 sm:columns-2 lg:columns-3 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                   {filtered.map(a => (
-                    <div key={a.clerk_id} className="break-inside-avoid mb-4">
-                      <div
-                        className="rounded-2xl overflow-hidden transition-all hover:scale-[1.01]"
-                        style={{ background: "var(--bg-card)", border: "1px solid var(--border)", boxShadow: "0 2px 16px rgba(0,0,0,0.15)" }}
-                        onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.borderColor = "rgba(124,91,245,0.4)"; }}
-                        onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.borderColor = "var(--border)"; }}
-                      >
-                        {/* Cover / banner */}
-                        <div className="relative" style={{ height: 140 }}>
-                          {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img
-                            src={a.banner_url ?? `https://picsum.photos/seed/${a.clerk_id}/400/200`}
-                            alt=""
-                            className="w-full h-full object-cover"
-                          />
-                          {a.available && (
-                            <span
-                              className="absolute top-2.5 left-2.5 text-[10px] font-bold px-2.5 py-1 rounded-full text-white"
-                              style={{ background: "rgba(124,91,245,0.85)", backdropFilter: "blur(8px)" }}
-                            >
-                              Open for Commission
-                            </span>
-                          )}
-                          <div className="absolute -bottom-5 left-4">
-                            {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img
-                              src={a.avatar_url ?? `https://i.pravatar.cc/80?u=${a.clerk_id}`}
-                              alt={a.display_name ?? "Artist"}
-                              className="w-10 h-10 rounded-full object-cover"
-                              style={{ border: "2.5px solid var(--bg-card)" }}
-                            />
-                          </div>
-                        </div>
-
-                        <div className="pt-7 px-4 pb-4">
-                          <div className="flex items-start justify-between mb-1">
-                            <div className="min-w-0">
-                              <p className="text-sm font-bold leading-none mb-0.5 truncate" style={{ color: "var(--text-1)" }}>
-                                {a.display_name ?? a.username}
-                              </p>
-                              {a.location && (
-                                <div className="flex items-center gap-1 text-[11px]" style={{ color: "var(--text-5)" }}>
-                                  <MapPin size={10} /> {a.location}
-                                </div>
-                              )}
-                            </div>
-                            <span
-                              className="shrink-0 text-[10px] font-semibold px-2 py-0.5 rounded-full ml-2"
-                              style={{ background: "rgba(124,91,245,0.12)", color: "#9B7CF5", border: "1px solid rgba(124,91,245,0.2)" }}
-                            >
-                              {a.tag}
-                            </span>
-                          </div>
-
-                          {a.bio && (
-                            <p className="text-[11px] mt-2 leading-relaxed line-clamp-2" style={{ color: "var(--text-5)" }}>
-                              {a.bio}
-                            </p>
-                          )}
-
-                          <div className="flex items-center gap-3 mt-2 mb-3 text-[11px]" style={{ color: "var(--text-5)" }}>
-                            <span className="flex items-center gap-1">
-                              <Users size={11} /> {fmtFollowers(a.followers_count)}
-                            </span>
-                            {a.rating > 0 && (
-                              <span className="flex items-center gap-1">
-                                <Star size={11} fill="currentColor" style={{ color: "#FBBF24" }} /> {a.rating.toFixed(1)}
-                              </span>
-                            )}
-                            {a.response_time && (
-                              <span className="truncate">⚡ {a.response_time}</span>
-                            )}
-                          </div>
-
-                          <Link
-                            href={`/u/${a.username ?? a.clerk_id}`}
-                            className="w-full py-2 rounded-xl text-xs font-semibold transition-opacity hover:opacity-80 text-center block"
-                            style={{ background: "var(--bg-subtle)", color: "var(--text-2)", border: "1px solid var(--border)" }}
-                          >
-                            View Profile
-                          </Link>
-                        </div>
-                      </div>
-                    </div>
+                    <ArtistCard
+                      key={a.clerk_id}
+                      a={a}
+                      price={estimatePrice(a)}
+                      onHire={() => setHireTarget(a)}
+                    />
                   ))}
                 </div>
               )}
@@ -621,6 +830,15 @@ export default function HiringPage() {
       </div>
 
       <BottomNav />
+
+      {/* Hire modal */}
+      {hireTarget && (
+        <HireModal
+          artist={toArtist(hireTarget)}
+          artistClerkId={hireTarget.clerk_id}
+          onClose={() => setHireTarget(null)}
+        />
+      )}
     </div>
   );
 }

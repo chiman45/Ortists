@@ -11,3 +11,4 @@ ALTER TABLE follows DISABLE ROW LEVEL SECURITY;
 -- Ensure profiles has followers_count and following_count columns
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS followers_count INT NOT NULL DEFAULT 0;
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS following_count INT NOT NULL DEFAULT 0;
+

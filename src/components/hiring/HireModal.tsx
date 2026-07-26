@@ -8,10 +8,11 @@ import type { Artist } from "@/lib/hiringData";
 
 interface Props {
   artist: Artist;
+  artistClerkId?: string;
   onClose: () => void;
 }
 
-export default function HireModal({ artist, onClose }: Props) {
+export default function HireModal({ artist, artistClerkId, onClose }: Props) {
   const { user } = useUser();
   const router = useRouter();
   const [title, setTitle]   = useState(`Commission — ${artist.name}`);
@@ -33,7 +34,10 @@ export default function HireModal({ artist, onClose }: Props) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           client_id:           user.id,
+          client_name:         user.fullName ?? user.username ?? null,
+          client_avatar:       user.imageUrl ?? null,
           artist_id:           artist.id,
+          artist_clerk_id:     artistClerkId ?? null,
           artist_name:         artist.name,
           artist_avatar:       artist.avatar,
           artist_location:     artist.location,
