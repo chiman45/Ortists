@@ -4,7 +4,7 @@ import Sidebar from "@/components/layout/Sidebar";
 import BottomNav from "@/components/layout/BottomNav";
 import { useUser } from "@clerk/nextjs";
 import {
-  ArrowLeft, CheckCircle2, ChevronRight, Clock, FileText,
+  ArrowLeft, CheckCircle2, ChevronRight, FileText,
   Flag, Paperclip, Star, Upload, Users,
 } from "lucide-react";
 import { useRouter, useParams } from "next/navigation";
@@ -67,10 +67,6 @@ function statusColor(s: string) {
   return { bg: "rgba(245,158,11,0.15)", text: "#FCD34D" };
 }
 
-function daysUntil(deadline: string | null): number {
-  if (!deadline) return 0;
-  return Math.max(0, Math.ceil((new Date(deadline).getTime() - Date.now()) / 86400000));
-}
 
 function fmtTime(ts: string) {
   const d = new Date(ts);
@@ -81,157 +77,10 @@ function fmtDate(ts: string) {
   return new Date(ts).toLocaleDateString([], { month: "short", day: "numeric" });
 }
 
-const MOCK_FILES = [
-  { name: "brand_guidelines_2024.pdf", size: "3.2 MB", type: "pdf" },
-  { name: "concept_v1_chromatic.png",  size: "4.8 MB", type: "img" },
-  { name: "concept_v2_deep_violet.png",size: "5.1 MB", type: "img" },
-  { name: "reference_palette.png",     size: "1.4 MB", type: "img" },
-];
-
-const ACTIVITY_ICONS: Record<string, string> = {
-  started:   "🚀",
-  milestone: "✅",
-  message:   "💬",
-  file:      "📎",
-  revision:  "🔄",
-};
-
-// ── Left Sidebar ─────────────────────────────────────────────
-
-function LeftSidebar({ project, onMilestoneToggle }: { project: HireRequest; onMilestoneToggle: (id: string) => void }) {
-  const spent   = Math.round((project.budget ?? 0) * (project.progress / 100));
-  const total   = project.budget ?? 0;
-  const days    = daysUntil(project.deadline);
-  const milestonesDone  = (project.milestones ?? []).filter(m => m.done).length;
-  const milestonesTotal = (project.milestones ?? []).length;
-
-  return (
-    <aside
-      className="hidden lg:flex flex-col gap-5 overflow-y-auto shrink-0"
-      style={{ width: 200, scrollbarWidth: "none" }}
-    >
-      {/* Status */}
-      <div className="rounded-2xl p-4" style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}>
-        <p className="text-[10px] font-bold tracking-widest mb-3" style={{ color: "var(--text-6)" }}>STATUS</p>
-        <div className="flex flex-col gap-2 text-xs">
-          {[
-            { label: "Phase",    value: project.phase    ?? "Kickoff" },
-            { label: "Days Left",value: project.status === "completed" ? "Done" : `${days}` },
-            { label: "Budget",   value: total ? `$${total.toLocaleString()}` : "TBD" },
-            { label: "Priority", value: project.priority ?? "High" },
-          ].map(({ label, value }) => (
-            <div key={label} className="flex justify-between items-center">
-              <span style={{ color: "var(--text-5)" }}>{label}</span>
-              <span className="font-semibold" style={{ color: "var(--text-2)" }}>{value}</span>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Timeline */}
-      {(project.milestones ?? []).length > 0 && (
-        <div className="rounded-2xl p-4" style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}>
-          <p className="text-[10px] font-bold tracking-widest mb-3" style={{ color: "var(--text-6)" }}>TIMELINE</p>
-          <div className="flex flex-col gap-2">
-            {(project.milestones ?? []).map((m, i) => (
-              <div key={m.id} className="flex items-start gap-2 text-xs">
-                <div className="relative flex flex-col items-center">
-                  <div
-                    className="w-2 h-2 rounded-full mt-0.5 shrink-0"
-                    style={{ background: m.done ? "#7C5BF5" : "var(--bg-subtle)", border: m.done ? "none" : "1.5px solid var(--border)" }}
-                  />
-                  {i < (project.milestones ?? []).length - 1 && (
-                    <div className="w-px flex-1 mt-0.5" style={{ background: "var(--border)", minHeight: 12 }} />
-                  )}
-                </div>
-                <span className={m.done ? "line-through" : ""} style={{ color: m.done ? "var(--text-5)" : "var(--text-3)" }}>
-                  {m.title}
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Budget */}
-      {total > 0 && (
-        <div className="rounded-2xl p-4" style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}>
-          <p className="text-[10px] font-bold tracking-widest mb-3" style={{ color: "var(--text-6)" }}>BUDGET</p>
-          <div className="flex justify-between text-xs mb-1" style={{ color: "var(--text-4)" }}>
-            <span>Spent</span>
-            <span style={{ color: "var(--text-2)" }}>${spent.toLocaleString()} / ${total.toLocaleString()}</span>
-          </div>
-          <div className="h-1.5 rounded-full overflow-hidden mb-3" style={{ background: "var(--bg-subtle)" }}>
-            <div className="h-full rounded-full" style={{ width: `${project.progress}%`, background: "#7C5BF5" }} />
-          </div>
-          <div className="flex flex-col gap-1 text-[11px]" style={{ color: "var(--text-5)" }}>
-            <div className="flex justify-between">
-              <span>Concept work</span>
-              <span>${Math.round(total * 0.6).toLocaleString()}</span>
-            </div>
-            <div className="flex justify-between">
-              <span>Revisions</span>
-              <span>${Math.round(total * 0.4).toLocaleString()}</span>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Files */}
-      <div className="rounded-2xl p-4" style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}>
-        <p className="text-[10px] font-bold tracking-widest mb-3" style={{ color: "var(--text-6)" }}>FILES</p>
-        <div className="flex flex-col gap-2">
-          {MOCK_FILES.map(f => (
-            <div key={f.name} className="flex items-center gap-2 cursor-pointer group" title={f.name}>
-              <div
-                className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0 text-[10px] font-bold"
-                style={{ background: f.type === "pdf" ? "rgba(239,68,68,0.12)" : "rgba(124,91,245,0.12)", color: f.type === "pdf" ? "#F87171" : "#9B7CF5" }}
-              >
-                {f.type === "pdf" ? "PDF" : "IMG"}
-              </div>
-              <div className="min-w-0">
-                <p className="text-[10px] font-medium truncate group-hover:underline" style={{ color: "var(--text-3)" }}>{f.name}</p>
-                <p className="text-[9px]" style={{ color: "var(--text-6)" }}>{f.size}</p>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Milestones */}
-      <div className="rounded-2xl p-4" style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}>
-        <div className="flex items-center justify-between mb-3">
-          <p className="text-[10px] font-bold tracking-widest" style={{ color: "var(--text-6)" }}>MILESTONES</p>
-          <span className="text-[10px]" style={{ color: "var(--text-5)" }}>{milestonesDone}/{milestonesTotal}</span>
-        </div>
-        <div className="flex flex-col gap-2">
-          {(project.milestones ?? []).map(m => (
-            <button
-              key={m.id}
-              onClick={() => onMilestoneToggle(m.id)}
-              className="flex items-center gap-2 text-left text-xs transition-opacity hover:opacity-70"
-            >
-              <div
-                className="w-4 h-4 rounded flex items-center justify-center shrink-0"
-                style={{ background: m.done ? "#7C5BF5" : "transparent", border: m.done ? "none" : "1.5px solid var(--border)" }}
-              >
-                {m.done && <CheckCircle2 size={10} style={{ color: "#fff" }} />}
-              </div>
-              <span className={m.done ? "line-through" : ""} style={{ color: m.done ? "var(--text-5)" : "var(--text-3)" }}>
-                {m.title}
-              </span>
-            </button>
-          ))}
-        </div>
-      </div>
-    </aside>
-  );
-}
 
 // ── Right Sidebar ─────────────────────────────────────────────
 
-function RightSidebar({ project, onAction }: { project: HireRequest; onAction: (action: string) => void }) {
-  const days = daysUntil(project.deadline);
+function RightSidebar({ project }: { project: HireRequest }) {
 
   return (
     <aside
@@ -292,89 +141,98 @@ function RightSidebar({ project, onAction }: { project: HireRequest; onAction: (
         ))}
       </div>
 
-      {/* Quick Actions */}
-      <div className="rounded-2xl p-4" style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}>
-        <p className="text-[10px] font-bold tracking-widest mb-3" style={{ color: "var(--text-6)" }}>QUICK ACTIONS</p>
-        <div className="flex flex-col gap-1">
-          {[
-            { label: "Upload Files",     icon: <Upload size={13} />,       action: "upload"   },
-            { label: "Add Milestone",    icon: <Flag size={13} />,          action: "milestone"},
-            { label: "Request Revision", icon: <ChevronRight size={13} />,  action: "revision" },
-            { label: "Leave Review",     icon: <Star size={13} />,          action: "review"   },
-          ].map(({ label, icon, action }) => (
-            <button
-              key={label}
-              onClick={() => onAction(action)}
-              className="flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium transition-all text-left"
-              style={{ color: "var(--text-3)" }}
-              onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "var(--bg-hover)"; }}
-              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = "transparent"; }}
-            >
-              <span>{label}</span>
-              <span style={{ color: "var(--text-5)" }}>{icon}</span>
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Activity */}
-      <div className="rounded-2xl p-4" style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}>
-        <p className="text-[10px] font-bold tracking-widest mb-3" style={{ color: "var(--text-6)" }}>ACTIVITY</p>
-        <div className="flex flex-col gap-2">
-          {[
-            { icon: ACTIVITY_ICONS.milestone, text: "Milestone approved",    time: "6:47 PM" },
-            { icon: ACTIVITY_ICONS.file,      text: "Artwork V2 uploaded",   time: "4:10 PM" },
-            { icon: ACTIVITY_ICONS.message,   text: "James left a comment",  time: "10:02 AM" },
-            { icon: ACTIVITY_ICONS.file,      text: "Brand doc uploaded",    time: "12:30 AM" },
-            { icon: ACTIVITY_ICONS.started,   text: "Project started",       time: "Jul 1" },
-          ].map((a, i) => (
-            <div key={i} className="flex items-start gap-2 text-[11px]">
-              <span className="text-sm leading-none mt-0.5">{a.icon}</span>
-              <div className="min-w-0">
-                <p className="leading-snug" style={{ color: "var(--text-3)" }}>{a.text}</p>
-                <p style={{ color: "var(--text-6)" }}>{a.time}</p>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Next Deadline */}
-      {project.deadline && project.status !== "completed" && (
-        <div className="rounded-2xl p-4" style={{ background: "rgba(124,91,245,0.08)", border: "1px solid rgba(124,91,245,0.2)" }}>
-          <p className="text-[10px] font-bold tracking-widest mb-2" style={{ color: "var(--text-6)" }}>NEXT DEADLINE</p>
-          <div className="flex items-center gap-2 mb-1">
-            <div className="w-6 h-6 rounded-lg flex items-center justify-center" style={{ background: "rgba(124,91,245,0.2)" }}>
-              <Clock size={12} style={{ color: "#9B7CF5" }} />
-            </div>
-            <p className="text-xs font-semibold" style={{ color: "var(--text-1)" }}>Final Artwork Delivery</p>
-          </div>
-          <p className="text-[11px] ml-8" style={{ color: "#9B7CF5" }}>{days} days remaining</p>
-        </div>
-      )}
     </aside>
   );
 }
 
 // ── Conversation ─────────────────────────────────────────────
 
-function ConversationPanel({ project, userId }: {
+function ConversationPanel({ project, userId, userName, userAvatar }: {
   project: HireRequest;
   userId: string;
+  userName: string;
+  userAvatar: string;
 }) {
   const [messages, setMessages] = useState<Message[]>([]);
+  const [text, setText]         = useState("");
+  const [sending, setSending]   = useState(false);
   const bottomRef               = useRef<HTMLDivElement>(null);
+  const inputRef                = useRef<HTMLTextAreaElement>(null);
+
+  const canChat = project.status === "accepted";
 
   useEffect(() => {
     if (!project.conversation_id) return;
-    fetch(`/api/messages?action=messages&conversationId=${project.conversation_id}`)
-      .then(r => r.json())
-      .then(({ messages: msgs }) => setMessages(msgs ?? []));
+    const convId = project.conversation_id;
+
+    function load() {
+      fetch(`/api/messages?action=messages&conversationId=${convId}`)
+        .then(r => r.json())
+        .then(({ messages: msgs }) => {
+          if (!msgs) return;
+          setMessages(prev => {
+            // Keep any optimistic (unconfirmed) messages not yet in the server result
+            const serverIds = new Set(msgs.map((m: Message) => m.id));
+            const pending = prev.filter(m => m.id.startsWith("opt-") && !serverIds.has(m.id));
+            return [...msgs, ...pending];
+          });
+        })
+        .catch(() => {});
+    }
+
+    load();
+    const interval = setInterval(load, 5000);
+    return () => clearInterval(interval);
   }, [project.conversation_id]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
+
+  async function sendMessage() {
+    const trimmed = text.trim();
+    if (!trimmed || sending || !project.conversation_id || !canChat) return;
+    setSending(true);
+    setText("");
+
+    const optimistic: Message = {
+      id: `opt-${Date.now()}`,
+      conversation_id: project.conversation_id,
+      sender_id:     userId,
+      sender_name:   userName,
+      sender_avatar: userAvatar,
+      text:          trimmed,
+      created_at:    new Date().toISOString(),
+    };
+    setMessages(prev => [...prev, optimistic]);
+
+    const res = await fetch("/api/messages", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        action:          "send_message",
+        conversation_id: project.conversation_id,
+        sender_id:       userId,
+        sender_name:     userName,
+        sender_avatar:   userAvatar,
+        text:            trimmed,
+      }),
+    });
+
+    if (res.ok) {
+      const { message } = await res.json();
+      setMessages(prev => prev.map(m => m.id === optimistic.id ? message : m));
+    }
+    setSending(false);
+    inputRef.current?.focus();
+  }
+
+  function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      sendMessage();
+    }
+  }
 
   const grouped: { date: string; msgs: Message[] }[] = [];
   messages.forEach(m => {
@@ -386,7 +244,8 @@ function ConversationPanel({ project, userId }: {
 
   return (
     <div className="flex flex-col h-full min-h-0">
-      {/* Messages */}
+
+      {/* Messages scroll area */}
       <div className="flex-1 overflow-y-auto px-1 py-2 flex flex-col gap-4 min-h-0" style={{ scrollbarWidth: "none" }}>
         {messages.length === 0 && (
           <div className="flex flex-col items-center justify-center h-full text-center py-10">
@@ -394,7 +253,9 @@ function ConversationPanel({ project, userId }: {
               <FileText size={20} style={{ color: "var(--text-5)" }} />
             </div>
             <p className="text-sm font-semibold mb-1" style={{ color: "var(--text-3)" }}>No messages yet</p>
-            <p className="text-xs" style={{ color: "var(--text-5)" }}>Start the conversation about your project</p>
+            <p className="text-xs" style={{ color: "var(--text-5)" }}>
+              {canChat ? "Start the conversation about your project" : "Messaging opens once the artist accepts your request"}
+            </p>
           </div>
         )}
 
@@ -410,10 +271,8 @@ function ConversationPanel({ project, userId }: {
                 const isMe = m.sender_id === userId;
                 return (
                   <div key={m.id} className={`flex items-end gap-2.5 ${isMe ? "flex-row-reverse" : ""}`}>
-                    <div
-                      className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold shrink-0 overflow-hidden"
-                      style={{ background: "linear-gradient(135deg,#361E7B,#7C5BF5)" }}
-                    >
+                    <div className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold shrink-0 overflow-hidden"
+                      style={{ background: "linear-gradient(135deg,#361E7B,#7C5BF5)" }}>
                       {m.sender_avatar
                         // eslint-disable-next-line @next/next/no-img-element
                         ? <img src={m.sender_avatar} alt="" className="w-full h-full object-cover" />
@@ -424,16 +283,14 @@ function ConversationPanel({ project, userId }: {
                         {!isMe && <span className="text-[11px] font-semibold" style={{ color: "var(--text-3)" }}>{m.sender_name ?? "Artist"}</span>}
                         <span className="text-[10px]" style={{ color: "var(--text-6)" }}>{fmtTime(m.created_at)}</span>
                       </div>
-                      <div
-                        className="px-3 py-2 rounded-2xl text-sm leading-relaxed"
+                      <div className="px-3 py-2 rounded-2xl text-sm leading-relaxed"
                         style={{
                           background: isMe ? "#7C5BF5" : "var(--bg-card)",
                           color: isMe ? "#fff" : "var(--text-2)",
                           border: isMe ? "none" : "1px solid var(--border)",
                           borderBottomRightRadius: isMe ? 4 : 16,
                           borderBottomLeftRadius: isMe ? 16 : 4,
-                        }}
-                      >
+                        }}>
                         {m.text}
                       </div>
                     </div>
@@ -446,6 +303,53 @@ function ConversationPanel({ project, userId }: {
         <div ref={bottomRef} />
       </div>
 
+      {/* Message input — gated on acceptance */}
+      <div className="shrink-0 pt-3" style={{ borderTop: "1px solid var(--border)" }}>
+        {canChat ? (
+          <div className="flex items-end gap-2">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={userAvatar}
+              alt=""
+              className="w-7 h-7 rounded-full object-cover shrink-0 mb-1"
+              style={{ border: "1.5px solid rgba(124,91,245,0.4)" }}
+            />
+            <div
+              className="flex-1 flex items-end gap-2 px-3 py-2 rounded-2xl"
+              style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}
+            >
+              <textarea
+                ref={inputRef}
+                value={text}
+                onChange={e => { setText(e.target.value); e.target.style.height = "auto"; e.target.style.height = `${Math.min(e.target.scrollHeight, 120)}px`; }}
+                onKeyDown={handleKeyDown}
+                placeholder="Message… (Enter to send, Shift+Enter for new line)"
+                rows={1}
+                className="flex-1 bg-transparent text-sm outline-none resize-none leading-relaxed"
+                style={{ color: "var(--text-1)", maxHeight: 120, scrollbarWidth: "none" }}
+              />
+              <button
+                onClick={sendMessage}
+                disabled={!text.trim() || sending}
+                className="w-7 h-7 rounded-xl flex items-center justify-center shrink-0 transition-all hover:opacity-85 disabled:opacity-30"
+                style={{ background: "#7C5BF5", marginBottom: 1 }}
+              >
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>
+                </svg>
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div
+            className="flex items-center justify-center gap-2 py-3 px-4 rounded-2xl text-xs"
+            style={{ background: "rgba(245,158,11,0.07)", border: "1px solid rgba(245,158,11,0.2)", color: "rgba(252,211,77,0.8)" }}
+          >
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+            Messaging is available once the artist accepts your request
+          </div>
+        )}
+      </div>
     </div>
   );
 }
@@ -470,20 +374,6 @@ export default function ProjectDetailPage() {
       .then(({ request }) => { setProject(request); setLoading(false); })
       .catch(() => { setNotFound(true); setLoading(false); });
   }, [params.id]);
-
-  async function toggleMilestone(milestoneId: string) {
-    if (!project || !user) return;
-    const updated = (project.milestones ?? []).map(m =>
-      m.id === milestoneId ? { ...m, done: !m.done } : m
-    );
-    const donePct = Math.round((updated.filter(m => m.done).length / updated.length) * 100);
-    setProject(p => p ? { ...p, milestones: updated, progress: donePct } : p);
-    await fetch(`/api/hire-requests/${project.id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ clientId: user.id, milestones: updated, progress: donePct }),
-    });
-  }
 
   async function completeProject() {
     if (!project || !user || completing) return;
@@ -599,11 +489,6 @@ export default function ProjectDetailPage() {
         {/* Main 3-column layout */}
         <div className="flex flex-1 min-h-0 gap-0 overflow-hidden">
 
-          {/* Left sidebar */}
-          <div className="hidden lg:block p-4 overflow-y-auto" style={{ width: 216, scrollbarWidth: "none", borderRight: "1px solid var(--border)" }}>
-            <LeftSidebar project={project} onMilestoneToggle={toggleMilestone} />
-          </div>
-
           {/* Center — tabs + content */}
           <div className="flex-1 flex flex-col min-w-0 min-h-0">
             {/* Tab bar */}
@@ -629,6 +514,8 @@ export default function ProjectDetailPage() {
                 <ConversationPanel
                   project={project}
                   userId={user?.id ?? ""}
+                  userName={user?.fullName ?? user?.username ?? "You"}
+                  userAvatar={user?.imageUrl ?? ""}
                 />
               )}
               {activeTab === "deliverables" && (
@@ -654,7 +541,7 @@ export default function ProjectDetailPage() {
 
           {/* Right sidebar */}
           <div className="hidden xl:block p-4 overflow-y-auto" style={{ width: 236, scrollbarWidth: "none", borderLeft: "1px solid var(--border)" }}>
-            <RightSidebar project={project} onAction={() => {}} />
+            <RightSidebar project={project} />
           </div>
         </div>
       </div>

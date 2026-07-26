@@ -1,16 +1,15 @@
 "use client";
 
 import { THEMES, useTheme } from "@/contexts/ThemeContext";
-import { useClerk, useUser, UserButton } from "@clerk/nextjs";
+import { useUser, UserButton } from "@clerk/nextjs";
 import CreatePostModal from "@/components/create/CreatePostModal";
 import { Palette, Plus, UserCircle } from "lucide-react";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
+import { useState } from "react";
 
 const NAV_ITEMS: { icon: string | null; lucideIcon: React.ElementType | null; label: string; href: string }[] = [
   { icon: "/icons/1.png", lucideIcon: null,       label: "Feed",        href: "/feed" },
-  { icon: "/icons/3.png", lucideIcon: null,       label: "Messages",    href: "/messages" },
   { icon: "/icons/7.png", lucideIcon: null,       label: "Marketplace", href: "/marketplace" },
   { icon: "/icons/6.png", lucideIcon: null,       label: "Hiring",      href: "/hiring" },
   { icon: "/icons/4.png",           lucideIcon: UserCircle, label: "Profile",     href: "/profile" },
@@ -53,27 +52,11 @@ function Tooltip({ label, children }: { label: string; children: React.ReactNode
 
 export default function Sidebar() {
   const pathname = usePathname();
-  const router = useRouter();
   const { theme, setTheme } = useTheme();
-  const { signOut } = useClerk();
   const { user } = useUser();
-  const [expanded,    setExpanded]    = useState(false);
-  const [createOpen,  setCreateOpen]  = useState(false);
-  const [themeOpen,   setThemeOpen]   = useState(false);
-  const [unreadCount, setUnreadCount] = useState(0);
-
-  useEffect(() => {
-    if (!user) return;
-    function fetchUnread() {
-      fetch(`/api/messages?action=unread_count&userId=${user!.id}`)
-        .then(r => r.ok ? r.json() : Promise.resolve({ count: 0 }))
-        .then(({ count }) => setUnreadCount(count ?? 0))
-        .catch(() => {}); // silently ignore if API is unreachable
-    }
-    fetchUnread();
-    const interval = setInterval(fetchUnread, 30000);
-    return () => clearInterval(interval);
-  }, [user]);
+  const [expanded,   setExpanded]   = useState(false);
+  const [createOpen, setCreateOpen] = useState(false);
+  const [themeOpen,  setThemeOpen]  = useState(false);
 
   const w = expanded ? 220 : 72;
 
@@ -186,31 +169,13 @@ export default function Sidebar() {
                     style={{ color: active ? "#9B7CF5" : "var(--text-4)", opacity: active ? 1 : 0.5 }}
                   />
                 ) : null}
-                {label === "Messages" && unreadCount > 0 && !expanded && (
-                  <span
-                    className="absolute -top-1 -right-1 w-4 h-4 rounded-full text-[9px] font-bold flex items-center justify-center text-white"
-                    style={{ background: "#7C5BF5" }}
-                  >
-                    {unreadCount > 9 ? "9+" : unreadCount}
-                  </span>
-                )}
               </div>
 
-              {/* Label + badge */}
+              {/* Label */}
               {expanded && (
-                <>
-                  <span className={`text-sm flex-1 whitespace-nowrap ${active ? "font-semibold" : "font-medium"}`}>
-                    {label}
-                  </span>
-                  {label === "Messages" && unreadCount > 0 && (
-                    <span
-                      className="text-[11px] font-semibold rounded-full px-1.5 py-0.5 leading-none min-w-4.5 text-center"
-                      style={{ background: "rgba(124,91,245,0.20)", color: "#9B7CF5" }}
-                    >
-                      {unreadCount > 9 ? "9+" : unreadCount}
-                    </span>
-                  )}
-                </>
+                <span className={`text-sm flex-1 whitespace-nowrap ${active ? "font-semibold" : "font-medium"}`}>
+                  {label}
+                </span>
               )}
             </Link>
           );

@@ -409,9 +409,11 @@ interface IncomingRequest {
 }
 
 function IncomingCard({ req, onDecide }: { req: IncomingRequest; onDecide: (id: string, status: "accepted" | "declined") => void }) {
+  const router = useRouter();
   const [deciding, setDeciding] = useState<"accepted" | "declined" | null>(null);
 
-  async function decide(status: "accepted" | "declined") {
+  async function decide(e: React.MouseEvent, status: "accepted" | "declined") {
+    e.stopPropagation();
     setDeciding(status);
     await onDecide(req.id, status);
     setDeciding(null);
@@ -427,8 +429,11 @@ function IncomingCard({ req, onDecide }: { req: IncomingRequest; onDecide: (id: 
 
   return (
     <div
-      className="p-4 rounded-2xl flex flex-col gap-3"
+      onClick={() => router.push(`/hiring/projects/${req.id}`)}
+      className="p-4 rounded-2xl flex flex-col gap-3 cursor-pointer transition-all hover:scale-[1.01]"
       style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}
+      onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = "rgba(124,91,245,0.35)"; }}
+      onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = "var(--border)"; }}
     >
       {/* Client + status */}
       <div className="flex items-center gap-3">
@@ -472,7 +477,7 @@ function IncomingCard({ req, onDecide }: { req: IncomingRequest; onDecide: (id: 
       {isPending && (
         <div className="flex gap-2 pt-1">
           <button
-            onClick={() => decide("accepted")}
+            onClick={e => decide(e, "accepted")}
             disabled={!!deciding}
             className="flex-1 py-2 rounded-xl text-xs font-bold transition-all hover:opacity-90 disabled:opacity-50"
             style={{ background: "rgba(16,185,129,0.15)", color: "#34D399", border: "1px solid rgba(16,185,129,0.35)" }}
@@ -480,7 +485,7 @@ function IncomingCard({ req, onDecide }: { req: IncomingRequest; onDecide: (id: 
             {deciding === "accepted" ? "Accepting…" : "✓ Accept"}
           </button>
           <button
-            onClick={() => decide("declined")}
+            onClick={e => decide(e, "declined")}
             disabled={!!deciding}
             className="flex-1 py-2 rounded-xl text-xs font-bold transition-all hover:opacity-90 disabled:opacity-50"
             style={{ background: "rgba(239,68,68,0.1)", color: "#F87171", border: "1px solid rgba(239,68,68,0.3)" }}
