@@ -1,7 +1,5 @@
 "use client";
 
-export const dynamic = "force-dynamic";
-
 import BottomNav from "@/components/layout/BottomNav";
 import Sidebar from "@/components/layout/Sidebar";
 import MessagesSkeleton from "@/components/ui/skeletons/MessagesSkeleton";
@@ -14,7 +12,6 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { useSearchParams } from "next/navigation";
 
 function timeAgo(iso: string) {
   const m = Math.floor((Date.now() - new Date(iso).getTime()) / 60000);
@@ -27,7 +24,6 @@ function timeAgo(iso: string) {
 
 export default function MessagesPage() {
   const { user, isLoaded } = useUser();
-  const searchParams = useSearchParams();
 
   const [convs, setConvs]               = useState<Conversation[]>([]);
   const [profiles, setProfiles]         = useState<Record<string, Profile>>({});
@@ -56,7 +52,7 @@ export default function MessagesPage() {
   useEffect(() => {
     if (!user) return;
 
-    const convParam = searchParams.get("conv");
+    const convParam = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("conv") : null;
 
     async function loadConvs() {
       const r = await fetch(`/api/messages?action=conversations&userId=${user!.id}`).catch(() => null);
