@@ -7,7 +7,8 @@ import {
   type Notification,
 } from "@/lib/db/notifications";
 import { useUser } from "@clerk/nextjs";
-import { Bell, CheckCheck, X } from "lucide-react";
+import { Bell, CheckCheck, Settings, X } from "lucide-react";
+import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 
 const TYPE_STYLE: Record<string, { color: string; bg: string; emoji: string }> = {
@@ -80,7 +81,17 @@ export default function MainHeader({ children }: { children?: React.ReactNode })
         </div>
       )}
 
-      <div className={`relative ${children ? "" : "ml-auto"}`} ref={ref}>
+      <div className={`flex items-center gap-2 ${children ? "" : "ml-auto"}`}>
+        <Link
+          href="/settings"
+          className="p-2 rounded-xl transition-opacity hover:opacity-70 flex"
+          style={{ background: "var(--bg-subtle)", color: "var(--text-icon)" }}
+          aria-label="Settings"
+        >
+          <Settings size={19} strokeWidth={1.8} />
+        </Link>
+
+        <div className="relative" ref={ref}>
         <button
           onClick={() => setOpen(v => !v)}
           className="relative p-2 rounded-xl transition-opacity hover:opacity-70"
@@ -173,6 +184,7 @@ export default function MainHeader({ children }: { children?: React.ReactNode })
             </div>
           </div>
         )}
+        </div>
       </div>
     </div>
   );

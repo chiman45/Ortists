@@ -99,12 +99,13 @@ export default function UserProfilePage({ params }: { params: Promise<{ username
 
   async function handleMessage() {
     if (!user || !profile) return;
-    await fetch("/api/messages", {
+    const res = await fetch("/api/messages", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ action: "get_or_create_conversation", userId1: user.id, userId2: profile.clerk_id }),
     });
-    router.push("/messages");
+    const { conversation } = await res.json();
+    router.push(conversation?.id ? `/messages?conv=${conversation.id}` : "/messages");
   }
 
   if (loading) {

@@ -1,14 +1,13 @@
 "use client";
 
 import BottomNav from "@/components/layout/BottomNav";
-import MainHeader from "@/components/layout/MainHeader";
 import Sidebar from "@/components/layout/Sidebar";
 import HireModal from "@/components/hiring/HireModal";
 import type { Artist } from "@/lib/hiringData";
-import { useUser } from "@clerk/nextjs";
+import { useUser, UserButton } from "@clerk/nextjs";
 import {
-  ArrowRight, Briefcase, CheckCircle2, Clock, MapPin,
-  Search, SlidersHorizontal, Star, XCircle,
+  ArrowRight, Briefcase, CheckCircle2, Clock,
+  Search, SlidersHorizontal, Star, XCircle, Zap,
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -408,15 +407,18 @@ interface IncomingRequest {
   created_at: string;
 }
 
-function IncomingCard({ req, onDecide }: { req: IncomingRequest; onDecide: (id: string, status: "accepted" | "declined") => void }) {
+function IncomingCard({ req, onDecide }: { req: IncomingRequest; onDecide: (id: string, status: "accepted" | "declined") => Promise<void> }) {
   const router = useRouter();
   const [deciding, setDeciding] = useState<"accepted" | "declined" | null>(null);
 
   async function decide(e: React.MouseEvent, status: "accepted" | "declined") {
     e.stopPropagation();
     setDeciding(status);
-    await onDecide(req.id, status);
-    setDeciding(null);
+    try {
+      await onDecide(req.id, status);
+    } finally {
+      setDeciding(null);
+    }
   }
 
   const isPending = req.status === "pending";
@@ -654,17 +656,18 @@ export default function HiringPage() {
   }
 
   const filtered = artists.filter(a => {
-    const name       = (a.display_name ?? a.username ?? "").toLowerCase();
+    if (a.clerk_id === user?.id) return false;
+    const name        = (a.display_name ?? a.username ?? "").toLowerCase();
     const matchSearch = !search || name.includes(search.toLowerCase()) || a.tag.toLowerCase().includes(search.toLowerCase()) || (a.location ?? "").toLowerCase().includes(search.toLowerCase());
-    const matchCat   = activeCategory === "All" || a.tag.toLowerCase() === activeCategory.toLowerCase();
-    const matchAvail = !activeFilters.has("Available Now") || a.available;
-    const matchR45   = !activeFilters.has("Rating 4.5+")   || a.rating >= 4.5;
-    const matchR5    = !activeFilters.has("Rating 5.0")    || a.rating >= 5.0;
-    const matchFast  = !activeFilters.has("Fast Delivery") || (a.response_time ?? "").toLowerCase().includes("hour");
+    const matchCat    = activeCategory === "All" || a.tag.toLowerCase() === activeCategory.toLowerCase();
+    const matchAvail  = !activeFilters.has("Available Now") || a.available;
+    const matchR45    = !activeFilters.has("Rating 4.5+")   || a.rating >= 4.5;
+    const matchR5     = !activeFilters.has("Rating 5.0")    || a.rating >= 5.0;
+    const matchFast   = !activeFilters.has("Fast Delivery") || (a.response_time ?? "").toLowerCase().includes("hour");
     return matchSearch && matchCat && matchAvail && matchR45 && matchR5 && matchFast;
   });
 
-  const featured = artists.filter(a => a.available && a.rating >= 4.5).slice(0, 8);
+  const featured = artists.filter(a => a.available && a.rating >= 4.5 && a.clerk_id !== user?.id).slice(0, 8);
 
   return (
     <div
@@ -676,46 +679,98 @@ export default function HiringPage() {
       <Sidebar />
 
       <div className="flex-1 flex flex-col lg:ml-17 min-h-screen">
-        <MainHeader>
-          {/* Tab switcher */}
-          <div className="px-4 md:px-8 pb-3 flex items-center gap-2">
-            {(["hire", "projects"] as const).map(t => (
-              <button
-                key={t}
-                onClick={() => setTab(t)}
-                className="px-4 py-1.5 rounded-full text-sm font-semibold transition-all"
-                style={{ background: tab === t ? "#7C5BF5" : "transparent", color: tab === t ? "#fff" : "var(--text-4)" }}
+        {/* ── Custom hiring header ── */}
+        <div
+          className="sticky top-0 z-30"
+          style={{
+            background: "var(--bg-header)",
+            backdropFilter: "blur(24px)",
+            WebkitBackdropFilter: "blur(24px)",
+            borderBottom: "1px solid var(--border)",
+          }}
+        >
+          {/* Top row: Logo | Tabs | Actions */}
+          <div className="flex items-center gap-3 px-4 md:px-8 py-3">
+
+            {/* Logo */}
+            <div className="flex items-center gap-2 shrink-0">
+              <div
+                className="w-8 h-8 rounded-full flex items-center justify-center shrink-0"
+                style={{ background: "linear-gradient(135deg,#361E7B,#7C5BF5)" }}
               >
-                {t === "hire" ? "Hire Artists" : "My Projects"}
+                <Zap size={15} color="#fff" strokeWidth={2.5} />
+              </div>
+              <span className="font-bold text-sm hidden sm:block" style={{ color: "var(--text-1)" }}>Ortist</span>
+            </div>
+
+            {/* Tab toggle — centred */}
+            <div className="flex-1 flex justify-center">
+              <div
+                className="flex p-1 rounded-full"
+                style={{ background: "var(--bg-subtle)", border: "1px solid var(--border)" }}
+              >
+                {(["hire", "projects"] as const).map(t => (
+                  <button
+                    key={t}
+                    onClick={() => setTab(t)}
+                    className="px-5 py-1.5 rounded-full text-sm font-semibold transition-all"
+                    style={{
+                      background: tab === t ? "linear-gradient(135deg,#361E7B,#7C5BF5)" : "transparent",
+                      color: tab === t ? "#fff" : "var(--text-4)",
+                      boxShadow: tab === t ? "0 2px 12px rgba(124,91,245,0.35)" : "none",
+                    }}
+                  >
+                    {t === "hire" ? "Hire Artists" : "My Projects"}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Actions */}
+            <div className="flex items-center gap-2 shrink-0">
+              <button
+                onClick={() => setTab("hire")}
+                className="hidden sm:flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-semibold transition-all hover:opacity-85"
+                style={{
+                  background: "rgba(124,91,245,0.15)",
+                  color: "#9B7CF5",
+                  border: "1px solid rgba(124,91,245,0.35)",
+                }}
+              >
+                Post a Brief
               </button>
-            ))}
+              <UserButton />
+            </div>
           </div>
 
-          {/* Search + filter + categories — Hire tab only */}
+          {/* Search + filters + categories — Hire tab only */}
           {tab === "hire" && (
-            <div className="px-4 md:px-8 pb-3 flex flex-col gap-2">
+            <div className="px-4 md:px-8 pb-4 flex flex-col gap-3">
               <div className="flex gap-2">
-                <div className="flex-1 flex items-center gap-2 px-3 py-2 rounded-xl" style={{ background: "var(--bg-subtle)", border: "1px solid var(--border)" }}>
-                  <Search size={14} style={{ color: "var(--text-5)", flexShrink: 0 }} />
+                <div
+                  className="flex-1 flex items-center gap-3 px-4 py-2.5 rounded-2xl"
+                  style={{ background: "var(--bg-subtle)", border: "1px solid var(--border)" }}
+                >
+                  <Search size={15} style={{ color: "var(--text-5)", flexShrink: 0 }} />
                   <input
                     value={search}
                     onChange={e => setSearch(e.target.value)}
-                    placeholder="Search artists, skills, locations…"
+                    placeholder="Search artists, styles, or categories..."
                     className="flex-1 bg-transparent text-sm outline-none min-w-0"
                     style={{ color: "var(--text-1)" }}
                   />
                 </div>
                 <button
                   onClick={() => setShowFilters(v => !v)}
-                  className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium transition-all shrink-0"
+                  className="flex items-center gap-2 px-4 py-2.5 rounded-2xl text-sm font-medium transition-all shrink-0"
                   style={{
                     background: showFilters ? "rgba(124,91,245,0.15)" : "var(--bg-subtle)",
                     border: showFilters ? "1px solid rgba(124,91,245,0.4)" : "1px solid var(--border)",
                     color: showFilters ? "#9B7CF5" : "var(--text-4)",
                   }}
                 >
-                  <SlidersHorizontal size={13} />
-                  <span className="hidden sm:inline">Filter</span>
+                  <SlidersHorizontal size={14} />
+                  Filters
                   {activeFilters.size > 0 && (
                     <span className="w-4 h-4 rounded-full text-[9px] font-bold flex items-center justify-center" style={{ background: "#7C5BF5", color: "#fff" }}>
                       {activeFilters.size}
@@ -723,19 +778,21 @@ export default function HiringPage() {
                   )}
                 </button>
               </div>
+
+              {/* Category pills */}
               <div className="flex gap-2 overflow-x-auto" style={{ scrollbarWidth: "none" }}>
                 {categories.map(cat => {
-                  const active = activeCategory === cat;
+                  const isActive = activeCategory === cat;
                   return (
                     <button
                       key={cat}
                       onClick={() => setActiveCategory(cat)}
-                      className="shrink-0 px-3.5 py-1 rounded-full text-xs font-medium transition-all"
+                      className="shrink-0 px-4 py-1.5 rounded-full text-sm font-medium transition-all"
                       style={{
-                        background: active ? "linear-gradient(135deg,#361E7B,#7C5BF5)" : "var(--bg-card)",
-                        color: active ? "#fff" : "var(--text-4)",
-                        border: active ? "1px solid transparent" : "1px solid var(--border)",
-                        boxShadow: active ? "0 0 10px rgba(124,91,245,0.3)" : "none",
+                        background: isActive ? "linear-gradient(135deg,#361E7B,#7C5BF5)" : "var(--bg-card)",
+                        color: isActive ? "#fff" : "var(--text-4)",
+                        border: isActive ? "1px solid transparent" : "1px solid var(--border)",
+                        boxShadow: isActive ? "0 0 12px rgba(124,91,245,0.35)" : "none",
                       }}
                     >
                       {cat}
@@ -745,7 +802,7 @@ export default function HiringPage() {
               </div>
             </div>
           )}
-        </MainHeader>
+        </div>
 
         {/* My Projects tab */}
         {tab === "projects" && (

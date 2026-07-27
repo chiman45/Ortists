@@ -308,12 +308,12 @@ function ConversationPanel({ project, userId, userName, userAvatar }: {
         {canChat ? (
           <div className="flex items-end gap-2">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
+            {userAvatar && <img
               src={userAvatar}
               alt=""
               className="w-7 h-7 rounded-full object-cover shrink-0 mb-1"
               style={{ border: "1.5px solid rgba(124,91,245,0.4)" }}
-            />
+            />}
             <div
               className="flex-1 flex items-end gap-2 px-3 py-2 rounded-2xl"
               style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}
@@ -515,7 +515,7 @@ export default function ProjectDetailPage() {
                   project={project}
                   userId={user?.id ?? ""}
                   userName={user?.fullName ?? user?.username ?? "You"}
-                  userAvatar={user?.imageUrl ?? ""}
+                  userAvatar={user?.imageUrl || `https://i.pravatar.cc/80?u=${user?.id}`}
                 />
               )}
               {activeTab === "deliverables" && (

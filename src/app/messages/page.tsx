@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
 
 function timeAgo(iso: string) {
   const m = Math.floor((Date.now() - new Date(iso).getTime()) / 60000);
@@ -24,6 +25,7 @@ function timeAgo(iso: string) {
 
 export default function MessagesPage() {
   const { user, isLoaded } = useUser();
+  const searchParams = useSearchParams();
 
   const [convs, setConvs]               = useState<Conversation[]>([]);
   const [profiles, setProfiles]         = useState<Record<string, Profile>>({});
@@ -48,30 +50,42 @@ export default function MessagesPage() {
     if (isLoaded && !user) setLoading(false);
   }, [isLoaded, user]);
 
-  // Load conversations + participant profiles
+  // Load (and poll) conversations + participant profiles
   useEffect(() => {
     if (!user) return;
-    fetch(`/api/messages?action=conversations&userId=${user.id}`)
-      .then(r => r.json())
-      .then(({ conversations: data }: { conversations: Conversation[] }) => {
-        setConvs(data ?? []);
-        setLoading(false);
-        const otherIds = [...new Set(
-          (data ?? []).flatMap((c: Conversation) => c.participant_ids.filter((id: string) => id !== user.id))
-        )];
-        if (!otherIds.length) return;
-        fetch(`/api/profiles?ids=${otherIds.join(",")}`)
-          .then(r => r.json())
-          .then(({ profiles: profs }: { profiles: Profile[] }) => {
-            setProfiles(prev => {
-              const next = { ...prev };
-              (profs ?? []).forEach(p => { next[p.clerk_id] = p; });
-              return next;
-            });
-          })
-          .catch(() => {});
-      })
-      .catch(() => setLoading(false));
+
+    const convParam = searchParams.get("conv");
+
+    async function loadConvs() {
+      const r = await fetch(`/api/messages?action=conversations&userId=${user!.id}`).catch(() => null);
+      if (!r?.ok) { setLoading(false); return; }
+      const { conversations: data }: { conversations: Conversation[] } = await r.json();
+      setConvs(data ?? []);
+      setLoading(false);
+
+      // Auto-open conversation passed via ?conv= query param (only first time)
+      if (convParam) setActiveConvId(prev => prev ?? convParam);
+
+      const otherIds = [...new Set(
+        (data ?? []).flatMap((c: Conversation) => c.participant_ids.filter((id: string) => id !== user!.id))
+      )];
+      if (!otherIds.length) return;
+      fetch(`/api/profiles?ids=${otherIds.join(",")}`)
+        .then(r2 => r2.json())
+        .then(({ profiles: profs }: { profiles: Profile[] }) => {
+          setProfiles(prev => {
+            const next = { ...prev };
+            (profs ?? []).forEach(p => { next[p.clerk_id] = p; });
+            return next;
+          });
+        })
+        .catch(() => {});
+    }
+
+    loadConvs();
+    const interval = setInterval(loadConvs, 6000);
+    return () => clearInterval(interval);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
   // Load messages when active conversation changes
