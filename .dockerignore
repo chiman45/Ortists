@@ -10,3 +10,7 @@ yarn-error.log*
 README.md
 Dockerfile
 .dockerignore
+.claude
+*.md
+supabase
+.vscode
