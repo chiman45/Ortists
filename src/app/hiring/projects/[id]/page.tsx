@@ -163,82 +163,226 @@ function fmtBytes(b: number) {
   return `${(b / (1024 * 1024)).toFixed(1)} MB`;
 }
 
+// ── Media lightbox ────────────────────────────────────────────
+
+function Lightbox({ src, name, onClose }: { src: string; name: string; onClose: () => void }) {
+  return createPortal(
+    <div
+      className="fixed inset-0 z-[1000] flex flex-col items-center justify-center"
+      style={{ background: "rgba(0,0,0,0.88)", backdropFilter: "blur(8px)" }}
+      onClick={onClose}
+    >
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={src} alt={name}
+        className="max-w-[90vw] max-h-[80vh] rounded-2xl object-contain"
+        style={{ boxShadow: "0 24px 80px rgba(0,0,0,0.6)" }}
+        onClick={e => e.stopPropagation()}
+      />
+      <p className="mt-3 text-xs" style={{ color: "rgba(255,255,255,0.5)" }}>{name} · click outside to close</p>
+    </div>,
+    document.body
+  );
+}
+
+// ── File bubble (in chat) ─────────────────────────────────────
+
 function FileBubble({ text, isMe }: { text: string; isMe: boolean }) {
   const f = parseFile(text);
+  const [lightbox, setLightbox] = useState(false);
   if (!f) return null;
   const isImage = f.type.startsWith("image/");
+  const isVideo = f.type.startsWith("video/");
+
+  if (isImage) {
+    return (
+      <>
+        <div
+          className="rounded-xl overflow-hidden cursor-pointer"
+          style={{ maxWidth: 220 }}
+          onClick={() => setLightbox(true)}
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={f.url} alt={f.name} className="w-full block" style={{ maxHeight: 180, objectFit: "cover" }} />
+          <div className="px-2 py-1 text-[10px]" style={{ color: isMe ? "rgba(255,255,255,0.6)" : "var(--text-5)" }}>{f.name}</div>
+        </div>
+        {lightbox && <Lightbox src={f.url} name={f.name} onClose={() => setLightbox(false)} />}
+      </>
+    );
+  }
+
+  if (isVideo) {
+    return (
+      <div className="rounded-xl overflow-hidden" style={{ maxWidth: 240 }}>
+        <video src={f.url} controls className="w-full block" style={{ maxHeight: 180 }} />
+        <div className="px-2 py-1 text-[10px]" style={{ color: isMe ? "rgba(255,255,255,0.6)" : "var(--text-5)" }}>{f.name}</div>
+      </div>
+    );
+  }
+
   return (
     <a href={f.url} target="_blank" rel="noopener noreferrer"
-      className="flex flex-col gap-2 no-underline rounded-xl overflow-hidden"
-      style={{ minWidth: 180, maxWidth: 240, background: isMe ? "rgba(255,255,255,0.1)" : "var(--bg-subtle)", border: `1px solid ${isMe ? "rgba(255,255,255,0.2)" : "var(--border)"}`, padding: "10px 12px" }}
+      className="flex items-center gap-2 no-underline rounded-xl"
+      style={{ minWidth: 160, maxWidth: 220, background: isMe ? "rgba(255,255,255,0.12)" : "var(--bg-subtle)", border: `1px solid ${isMe ? "rgba(255,255,255,0.18)" : "var(--border)"}`, padding: "8px 10px" }}
       onClick={e => e.stopPropagation()}
     >
-      {isImage && (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={f.url} alt={f.name} className="rounded-lg w-full" style={{ maxHeight: 140, objectFit: "cover" }} />
-      )}
-      <div className="flex items-center gap-2">
-        <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
-          style={{ background: isMe ? "rgba(255,255,255,0.15)" : "rgba(124,91,245,0.15)" }}>
-          <FileText size={14} style={{ color: isMe ? "#fff" : "#9B7CF5" }} />
-        </div>
-        <div className="min-w-0">
-          <p className="text-xs font-semibold truncate" style={{ color: isMe ? "#fff" : "var(--text-1)" }}>{f.name}</p>
-          <p className="text-[10px]" style={{ color: isMe ? "rgba(255,255,255,0.6)" : "var(--text-5)" }}>{fmtBytes(f.size)}</p>
-        </div>
+      <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0"
+        style={{ background: isMe ? "rgba(255,255,255,0.15)" : "rgba(124,91,245,0.15)" }}>
+        <FileText size={13} style={{ color: isMe ? "#fff" : "#9B7CF5" }} />
+      </div>
+      <div className="min-w-0">
+        <p className="text-xs font-semibold truncate" style={{ color: isMe ? "#fff" : "var(--text-1)" }}>{f.name}</p>
+        <p className="text-[10px]" style={{ color: isMe ? "rgba(255,255,255,0.55)" : "var(--text-5)" }}>{fmtBytes(f.size)}</p>
       </div>
     </a>
+  );
+}
+
+// ── Upload preview modal ──────────────────────────────────────
+
+function UploadPreview({ file, onSend, onCancel }: { file: File; onSend: () => Promise<void>; onCancel: () => void }) {
+  const [sending, setSending] = useState(false);
+  const isImage = file.type.startsWith("image/");
+  const isVideo = file.type.startsWith("video/");
+  const previewUrl = isImage || isVideo ? URL.createObjectURL(file) : null;
+
+  useEffect(() => {
+    return () => { if (previewUrl) URL.revokeObjectURL(previewUrl); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  async function handleSend() {
+    setSending(true);
+    try { await onSend(); } finally { setSending(false); }
+  }
+
+  return createPortal(
+    <div className="fixed inset-0 z-[1000] flex items-end justify-center pb-6 px-4"
+      style={{ background: "rgba(0,0,0,0.7)", backdropFilter: "blur(6px)" }}
+      onClick={onCancel}
+    >
+      <div
+        className="w-full max-w-sm rounded-2xl overflow-hidden flex flex-col gap-0"
+        style={{ background: "var(--bg-card)", border: "1px solid var(--border)", boxShadow: "0 24px 64px rgba(0,0,0,0.5)" }}
+        onClick={e => e.stopPropagation()}
+      >
+        {previewUrl && isImage && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={previewUrl} alt={file.name} className="w-full" style={{ maxHeight: 260, objectFit: "cover" }} />
+        )}
+        {previewUrl && isVideo && (
+          <video src={previewUrl} controls className="w-full" style={{ maxHeight: 260 }} />
+        )}
+        {!previewUrl && (
+          <div className="flex items-center gap-3 px-4 py-4" style={{ borderBottom: "1px solid var(--border)" }}>
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: "rgba(124,91,245,0.12)" }}>
+              <FileText size={18} style={{ color: "#9B7CF5" }} />
+            </div>
+            <div className="min-w-0">
+              <p className="text-sm font-semibold truncate" style={{ color: "var(--text-1)" }}>{file.name}</p>
+              <p className="text-xs" style={{ color: "var(--text-5)" }}>{fmtBytes(file.size)}</p>
+            </div>
+          </div>
+        )}
+        <div className="flex items-center justify-between px-4 py-3">
+          <p className="text-xs truncate flex-1 pr-2" style={{ color: "var(--text-4)" }}>{file.name}</p>
+          <div className="flex gap-2 shrink-0">
+            <button onClick={onCancel} disabled={sending}
+              className="px-3 py-1.5 rounded-xl text-xs font-semibold transition-opacity hover:opacity-70"
+              style={{ background: "var(--bg-subtle)", color: "var(--text-3)", border: "1px solid var(--border)" }}>
+              Cancel
+            </button>
+            <button onClick={handleSend} disabled={sending}
+              className="px-4 py-1.5 rounded-xl text-xs font-semibold text-white transition-opacity hover:opacity-85 disabled:opacity-50"
+              style={{ background: "#7C5BF5" }}>
+              {sending ? "Sending…" : "Send"}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>,
+    document.body
   );
 }
 
 // ── Action menu ───────────────────────────────────────────────
 
 const ACTIONS = [
-  { icon: Upload,      label: "Upload Deliverable",  color: "#7C5BF5", active: true  },
-  { icon: GitBranch,   label: "Create Milestone",    color: "#3B82F6", active: false },
-  { icon: FileText,    label: "Request Revision",    color: "#F59E0B", active: false },
-  { icon: CheckCircle2,label: "Complete Project",    color: "#10B981", active: false },
-  { icon: UserPlus,    label: "Invite Collaborator", color: "#8B5CF6", active: false },
-  { icon: Flag,        label: "Leave Review",        color: "#F59E0B", active: false },
+  { icon: Upload,       label: "Upload Deliverable",  color: "#7C5BF5", active: true  },
+  { icon: GitBranch,    label: "Create Milestone",    color: "#3B82F6", active: false },
+  { icon: FileText,     label: "Request Revision",    color: "#F59E0B", active: false },
+  { icon: CheckCircle2, label: "Complete Project",    color: "#10B981", active: false },
+  { icon: UserPlus,     label: "Invite Collaborator", color: "#8B5CF6", active: false },
+  { icon: Flag,         label: "Leave Review",        color: "#F59E0B", active: false },
 ];
 
-function ActionMenu({ onClose, onUpload }: { onClose: () => void; onUpload: (f: File) => Promise<void> }) {
-  const fileRef = useRef<HTMLInputElement>(null);
+function ActionMenu({ btnRef, onClose, onUpload }: {
+  btnRef: React.RefObject<HTMLButtonElement | null>;
+  onClose: () => void;
+  onUpload: (f: File) => Promise<void>;
+}) {
+  const fileRef  = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
+  const [preview, setPreview]     = useState<File | null>(null);
+  const [pos, setPos]             = useState({ bottom: 60, left: 0 });
 
-  async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
+  useEffect(() => {
+    if (btnRef.current) {
+      const r = btnRef.current.getBoundingClientRect();
+      setPos({ bottom: window.innerHeight - r.top + 8, left: r.left });
+    }
+  }, [btnRef]);
+
+  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
+    setPreview(file);
+  }
+
+  async function handleSend() {
+    if (!preview) return;
     setUploading(true);
-    try { await onUpload(file); onClose(); } finally { setUploading(false); }
+    try { await onUpload(preview); setPreview(null); onClose(); } finally { setUploading(false); }
   }
 
   return createPortal(
-    <div className="fixed inset-0 z-[999]" onClick={onClose}>
+    <>
+      <div className="fixed inset-0 z-[998]" onClick={onClose} />
       <div
-        className="absolute bottom-24 left-6 rounded-2xl overflow-hidden py-1"
-        style={{ background: "var(--bg-card)", border: "1px solid var(--border)", boxShadow: "0 16px 48px rgba(0,0,0,0.35)", minWidth: 220 }}
+        className="fixed z-[999] rounded-2xl overflow-hidden py-1"
+        style={{
+          bottom: pos.bottom,
+          left: pos.left,
+          background: "var(--bg-card)",
+          border: "1px solid var(--border)",
+          boxShadow: "0 12px 40px rgba(0,0,0,0.35)",
+          minWidth: 192,
+        }}
         onClick={e => e.stopPropagation()}
       >
         {ACTIONS.map(({ icon: Icon, label, color, active }) => (
           <button
             key={label}
-            disabled={!active || uploading}
+            disabled={uploading}
             onClick={() => { if (active) fileRef.current?.click(); }}
-            className="w-full flex items-center gap-3 px-4 py-3 text-sm text-left transition-all"
-            style={{ color: active ? "var(--text-1)" : "var(--text-5)", opacity: active ? 1 : 0.45, cursor: active ? "pointer" : "default" }}
+            className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-left transition-all"
+            style={{ color: "var(--text-1)", cursor: active ? "pointer" : "default" }}
             onMouseEnter={e => { if (active) (e.currentTarget as HTMLButtonElement).style.background = "var(--bg-subtle)"; }}
             onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = "transparent"; }}
           >
-            <span className="w-7 h-7 rounded-xl flex items-center justify-center shrink-0" style={{ background: `${color}22` }}>
-              <Icon size={14} style={{ color }} />
+            <span className="w-6 h-6 rounded-lg flex items-center justify-center shrink-0" style={{ background: `${color}22` }}>
+              <Icon size={12} style={{ color }} />
             </span>
-            {uploading && active ? "Uploading…" : label}
+            <span>{uploading && active ? "Uploading…" : label}</span>
+            {!active && <span className="ml-auto text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: "var(--bg-subtle)", color: "var(--text-5)" }}>Soon</span>}
           </button>
         ))}
-        <input ref={fileRef} type="file" className="hidden" onChange={handleFile} />
+        <input ref={fileRef} type="file" className="hidden" accept="image/*,video/*,.pdf,.doc,.docx,.zip" onChange={handleFileChange} />
       </div>
-    </div>,
+      {preview && (
+        <UploadPreview file={preview} onSend={handleSend} onCancel={() => { setPreview(null); if (fileRef.current) fileRef.current.value = ""; }} />
+      )}
+    </>,
     document.body
   );
 }
@@ -257,6 +401,7 @@ function ConversationPanel({ project, userId, userName, userAvatar }: {
   const [showActions, setShowActions] = useState(false);
   const bottomRef                 = useRef<HTMLDivElement>(null);
   const inputRef                  = useRef<HTMLTextAreaElement>(null);
+  const plusBtnRef                = useRef<HTMLButtonElement>(null);
 
   const canChat = project.status === "accepted";
 
@@ -436,6 +581,7 @@ function ConversationPanel({ project, userId, userName, userAvatar }: {
           <div className="flex items-end gap-2">
             <div className="flex items-end gap-2 flex-1">
               <button
+                ref={plusBtnRef}
                 onClick={() => setShowActions(v => !v)}
                 className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0 transition-all hover:opacity-70 mb-1"
                 style={{
@@ -474,6 +620,7 @@ function ConversationPanel({ project, userId, userName, userAvatar }: {
             </div>
             {showActions && (
               <ActionMenu
+                btnRef={plusBtnRef}
                 onClose={() => setShowActions(false)}
                 onUpload={uploadDeliverable}
               />

@@ -3,6 +3,7 @@
 import { THEMES, useTheme } from "@/contexts/ThemeContext";
 import { useUser, UserButton } from "@clerk/nextjs";
 import CreatePostModal from "@/components/create/CreatePostModal";
+import { useNotifications } from "@/hooks/useNotifications";
 import { Palette, Plus, UserCircle } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -57,6 +58,13 @@ export default function Sidebar() {
   const [expanded,   setExpanded]   = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
   const [themeOpen,  setThemeOpen]  = useState(false);
+  const { unreadMessages, newLikes } = useNotifications();
+
+  // Badge counts keyed by href
+  const badges: Record<string, number> = {
+    "/feed":   newLikes,
+    "/hiring": unreadMessages,
+  };
 
   const w = expanded ? 220 : 72;
 
@@ -121,6 +129,7 @@ export default function Sidebar() {
       <nav className="flex-1 flex flex-col gap-0 px-1.5 py-1">
         {NAV_ITEMS.map(({ icon, lucideIcon: LucideIcon, label, href }) => {
           const active = pathname === href || (href !== "/" && pathname.startsWith(href));
+          const badge  = badges[href] ?? 0;
 
           const linkEl = (
             <Link
@@ -146,6 +155,19 @@ export default function Sidebar() {
 
               {/* Icon */}
               <div className="relative shrink-0 flex items-center justify-center" style={{ width: 60, height: 60 }}>
+                {badge > 0 && (
+                  <span
+                    className="absolute top-2 right-2 z-10 flex items-center justify-center rounded-full text-[9px] font-bold text-white"
+                    style={{
+                      minWidth: 16, height: 16,
+                      padding: "0 4px",
+                      background: "#EF4444",
+                      boxShadow: "0 0 0 2px var(--bg-sidebar)",
+                    }}
+                  >
+                    {badge > 99 ? "99+" : badge}
+                  </span>
+                )}
                 {icon ? (
                   <img
                     src={icon}
