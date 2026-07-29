@@ -5,10 +5,11 @@ import BottomNav from "@/components/layout/BottomNav";
 import { useUser } from "@clerk/nextjs";
 import {
   ArrowLeft, CheckCircle2, ChevronRight, FileText,
-  Flag, Paperclip, Star, Upload, Users,
+  Flag, GitBranch, Paperclip, Plus, Star, Upload, UserPlus, Users,
 } from "lucide-react";
 import { useRouter, useParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 
 // ── Types ────────────────────────────────────────────────────
 
@@ -145,6 +146,103 @@ function RightSidebar({ project }: { project: HireRequest }) {
   );
 }
 
+// ── File message helpers ──────────────────────────────────────
+
+const FILE_PREFIX = "__FILE__:";
+function encodeFile(url: string, name: string, size: number, type: string) {
+  return FILE_PREFIX + JSON.stringify({ url, name, size, type });
+}
+function isFile(t: string | null) { return !!t?.startsWith(FILE_PREFIX); }
+function parseFile(t: string) {
+  try { return JSON.parse(t.slice(FILE_PREFIX.length)) as { url: string; name: string; size: number; type: string }; }
+  catch { return null; }
+}
+function fmtBytes(b: number) {
+  if (b < 1024) return `${b} B`;
+  if (b < 1024 * 1024) return `${(b / 1024).toFixed(1)} KB`;
+  return `${(b / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function FileBubble({ text, isMe }: { text: string; isMe: boolean }) {
+  const f = parseFile(text);
+  if (!f) return null;
+  const isImage = f.type.startsWith("image/");
+  return (
+    <a href={f.url} target="_blank" rel="noopener noreferrer"
+      className="flex flex-col gap-2 no-underline rounded-xl overflow-hidden"
+      style={{ minWidth: 180, maxWidth: 240, background: isMe ? "rgba(255,255,255,0.1)" : "var(--bg-subtle)", border: `1px solid ${isMe ? "rgba(255,255,255,0.2)" : "var(--border)"}`, padding: "10px 12px" }}
+      onClick={e => e.stopPropagation()}
+    >
+      {isImage && (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={f.url} alt={f.name} className="rounded-lg w-full" style={{ maxHeight: 140, objectFit: "cover" }} />
+      )}
+      <div className="flex items-center gap-2">
+        <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
+          style={{ background: isMe ? "rgba(255,255,255,0.15)" : "rgba(124,91,245,0.15)" }}>
+          <FileText size={14} style={{ color: isMe ? "#fff" : "#9B7CF5" }} />
+        </div>
+        <div className="min-w-0">
+          <p className="text-xs font-semibold truncate" style={{ color: isMe ? "#fff" : "var(--text-1)" }}>{f.name}</p>
+          <p className="text-[10px]" style={{ color: isMe ? "rgba(255,255,255,0.6)" : "var(--text-5)" }}>{fmtBytes(f.size)}</p>
+        </div>
+      </div>
+    </a>
+  );
+}
+
+// ── Action menu ───────────────────────────────────────────────
+
+const ACTIONS = [
+  { icon: Upload,      label: "Upload Deliverable",  color: "#7C5BF5", active: true  },
+  { icon: GitBranch,   label: "Create Milestone",    color: "#3B82F6", active: false },
+  { icon: FileText,    label: "Request Revision",    color: "#F59E0B", active: false },
+  { icon: CheckCircle2,label: "Complete Project",    color: "#10B981", active: false },
+  { icon: UserPlus,    label: "Invite Collaborator", color: "#8B5CF6", active: false },
+  { icon: Flag,        label: "Leave Review",        color: "#F59E0B", active: false },
+];
+
+function ActionMenu({ onClose, onUpload }: { onClose: () => void; onUpload: (f: File) => Promise<void> }) {
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+
+  async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    try { await onUpload(file); onClose(); } finally { setUploading(false); }
+  }
+
+  return createPortal(
+    <div className="fixed inset-0 z-[999]" onClick={onClose}>
+      <div
+        className="absolute bottom-24 left-6 rounded-2xl overflow-hidden py-1"
+        style={{ background: "var(--bg-card)", border: "1px solid var(--border)", boxShadow: "0 16px 48px rgba(0,0,0,0.35)", minWidth: 220 }}
+        onClick={e => e.stopPropagation()}
+      >
+        {ACTIONS.map(({ icon: Icon, label, color, active }) => (
+          <button
+            key={label}
+            disabled={!active || uploading}
+            onClick={() => { if (active) fileRef.current?.click(); }}
+            className="w-full flex items-center gap-3 px-4 py-3 text-sm text-left transition-all"
+            style={{ color: active ? "var(--text-1)" : "var(--text-5)", opacity: active ? 1 : 0.45, cursor: active ? "pointer" : "default" }}
+            onMouseEnter={e => { if (active) (e.currentTarget as HTMLButtonElement).style.background = "var(--bg-subtle)"; }}
+            onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = "transparent"; }}
+          >
+            <span className="w-7 h-7 rounded-xl flex items-center justify-center shrink-0" style={{ background: `${color}22` }}>
+              <Icon size={14} style={{ color }} />
+            </span>
+            {uploading && active ? "Uploading…" : label}
+          </button>
+        ))}
+        <input ref={fileRef} type="file" className="hidden" onChange={handleFile} />
+      </div>
+    </div>,
+    document.body
+  );
+}
+
 // ── Conversation ─────────────────────────────────────────────
 
 function ConversationPanel({ project, userId, userName, userAvatar }: {
@@ -153,11 +251,12 @@ function ConversationPanel({ project, userId, userName, userAvatar }: {
   userName: string;
   userAvatar: string;
 }) {
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [text, setText]         = useState("");
-  const [sending, setSending]   = useState(false);
-  const bottomRef               = useRef<HTMLDivElement>(null);
-  const inputRef                = useRef<HTMLTextAreaElement>(null);
+  const [messages, setMessages]   = useState<Message[]>([]);
+  const [text, setText]           = useState("");
+  const [sending, setSending]     = useState(false);
+  const [showActions, setShowActions] = useState(false);
+  const bottomRef                 = useRef<HTMLDivElement>(null);
+  const inputRef                  = useRef<HTMLTextAreaElement>(null);
 
   const canChat = project.status === "accepted";
 
@@ -188,6 +287,34 @@ function ConversationPanel({ project, userId, userName, userAvatar }: {
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
+
+  async function uploadDeliverable(file: File) {
+    if (!project.conversation_id || !canChat) return;
+    const form = new FormData();
+    form.append("file", file);
+    form.append("bucket", "deliverables");
+    const up = await fetch("/api/upload", { method: "POST", body: form });
+    if (!up.ok) return;
+    const { url, name, size, type } = await up.json();
+    const encoded = encodeFile(url, name, size, type);
+    const res = await fetch("/api/messages", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        action: "send_message",
+        conversation_id: project.conversation_id,
+        sender_id: userId,
+        sender_name: userName,
+        sender_avatar: userAvatar,
+        text: encoded,
+      }),
+    });
+    if (res.ok) {
+      const { message } = await res.json();
+      if (message) setMessages(prev => [...prev, message]);
+      setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: "smooth" }), 50);
+    }
+  }
 
   async function sendMessage() {
     const trimmed = text.trim();
@@ -291,7 +418,7 @@ function ConversationPanel({ project, userId, userName, userAvatar }: {
                           borderBottomRightRadius: isMe ? 4 : 16,
                           borderBottomLeftRadius: isMe ? 16 : 4,
                         }}>
-                        {m.text}
+                        {isFile(m.text) ? <FileBubble text={m.text!} isMe={isMe} /> : m.text}
                       </div>
                     </div>
                   </div>
@@ -307,38 +434,50 @@ function ConversationPanel({ project, userId, userName, userAvatar }: {
       <div className="shrink-0 pt-3" style={{ borderTop: "1px solid var(--border)" }}>
         {canChat ? (
           <div className="flex items-end gap-2">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            {userAvatar && <img
-              src={userAvatar}
-              alt=""
-              className="w-7 h-7 rounded-full object-cover shrink-0 mb-1"
-              style={{ border: "1.5px solid rgba(124,91,245,0.4)" }}
-            />}
-            <div
-              className="flex-1 flex items-end gap-2 px-3 py-2 rounded-2xl"
-              style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}
-            >
-              <textarea
-                ref={inputRef}
-                value={text}
-                onChange={e => { setText(e.target.value); e.target.style.height = "auto"; e.target.style.height = `${Math.min(e.target.scrollHeight, 120)}px`; }}
-                onKeyDown={handleKeyDown}
-                placeholder="Message… (Enter to send, Shift+Enter for new line)"
-                rows={1}
-                className="flex-1 bg-transparent text-sm outline-none resize-none leading-relaxed"
-                style={{ color: "var(--text-1)", maxHeight: 120, scrollbarWidth: "none" }}
-              />
+            <div className="flex items-end gap-2 flex-1">
               <button
-                onClick={sendMessage}
-                disabled={!text.trim() || sending}
-                className="w-7 h-7 rounded-xl flex items-center justify-center shrink-0 transition-all hover:opacity-85 disabled:opacity-30"
-                style={{ background: "#7C5BF5", marginBottom: 1 }}
+                onClick={() => setShowActions(v => !v)}
+                className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0 transition-all hover:opacity-70 mb-1"
+                style={{
+                  background: showActions ? "rgba(124,91,245,0.15)" : "var(--bg-subtle)",
+                  color: showActions ? "#9B7CF5" : "var(--text-4)",
+                  border: `1px solid ${showActions ? "rgba(124,91,245,0.35)" : "var(--border)"}`,
+                }}
               >
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                  <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>
-                </svg>
+                <Plus size={15} />
               </button>
+              <div
+                className="flex-1 flex items-end gap-2 px-3 py-2 rounded-2xl"
+                style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}
+              >
+                <textarea
+                  ref={inputRef}
+                  value={text}
+                  onChange={e => { setText(e.target.value); e.target.style.height = "auto"; e.target.style.height = `${Math.min(e.target.scrollHeight, 120)}px`; }}
+                  onKeyDown={handleKeyDown}
+                  placeholder="Message… (Enter to send, Shift+Enter for new line)"
+                  rows={1}
+                  className="flex-1 bg-transparent text-sm outline-none resize-none leading-relaxed"
+                  style={{ color: "var(--text-1)", maxHeight: 120, scrollbarWidth: "none" }}
+                />
+                <button
+                  onClick={sendMessage}
+                  disabled={!text.trim() || sending}
+                  className="w-7 h-7 rounded-xl flex items-center justify-center shrink-0 transition-all hover:opacity-85 disabled:opacity-30"
+                  style={{ background: "#7C5BF5", marginBottom: 1 }}
+                >
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>
+                  </svg>
+                </button>
+              </div>
             </div>
+            {showActions && (
+              <ActionMenu
+                onClose={() => setShowActions(false)}
+                onUpload={uploadDeliverable}
+              />
+            )}
           </div>
         ) : (
           <div

@@ -766,6 +766,18 @@ export default function HiringPage() {
   const { user } = useUser();
 
   const [tab, setTab]                       = useState<"hire" | "projects">("hire");
+
+  const router = useRouter();
+
+  useEffect(() => {
+    const p = new URLSearchParams(window.location.search).get("tab");
+    if (p === "projects" || p === "hire") setTab(p);
+  }, []);
+
+  function switchTab(t: "hire" | "projects") {
+    setTab(t);
+    router.replace(`/hiring?tab=${t}`, { scroll: false });
+  }
   const [search, setSearch]                 = useState("");
   const [showFilters, setShowFilters]       = useState(false);
   const [activeFilters, setActiveFilters]   = useState<Set<string>>(new Set());
@@ -834,7 +846,7 @@ export default function HiringPage() {
                 {(["hire", "projects"] as const).map(t => (
                   <button
                     key={t}
-                    onClick={() => setTab(t)}
+                    onClick={() => switchTab(t)}
                     className="px-5 py-1.5 rounded-full text-sm font-semibold transition-all"
                     style={{
                       background: tab === t ? "linear-gradient(135deg,#361E7B,#7C5BF5)" : "transparent",
@@ -913,7 +925,7 @@ export default function HiringPage() {
 
         {/* My Projects tab */}
         {tab === "projects" && (
-          <MyProjectsView userId={user?.id ?? ""} onSwitchToHire={() => setTab("hire")} />
+          <MyProjectsView userId={user?.id ?? ""} onSwitchToHire={() => switchTab("hire")} />
         )}
 
         {/* Hire Artists tab */}
