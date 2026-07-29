@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
@@ -57,7 +57,7 @@ const TEAM = [
 const MILESTONES = [
   { year: "2021", event: "Founded in a studio apartment with 3 artists and a shared dream." },
   { year: "2022", event: "Launched beta to 500 artists. First commission paid on the platform." },
-  { year: "2023", event: "Crossed 10,000 artists. Introduced the Marketplace and Hiring board." },
+  { year: "2023", event: "Crossed 10,000 artists. Introduced the Gallery and Hiring board." },
   { year: "2024", event: "12,400+ creators. $2M+ in commissions facilitated. Series A closed." },
 ];
 
@@ -413,7 +413,7 @@ export default function AboutPage() {
               <div>
                 <p className="text-[11px] font-bold tracking-[0.22em] uppercase mb-5" style={{ color: "rgba(255,255,255,0.22)" }}>Platform</p>
                 <ul className="flex flex-col gap-3">
-                  {[["Feed", "/feed"], ["Marketplace", "/marketplace"], ["Hiring", "/hiring"], ["Artists", "/hiring"]].map(([l, h]) => (
+                  {[["Feed", "/feed"], ["gallery", "/gallery"], ["Hiring", "/hiring"], ["Artists", "/hiring"]].map(([l, h]) => (
                     <li key={l}>
                       <Link href={h} className="text-[13px] transition-colors duration-200 hover:text-white" style={{ color: MUTED }}>{l}</Link>
                     </li>

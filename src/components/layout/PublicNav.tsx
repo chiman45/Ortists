@@ -1,7 +1,7 @@
-"use client";
+﻿"use client";
 
 import Link from "next/link";
-import { ArrowRight, Award, Box, Briefcase, Camera, ChevronDown, Layers, Paintbrush, Palette, Sparkles, Star, TrendingUp, Users, Zap } from "lucide-react";
+import { ArrowRight, Award, Box, Briefcase, Camera, ChevronDown, Layers, Paintbrush, Palette, Search, Sparkles, Star, TrendingUp, Users, X, Zap } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 
@@ -10,10 +10,10 @@ const GOLD   = "#FFB800";
 const MUTED  = "#8B8B95";
 
 const NAV_SIMPLE = [
-  { label: "Home",        href: "/" },
-  { label: "Feed",        href: "/feed" },
-  { label: "Marketplace", href: "/marketplace" },
-  { label: "About",       href: "/about" },
+  { label: "About",   href: "/about"       },
+  { label: "Feed",    href: "/feed"        },
+  { label: "Gallery", href: "/gallery" },
+  { label: "Profile", href: "/profile"     },
 ];
 
 const HIRE_CATEGORIES = [
@@ -283,6 +283,9 @@ export default function PublicNav() {
   const pathname = usePathname();
   const [scrolled,     setScrolled]     = useState(false);
   const [openDropdown, setOpenDropdown] = useState<"hire" | "artists" | null>(null);
+  const [searchOpen,   setSearchOpen]   = useState(false);
+  const [searchQuery,  setSearchQuery]  = useState("");
+  const searchRef = useRef<HTMLInputElement>(null);
   const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -290,6 +293,10 @@ export default function PublicNav() {
     window.addEventListener("scroll", fn, { passive: true });
     return () => window.removeEventListener("scroll", fn);
   }, []);
+
+  useEffect(() => {
+    if (searchOpen) searchRef.current?.focus();
+  }, [searchOpen]);
 
   function open(name: "hire" | "artists") {
     if (closeTimer.current) clearTimeout(closeTimer.current);
@@ -306,7 +313,7 @@ export default function PublicNav() {
 
   return (
     <nav
-      className="fixed top-0 inset-x-0 z-50 flex items-center justify-between px-8 md:px-14 lg:px-20 py-5 transition-all duration-500"
+      className="fixed top-0 inset-x-0 z-50 flex items-center gap-6 px-8 md:px-14 lg:px-20 py-4 transition-all duration-500"
       style={{
         background:     scrolled ? "rgba(5,5,5,0.88)" : "transparent",
         backdropFilter: scrolled ? "blur(22px)" : "none",
@@ -314,14 +321,14 @@ export default function PublicNav() {
       }}
     >
       {/* Logo */}
-      <Link href="/" className="flex items-center gap-2.5 shrink-0">
+      <Link href="/" className="flex items-center gap-2.5 shrink-0 mr-2">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src="/login-image/ortists logo1.png" alt="Ortist" className="w-7 h-7 rounded-md object-cover" />
         <span className="text-[15px] font-bold tracking-wide text-white">Ortist</span>
       </Link>
 
-      {/* Links */}
-      <div className="hidden md:flex items-center gap-8 text-[13px] font-medium">
+      {/* Left nav links */}
+      <div className="hidden md:flex items-center gap-6 text-[13px] font-medium flex-1">
         {NAV_SIMPLE.map(({ label, href }) => (
           <Link
             key={label}
@@ -358,14 +365,63 @@ export default function PublicNav() {
         </div>
       </div>
 
-      {/* CTA */}
-      <Link
-        href="/login"
-        className="hidden md:inline-flex items-center px-5 py-2.5 rounded-full text-[13px] font-semibold text-white transition-all duration-200 hover:opacity-80"
-        style={{ background: ACCENT }}
-      >
-        Join Now
-      </Link>
+      {/* Right: search + auth buttons */}
+      <div className="hidden md:flex items-center gap-3 ml-auto shrink-0">
+        {/* Expandable search */}
+        <div className="flex items-center transition-all duration-300"
+          style={{
+            background: searchOpen ? "rgba(255,255,255,0.07)" : "transparent",
+            border: searchOpen ? "1px solid rgba(255,255,255,0.12)" : "1px solid transparent",
+            borderRadius: 999,
+            padding: searchOpen ? "5px 14px 5px 12px" : "5px",
+          }}
+        >
+          <button
+            onClick={() => { setSearchOpen(v => !v); if (searchOpen) setSearchQuery(""); }}
+            className="transition-opacity hover:opacity-70 flex items-center"
+            style={{ color: MUTED }}
+          >
+            {searchOpen
+              ? <X size={15} />
+              : <Search size={15} />
+            }
+          </button>
+          {searchOpen && (
+            <input
+              ref={searchRef}
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              placeholder="Search artists, styles…"
+              className="bg-transparent outline-none text-[13px] ml-2"
+              style={{ color: "#fff", width: 180 }}
+              onKeyDown={e => {
+                if (e.key === "Enter" && searchQuery.trim()) {
+                  window.location.href = `/hiring?q=${encodeURIComponent(searchQuery.trim())}`;
+                }
+                if (e.key === "Escape") { setSearchOpen(false); setSearchQuery(""); }
+              }}
+            />
+          )}
+        </div>
+
+        {/* Sign In */}
+        <Link
+          href="/login"
+          className="px-5 py-2 rounded-full text-[13px] font-semibold transition-all duration-200 hover:text-white"
+          style={{ color: MUTED, border: "1px solid rgba(255,255,255,0.12)" }}
+        >
+          Sign In
+        </Link>
+
+        {/* Sign Up */}
+        <Link
+          href="/login"
+          className="px-5 py-2 rounded-full text-[13px] font-semibold text-white transition-all duration-200 hover:opacity-85"
+          style={{ background: ACCENT }}
+        >
+          Sign Up
+        </Link>
+      </div>
     </nav>
   );
 }

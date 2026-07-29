@@ -692,17 +692,6 @@ export default function HiringPage() {
           {/* Top row: Logo | Tabs | Actions */}
           <div className="flex items-center gap-3 px-4 md:px-8 py-3">
 
-            {/* Logo */}
-            <div className="flex items-center gap-2 shrink-0">
-              <div
-                className="w-8 h-8 rounded-full flex items-center justify-center shrink-0"
-                style={{ background: "linear-gradient(135deg,#361E7B,#7C5BF5)" }}
-              >
-                <Zap size={15} color="#fff" strokeWidth={2.5} />
-              </div>
-              <span className="font-bold text-sm hidden sm:block" style={{ color: "var(--text-1)" }}>Ortist</span>
-            </div>
-
             {/* Tab toggle — centred */}
             <div className="flex-1 flex justify-center">
               <div

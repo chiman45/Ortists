@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import BottomNav from "@/components/layout/BottomNav";
 import MainHeader from "@/components/layout/MainHeader";
@@ -9,8 +9,9 @@ import { type Profile } from "@/lib/db/profiles";
 import ShareModal from "@/components/ui/ShareModal";
 import { useUser } from "@clerk/nextjs";
 import {
-  MapPin, Star, Heart, Bookmark, Users, TrendingUp,
-  Clock, X, Check, Share2, Camera, Loader2, MessageCircle,
+  Star, Heart, Bookmark, Users, TrendingUp, LayoutGrid,
+  Store, Briefcase, UserCircle, Eye,
+  Clock, X, Check, Share2, Camera, Loader2,
 } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
@@ -23,7 +24,7 @@ interface FollowUser {
   tag: string;
 }
 
-const TABS = ["Portfolio", "Marketplace", "Services", "About"] as const;
+const TABS = ["Portfolio", "Gallery", "Services", "Saved", "About"] as const;
 type Tab = typeof TABS[number];
 
 interface EditForm {
@@ -264,14 +265,8 @@ export default function ProfilePage() {
   const available    = profile?.available ?? true;
   const responseTime = profile?.response_time ?? "Within 24 hours";
 
-  // Dashboard stats derived from existing data
+  // Total saves across all posts
   const totalSaves  = dbPosts.reduce((s, p) => s + (p.saves_count ?? 0), 0);
-  const dashStats = [
-    { title: "My Posts",    value: dbPosts.length.toString(),         change: "", positive: true, data: [0,0,0,0,0,0,0,0,0,0,0,dbPosts.length],  color: "#10b981", gradId: "dp-posts"  },
-    { title: "Total Likes", value: totalLikes.toLocaleString(),        change: "", positive: true, data: [0,0,0,0,0,0,0,0,0,0,0,totalLikes],       color: "#f43f5e", gradId: "dp-likes"  },
-    { title: "Followers",   value: followers.toLocaleString(),         change: "", positive: true, data: [0,0,0,0,0,0,0,0,0,0,0,followers],        color: "#7C5BF5", gradId: "dp-follow" },
-    { title: "Total Saves", value: totalSaves.toLocaleString(),        change: "", positive: true, data: [0,0,0,0,0,0,0,0,0,0,0,totalSaves],       color: "#F5C842", gradId: "dp-saves"  },
-  ];
 
   // Recent activity from real posts
   const recentActivity = dbPosts.slice(0, 3).map(p => ({
@@ -299,117 +294,129 @@ export default function ProfilePage() {
           {/* ── Centre ── */}
           <div className={`flex-1 min-w-0 px-4 md:px-8 py-6${!isLoaded ? " hidden" : ""}`}>
 
-            {/* Profile header */}
-            <div className="rounded-2xl overflow-hidden mb-5"
-              style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}>
+            {/* ── Profile header card ── */}
+            <div className="rounded-2xl p-5 mb-4 relative"
+              style={{ background: "var(--bg-card)", border: "1px dashed rgba(124,91,245,0.35)" }}>
 
-              {/* Banner */}
-              <div className="relative h-32 w-full"
-                style={{ background: "linear-gradient(135deg, #1a0a3a, #2d1b69)" }}>
-                {profile?.banner_url && (
-                  /* eslint-disable-next-line @next/next/no-img-element */
-                  <img src={profile.banner_url} alt="banner"
-                    className="absolute inset-0 w-full h-full object-cover" />
-                )}
+              {/* Edit + Share — top right */}
+              <div className="absolute top-4 right-4 flex items-center gap-2">
+                <button onClick={() => setShareOpen(true)}
+                  className="flex items-center gap-2 px-5 py-3 rounded-xl text-sm font-semibold transition-all hover:opacity-85"
+                  style={{ background: "var(--bg-subtle)", color: "var(--text-4)", border: "1px solid var(--border)" }}>
+                  <Share2 size={15} /> Share
+                </button>
+                <button onClick={openEdit}
+                  className="flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-semibold transition-all hover:opacity-85"
+                  style={{ background: "#7C5BF5", color: "#fff" }}>
+                  ✏️ Edit Profile
+                </button>
               </div>
 
-              {/* Content */}
-              <div className="px-5 pb-5">
-                <div className="flex flex-wrap items-end gap-4 -mt-8 mb-4">
+              {/* Avatar + info row */}
+              <div className="flex items-start gap-5 pr-40">
+                {/* Avatar */}
+                <div className="shrink-0 relative">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img src={avatar} alt={name}
-                    className="w-20 h-20 rounded-full object-cover shrink-0 relative z-10"
-                    style={{ border: "3px solid var(--bg-card)" }} />
-
-                  <div className="flex-1 min-w-0 pt-10">
-                    <h1 className="text-xl font-bold mb-0.5" style={{ color: "var(--text-1)" }}>{name}</h1>
-                    <p className="text-sm mb-1.5" style={{ color: "var(--text-5)" }}>{username}</p>
-                    <div className="flex items-center gap-1.5 mb-2">
-                      {location && (
-                        <>
-                          <MapPin size={12} style={{ color: "var(--text-5)" }} />
-                          <span className="text-xs" style={{ color: "var(--text-5)" }}>{location}</span>
-                        </>
-                      )}
-                      <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full"
-                        style={{ background: "rgba(124,91,245,0.15)", color: "#9B7CF5", border: "1px solid rgba(124,91,245,0.3)" }}>
-                        {tag}
-                      </span>
-                    </div>
-                    <p className="text-xs leading-relaxed" style={{ color: "var(--text-4)" }}>{bio}</p>
-                  </div>
-
-                  <div className="flex items-center gap-2 shrink-0">
-                    <button onClick={openEdit}
-                      className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold transition-all hover:opacity-85"
-                      style={{ background: "#7C5BF5", color: "#fff" }}>
-                      Edit Profile
-                    </button>
-                    <button onClick={() => setShareOpen(true)}
-                      className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold transition-all hover:opacity-85"
-                      style={{ background: "rgba(245,158,11,0.15)", color: "#F59E0B", border: "1px solid rgba(245,158,11,0.3)" }}>
-                      <Share2 size={13} /> Share
-                    </button>
-                  </div>
+                    className="w-20 h-20 rounded-full object-cover"
+                    style={{ border: "3px solid rgba(124,91,245,0.5)", background: "linear-gradient(135deg,#361E7B,#7C5BF5)" }} />
+                  {available && (
+                    <span className="absolute bottom-0.5 right-0.5 w-3.5 h-3.5 rounded-full border-2 border-(--bg-card)"
+                      style={{ background: "#10B981" }} />
+                  )}
                 </div>
 
-                {/* Stats */}
-                <div className="flex gap-6 pt-4" style={{ borderTop: "1px solid var(--border)" }}>
-                  <button onClick={() => openFollowList("followers")} className="flex items-center gap-2 hover:opacity-70 transition-opacity">
-                    <div className="w-7 h-7 rounded-full flex items-center justify-center" style={{ background: "rgba(124,91,245,0.12)" }}>
-                      <Users size={13} style={{ color: "#9B7CF5" }} />
+                {/* Name / stats / bio */}
+                <div className="flex-1 min-w-0">
+                  <h1 className="text-lg font-bold leading-none mb-0.5" style={{ color: "var(--text-1)" }}>{name}</h1>
+                  <p className="text-xs mb-3" style={{ color: "var(--text-5)" }}>{username}</p>
+
+                  {/* Stat row */}
+                  <div className="flex items-center gap-8 mb-3">
+                    <div className="text-center">
+                      <p className="text-2xl font-bold leading-none" style={{ color: "var(--text-1)" }}>{dbPosts.length}</p>
+                      <p className="text-[17px] mt-1" style={{ color: "var(--text-5)" }}>Posts</p>
                     </div>
-                    <div className="text-left">
-                      <p className="text-sm font-bold leading-none" style={{ color: "var(--text-1)" }}>{followers.toLocaleString()}</p>
-                      <p className="text-[10px]" style={{ color: "var(--text-5)" }}>Followers</p>
-                    </div>
-                  </button>
-                  <button onClick={() => openFollowList("following")} className="flex items-center gap-2 hover:opacity-70 transition-opacity">
-                    <div className="w-7 h-7 rounded-full flex items-center justify-center" style={{ background: "rgba(124,91,245,0.12)" }}>
-                      <Users size={13} style={{ color: "#9B7CF5" }} />
-                    </div>
-                    <div className="text-left">
-                      <p className="text-sm font-bold leading-none" style={{ color: "var(--text-1)" }}>{following.toLocaleString()}</p>
-                      <p className="text-[10px]" style={{ color: "var(--text-5)" }}>Following</p>
-                    </div>
-                  </button>
-                  <div className="flex items-center gap-2">
-                    <div className="w-7 h-7 rounded-full flex items-center justify-center" style={{ background: "rgba(124,91,245,0.12)" }}>
-                      <Heart size={13} style={{ color: "#9B7CF5" }} />
-                    </div>
-                    <div>
-                      <p className="text-sm font-bold leading-none" style={{ color: "var(--text-1)" }}>{totalLikes.toLocaleString()}</p>
-                      <p className="text-[10px]" style={{ color: "var(--text-5)" }}>Total Likes</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className="w-7 h-7 rounded-full flex items-center justify-center" style={{ background: "rgba(124,91,245,0.12)" }}>
-                      <Star size={13} style={{ color: "#9B7CF5" }} />
-                    </div>
-                    <div>
-                      <p className="text-sm font-bold leading-none" style={{ color: "var(--text-1)" }}>{rating || "—"}</p>
-                      <p className="text-[10px]" style={{ color: "var(--text-5)" }}>Rating</p>
+                    <button onClick={() => openFollowList("followers")} className="text-center hover:opacity-70 transition-opacity">
+                      <p className="text-2xl font-bold leading-none" style={{ color: "var(--text-1)" }}>
+                        {followers >= 1000 ? `${(followers / 1000).toFixed(1)}K` : followers}
+                      </p>
+                      <p className="text-[17px] mt-1" style={{ color: "var(--text-5)" }}>Followers</p>
+                    </button>
+                    <button onClick={() => openFollowList("following")} className="text-center hover:opacity-70 transition-opacity">
+                      <p className="text-2xl font-bold leading-none" style={{ color: "var(--text-1)" }}>{following}</p>
+                      <p className="text-[17px] mt-1" style={{ color: "var(--text-5)" }}>Following</p>
+                    </button>
+                    <div className="text-center">
+                      <p className="text-2xl font-bold leading-none" style={{ color: "var(--text-1)" }}>
+                        {totalLikes >= 1000 ? `${(totalLikes / 1000).toFixed(1)}K` : totalLikes}
+                      </p>
+                      <p className="text-[17px] mt-1" style={{ color: "var(--text-5)" }}>Total Likes</p>
                     </div>
                   </div>
+
+                  {/* Tag + location */}
+                  <p className="text-xs mb-1.5" style={{ color: "var(--text-4)" }}>
+                    <span style={{ color: "#9B7CF5" }}>{tag}</span>
+                    {location && <span style={{ color: "var(--text-5)" }}>·{location}</span>}
+                  </p>
+
+                  {/* Bio */}
+                  <p className="text-xs leading-relaxed" style={{ color: "var(--text-5)", maxWidth: 420 }}>{bio}</p>
                 </div>
               </div>
             </div>
 
-            {/* Tabs */}
+            {/* ── This month analytics strip ── */}
+            <div className="rounded-2xl px-5 py-4 mb-4 flex items-center gap-4"
+              style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}>
+              <div className="flex items-center gap-3 shrink-0 pr-5" style={{ borderRight: "1px solid var(--border)" }}>
+                <div className="w-10 h-10 rounded-xl flex items-center justify-center"
+                  style={{ background: "rgba(124,91,245,0.12)" }}>
+                  <TrendingUp size={18} style={{ color: "#9B7CF5" }} />
+                </div>
+                <p className="text-sm font-bold leading-tight" style={{ color: "var(--text-1)" }}>this<br />month</p>
+              </div>
+              {[
+                { icon: Eye,     label: "Views",         value: "—", change: "", color: "#9B7CF5" },
+                { icon: Users,   label: "New Followers", value: following > 0 ? `+${Math.min(following, 99)}` : "—", change: "", color: "#10B981" },
+                { icon: Star,    label: "Rating",        value: rating ? rating.toFixed(1) : "—", change: "", color: "#F59E0B" },
+              ].map(({ icon: Icon, label, value, color }) => (
+                <div key={label} className="flex items-center gap-3 flex-1 pl-4">
+                  <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
+                    style={{ background: `${color}15` }}>
+                    <Icon size={14} style={{ color }} />
+                  </div>
+                  <div>
+                    <p className="text-xs font-semibold" style={{ color: "var(--text-5)" }}>{label}</p>
+                    <p className="text-base font-bold leading-none mt-0.5" style={{ color: "var(--text-1)" }}>{value}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* ── Tabs ── */}
             <div className="flex gap-1 mb-5 overflow-x-auto" style={{ scrollbarWidth: "none" }}>
-              {TABS.map(tab => (
-                <button key={tab} onClick={() => setActiveTab(tab)}
+              {([
+                { tab: "Portfolio",    icon: LayoutGrid, count: dbPosts.length },
+                { tab: "Gallery", icon: Store,       count: 0  },
+                { tab: "Services",    icon: Briefcase,   count: 0  },
+                { tab: "Saved",       icon: Bookmark,    count: liveStats.totalSaves },
+                { tab: "About",       icon: UserCircle,  count: 0  },
+              ] as const).map(({ tab, icon: Icon, count }) => (
+                <button key={tab} onClick={() => setActiveTab(tab as Tab)}
                   className="shrink-0 flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-medium transition-all"
                   style={{
                     background: activeTab === tab ? "rgba(124,91,245,0.15)" : "transparent",
                     color:      activeTab === tab ? "#9B7CF5" : "var(--text-4)",
                     border:     activeTab === tab ? "1px solid rgba(124,91,245,0.3)" : "1px solid transparent",
                   }}>
+                  <Icon size={13} strokeWidth={1.8} />
                   {tab}
-                  {tab === "Portfolio" && dbPosts.length > 0 && (
-                    <span className="text-[10px] px-1.5 py-0.5 rounded-full font-semibold"
-                      style={{ background: "rgba(124,91,245,0.2)", color: "#9B7CF5" }}>
-                      {dbPosts.length}
+                  {count > 0 && (
+                    <span className="text-[10px] px-1.5 py-0.5 rounded-full font-bold"
+                      style={{ background: activeTab === tab ? "rgba(124,91,245,0.25)" : "var(--bg-subtle)", color: activeTab === tab ? "#9B7CF5" : "var(--text-5)" }}>
+                      {count}
                     </span>
                   )}
                 </button>

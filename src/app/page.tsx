@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
@@ -301,7 +301,7 @@ export default function LandingPage() {
 
       <Divider />
 
-      {/* ════════════════════════════ S4 – MARKETPLACE ════════════════════════════ */}
+      {/* ════════════════════════════ S4 – Gallery ════════════════════════════ */}
       <section className="relative py-28 md:py-44 px-8 md:px-14 lg:px-20">
         <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-2 items-center gap-16 lg:gap-32">
 
@@ -311,7 +311,7 @@ export default function LandingPage() {
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src="/Landing-Images/5.jpeg"
-                alt="Marketplace"
+                alt="gallery"
                 className="w-full h-full object-cover transition-transform duration-1000 hover:scale-[1.04]"
               />
               <div className="absolute inset-0 pointer-events-none" style={{
@@ -327,17 +327,17 @@ export default function LandingPage() {
             </p>
             <h2 className={`${playfair.className} mb-7 leading-[1.08]`}
               style={{ fontSize: "clamp(36px, 4.2vw, 62px)", fontWeight: 700 }}>
-              Marketplace
+              Gallery
             </h2>
             <p className="text-[17px] leading-[1.8] mb-10" style={{ color: MUTED, maxWidth: 380 }}>
               Discover creative products, commissions, and artwork available directly from creators.
             </p>
             <Link
-              href="/marketplace"
+              href="/gallery"
               className="inline-flex items-center gap-3 text-sm font-semibold tracking-wide transition-all duration-200 hover:gap-5"
               style={{ color: ACCENT }}
             >
-              Visit Marketplace <span>→</span>
+              Visit Gallery <span>→</span>
             </Link>
           </RevealFade>
         </div>
@@ -560,7 +560,7 @@ export default function LandingPage() {
                 <p className="text-[11px] font-bold tracking-[0.22em] uppercase mb-5"
                   style={{ color: "rgba(255,255,255,0.22)" }}>Platform</p>
                 <ul className="flex flex-col gap-3">
-                  {[["Feed", "/feed"], ["Marketplace", "/marketplace"], ["Hiring", "/hiring"], ["Artists", "/hiring"]].map(([l, h]) => (
+                  {[["Feed", "/feed"], ["gallery", "/gallery"], ["Hiring", "/hiring"], ["Artists", "/hiring"]].map(([l, h]) => (
                     <li key={l}>
                       <Link href={h} className="text-[13px] transition-colors duration-200 hover:text-white" style={{ color: MUTED }}>
                         {l}

@@ -1,16 +1,16 @@
-"use client";
+﻿"use client";
 
 import { Heart, Bookmark } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
-import { MarketplaceListing } from "@/lib/types";
+import { GalleryListing } from "@/lib/types";
 
-export default function ArtworkCard({ item }: { item: MarketplaceListing }) {
+export default function ArtworkCard({ item }: { item: GalleryListing }) {
   const [liked, setLiked] = useState(false);
   const [saved, setSaved] = useState(false);
 
   return (
-    <Link href={`/marketplace/${item.id}`} className="block group">
+    <Link href={`/gallery/${item.id}`} className="block group">
       <div
         className="rounded-2xl overflow-hidden transition-all duration-200 hover:scale-[1.02] cursor-pointer"
         style={{

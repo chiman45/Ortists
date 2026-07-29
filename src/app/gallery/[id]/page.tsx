@@ -1,18 +1,18 @@
-"use client";
+﻿"use client";
 
 import BottomNav from "@/components/layout/BottomNav";
 import MainHeader from "@/components/layout/MainHeader";
 import Sidebar from "@/components/layout/Sidebar";
-import { marketplaceListings } from "@/lib/marketplaceData";
+import { GalleryListings } from "@/lib/galleryData";
 import { Heart, Bookmark, Share2, MessageCircle, ArrowLeft, Clock, Package } from "lucide-react";
 import Link from "next/link";
 import { use, useState } from "react";
-import ArtworkCard from "@/components/marketplace/ArtworkCard";
+import ArtworkCard from "@/components/gallery/ArtworkCard";
 
-export default function MarketplaceDetailPage({ params }: { params: Promise<{ id: string }> }) {
+export default function GalleryDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
-  const item = marketplaceListings.find(l => l.id === id) ?? marketplaceListings[0];
-  const similar = marketplaceListings.filter(l => l.id !== item.id && l.category === item.category).slice(0, 6);
+  const item = GalleryListings.find(l => l.id === id) ?? GalleryListings[0];
+  const similar = GalleryListings.filter(l => l.id !== item.id && l.category === item.category).slice(0, 6);
 
   const [liked, setLiked] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -35,11 +35,11 @@ export default function MarketplaceDetailPage({ params }: { params: Promise<{ id
 
           {/* Back */}
           <Link
-            href="/marketplace"
+            href="/gallery"
             className="inline-flex items-center gap-2 text-sm mb-6 transition-opacity hover:opacity-70"
             style={{ color: "var(--text-4)" }}
           >
-            <ArrowLeft size={15} /> Back to Marketplace
+            <ArrowLeft size={15} /> Back to Gallery
           </Link>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-12">

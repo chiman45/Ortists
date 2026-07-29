@@ -1,4 +1,4 @@
-export interface Post {
+﻿export interface Post {
   id: string;
   userId: string;
   imageUrl: string;
@@ -29,7 +29,7 @@ export interface Category {
   glassColor: string;
 }
 
-export interface MarketplaceListing {
+export interface GalleryListing {
   id: string;
   type: "artwork" | "commission";
   imageUrl: string;

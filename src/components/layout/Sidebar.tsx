@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { THEMES, useTheme } from "@/contexts/ThemeContext";
 import { useUser, UserButton } from "@clerk/nextjs";
@@ -10,7 +10,7 @@ import { useState } from "react";
 
 const NAV_ITEMS: { icon: string | null; lucideIcon: React.ElementType | null; label: string; href: string }[] = [
   { icon: "/icons/1.png", lucideIcon: null,       label: "Feed",        href: "/feed" },
-  { icon: "/icons/7.png", lucideIcon: null,       label: "Marketplace", href: "/marketplace" },
+  { icon: "/icons/7.png", lucideIcon: null,       label: "gallery", href: "/gallery" },
   { icon: "/icons/6.png", lucideIcon: null,       label: "Hiring",      href: "/hiring" },
   { icon: "/icons/4.png",           lucideIcon: UserCircle, label: "Profile",     href: "/profile" },
 ];

@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { Briefcase, Heart, Layers, MessageSquare, ShoppingBag, Sparkles } from "lucide-react";
 import { useReveal } from "./revealUtils";
@@ -21,7 +21,7 @@ const FEATURES = [
   },
   {
     icon: ShoppingBag,
-    title: "Marketplace",
+    title: "gallery",
     description:
       "Sell prints, originals, and digital assets with zero friction. Instant payouts directly to your wallet.",
     featured: false,

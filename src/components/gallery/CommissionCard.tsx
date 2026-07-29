@@ -1,12 +1,12 @@
-"use client";
+﻿"use client";
 
 import { Clock, Star } from "lucide-react";
 import Link from "next/link";
-import { MarketplaceListing } from "@/lib/types";
+import { GalleryListing } from "@/lib/types";
 
-export default function CommissionCard({ item }: { item: MarketplaceListing }) {
+export default function CommissionCard({ item }: { item: GalleryListing }) {
   return (
-    <Link href={`/marketplace/${item.id}`} className="block">
+    <Link href={`/gallery/${item.id}`} className="block">
       <div
         className="rounded-2xl overflow-hidden transition-all duration-200 hover:scale-[1.02] cursor-pointer"
         style={{

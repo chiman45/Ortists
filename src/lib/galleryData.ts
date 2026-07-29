@@ -1,6 +1,6 @@
-import { MarketplaceListing, FeaturedArtist } from "./types";
+﻿import { GalleryListing, FeaturedArtist } from "./types";
 
-export const MARKETPLACE_CATEGORIES = [
+export const Gallery_CATEGORIES = [
   "All", "Paintings", "Digital Art", "Portraits", "Illustrations",
   "Sculptures", "Photography", "Commissions",
 ];
@@ -31,7 +31,7 @@ const CATEGORIES = ["Paintings", "Digital Art", "Portraits", "Illustrations", "S
 const MEDIUMS    = ["Acrylic on canvas", "Digital illustration", "Oil on canvas", "Watercolor", "3D render", "Photography", "Mixed media", "Ink"];
 const SIZES      = ["40×60 cm", "60×80 cm", "A3 print", "24×36 in", "Digital file", "Digital file", "50×70 cm", "A4 print"];
 
-export const marketplaceListings: MarketplaceListing[] = Array.from({ length: 24 }, (_, i) => {
+export const GalleryListings: GalleryListing[] = Array.from({ length: 24 }, (_, i) => {
   const artist = ARTISTS[i % ARTISTS.length];
   const isCommission = i % 5 === 4;
   const h = [380, 520, 420, 300, 460, 340][i % 6];
@@ -70,4 +70,4 @@ export const featuredArtists: FeaturedArtist[] = ARTISTS.map((a, i) => ({
   followers: ((i + 1) * 1237) % 9000 + 500,
 }));
 
-export const trendingListings = marketplaceListings.slice(0, 8);
+export const trendingListings = GalleryListings.slice(0, 8);

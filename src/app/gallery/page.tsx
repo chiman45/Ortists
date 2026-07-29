@@ -1,20 +1,20 @@
-"use client";
+﻿"use client";
 
-import ArtworkCard from "@/components/marketplace/ArtworkCard";
-import CommissionCard from "@/components/marketplace/CommissionCard";
+import ArtworkCard from "@/components/gallery/ArtworkCard";
+import CommissionCard from "@/components/gallery/CommissionCard";
 import BottomNav from "@/components/layout/BottomNav";
 import MainHeader from "@/components/layout/MainHeader";
 import Sidebar from "@/components/layout/Sidebar";
-import { marketplaceListings, featuredArtists, trendingListings, MARKETPLACE_CATEGORIES } from "@/lib/marketplaceData";
+import { GalleryListings, featuredArtists, trendingListings, Gallery_CATEGORIES } from "@/lib/galleryData";
 import { Search, SlidersHorizontal, ChevronRight } from "lucide-react";
 import { useState } from "react";
 
-export default function MarketplacePage() {
+export default function GalleryPage() {
   const [activeCategory, setActiveCategory] = useState("All");
   const [search, setSearch] = useState("");
   const [showFilters, setShowFilters] = useState(false);
 
-  const filtered = marketplaceListings.filter(item => {
+  const filtered = GalleryListings.filter(item => {
     const matchCat = activeCategory === "All" || item.category === activeCategory ||
       (activeCategory === "Commissions" && item.type === "commission");
     const matchSearch = !search || item.title.toLowerCase().includes(search.toLowerCase()) ||
@@ -70,7 +70,7 @@ export default function MarketplacePage() {
 
             {/* Category chips */}
             <div className="flex gap-2 overflow-x-auto" style={{ scrollbarWidth: "none" }}>
-              {MARKETPLACE_CATEGORIES.map(cat => {
+              {Gallery_CATEGORIES.map(cat => {
                 const active = activeCategory === cat;
                 return (
                   <button
@@ -96,7 +96,7 @@ export default function MarketplacePage() {
 
           {/* Page title */}
           <div className="mb-6">
-            <h2 className="text-2xl font-bold mb-1" style={{ color: "var(--text-1)" }}>Marketplace</h2>
+            <h2 className="text-2xl font-bold mb-1" style={{ color: "var(--text-1)" }}>Gallery</h2>
             <p className="text-sm" style={{ color: "var(--text-5)" }}>Discover artworks, commissions & creative services</p>
           </div>
 
