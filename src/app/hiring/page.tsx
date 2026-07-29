@@ -11,7 +11,8 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 
 // ── Types ─────────────────────────────────────────────────────
 
@@ -324,13 +325,121 @@ function StatCard({ icon, count, label, color }: { icon: React.ReactNode; count:
   );
 }
 
-function ProjectCard({ project, onClick }: { project: Project; onClick: () => void }) {
+function DeleteConfirmModal({ onConfirm, onCancel, deleting }: { onConfirm: () => void; onCancel: () => void; deleting: boolean }) {
+  return createPortal(
+    <div
+      className="fixed inset-0 z-[999] flex items-center justify-center"
+      style={{ background: "rgba(0,0,0,0.6)", backdropFilter: "blur(4px)" }}
+      onClick={onCancel}
+    >
+      <div
+        className="w-[320px] rounded-2xl p-6 flex flex-col items-center gap-4"
+        style={{ background: "var(--bg-card)", border: "1px solid rgba(239,68,68,0.25)", boxShadow: "0 24px 64px rgba(0,0,0,0.45)" }}
+        onClick={e => e.stopPropagation()}
+      >
+        <div className="w-12 h-12 rounded-2xl flex items-center justify-center" style={{ background: "rgba(239,68,68,0.12)", border: "1px solid rgba(239,68,68,0.25)" }}>
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#EF4444" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
+          </svg>
+        </div>
+        <div className="text-center">
+          <p className="text-base font-bold mb-1" style={{ color: "var(--text-1)" }}>Delete Project?</p>
+          <p className="text-sm" style={{ color: "var(--text-5)" }}>This action cannot be undone. The request will be permanently removed.</p>
+        </div>
+        <div className="flex gap-3 w-full">
+          <button
+            onClick={onCancel}
+            disabled={deleting}
+            className="flex-1 py-2.5 rounded-xl text-sm font-semibold transition-all hover:opacity-80 disabled:opacity-40"
+            style={{ background: "var(--bg-subtle)", color: "var(--text-2)", border: "1px solid var(--border)" }}
+          >
+            Cancel
+          </button>
+          <button
+            onClick={onConfirm}
+            disabled={deleting}
+            className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white transition-all hover:opacity-85 disabled:opacity-50"
+            style={{ background: "linear-gradient(135deg, #b91c1c, #EF4444)" }}
+          >
+            {deleting ? "Deleting…" : "Delete"}
+          </button>
+        </div>
+      </div>
+    </div>,
+    document.body
+  );
+}
+
+function ThreeDotsMenu({ onDelete }: { onDelete: () => Promise<void> }) {
+  const [open, setOpen] = useState(false);
+  const [confirm, setConfirm] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    function handler(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    }
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [open]);
+
+  async function handleConfirm() {
+    setDeleting(true);
+    try { await onDelete(); } finally { setDeleting(false); setConfirm(false); }
+  }
+
+  return (
+    <>
+      <div ref={ref} className="relative" onClick={e => e.stopPropagation()}>
+        <button
+          onClick={e => { e.stopPropagation(); setOpen(v => !v); }}
+          className="w-7 h-7 rounded-lg flex items-center justify-center transition-all hover:opacity-70"
+          style={{ background: "var(--bg-subtle)", color: "var(--text-4)", border: "1px solid var(--border)" }}
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg>
+        </button>
+        {open && (
+          <div
+            className="absolute right-0 top-9 z-50 rounded-xl overflow-hidden py-1"
+            style={{ background: "var(--bg-card)", border: "1px solid var(--border)", boxShadow: "0 8px 32px rgba(0,0,0,0.25)", minWidth: 130 }}
+          >
+            <button
+              onClick={e => { e.stopPropagation(); setOpen(false); setConfirm(true); }}
+              className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-left transition-all hover:opacity-80"
+              style={{ color: "#EF4444" }}
+            >
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
+              </svg>
+              Delete
+            </button>
+          </div>
+        )}
+      </div>
+      {confirm && (
+        <DeleteConfirmModal
+          onConfirm={handleConfirm}
+          onCancel={() => setConfirm(false)}
+          deleting={deleting}
+        />
+      )}
+    </>
+  );
+}
+
+function ProjectCard({ project, onClick, onDelete }: { project: Project; onClick: () => void; onDelete: () => void }) {
   const cfg = STATUS_CONFIG[project.status];
   const isDelivered = project.status === "completed";
+
   return (
-    <button
+    <div
       onClick={onClick}
-      className="w-full text-left p-4 rounded-2xl flex flex-col gap-3 transition-all hover:scale-[1.01]"
+      role="button"
+      tabIndex={0}
+      onKeyDown={e => e.key === "Enter" && onClick()}
+      className="w-full text-left p-4 rounded-2xl flex flex-col gap-3 transition-all hover:scale-[1.01] cursor-pointer"
       style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}
       onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = "rgba(124,91,245,0.35)"; }}
       onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = "var(--border)"; }}
@@ -344,9 +453,12 @@ function ProjectCard({ project, onClick }: { project: Project; onClick: () => vo
             <p className="text-xs" style={{ color: "var(--text-5)" }}>with {project.artist}</p>
           </div>
         </div>
-        <span className="shrink-0 text-[11px] font-semibold px-2.5 py-1 rounded-full" style={{ background: cfg.badge, color: cfg.badgeText }}>
-          {cfg.displayLabel}
-        </span>
+        <div className="flex items-center gap-2 shrink-0">
+          <span className="text-[11px] font-semibold px-2.5 py-1 rounded-full" style={{ background: cfg.badge, color: cfg.badgeText }}>
+            {cfg.displayLabel}
+          </span>
+          <ThreeDotsMenu onDelete={async () => { onDelete(); }} />
+        </div>
       </div>
       <div className="flex flex-wrap gap-x-4 gap-y-1 text-[11px]" style={{ color: "var(--text-5)" }}>
         <span className="flex items-center gap-1">
@@ -366,7 +478,7 @@ function ProjectCard({ project, onClick }: { project: Project; onClick: () => vo
           <div className="h-full rounded-full transition-all" style={{ width: `${project.progress}%`, background: cfg.bar }} />
         </div>
       </div>
-    </button>
+    </div>
   );
 }
 
@@ -407,7 +519,7 @@ interface IncomingRequest {
   created_at: string;
 }
 
-function IncomingCard({ req, onDecide }: { req: IncomingRequest; onDecide: (id: string, status: "accepted" | "declined") => Promise<void> }) {
+function IncomingCard({ req, onDecide, onDelete }: { req: IncomingRequest; onDecide: (id: string, status: "accepted" | "declined") => Promise<void>; onDelete: () => Promise<void> }) {
   const router = useRouter();
   const [deciding, setDeciding] = useState<"accepted" | "declined" | null>(null);
 
@@ -453,9 +565,12 @@ function IncomingCard({ req, onDecide }: { req: IncomingRequest; onDecide: (id: 
             from {req.client_name ?? "a client"}
           </p>
         </div>
-        <span className="text-[11px] font-semibold px-2.5 py-1 rounded-full shrink-0" style={{ background: sc.bg, color: sc.color }}>
-          {sc.label}
-        </span>
+        <div className="flex items-center gap-2 shrink-0">
+          <span className="text-[11px] font-semibold px-2.5 py-1 rounded-full" style={{ background: sc.bg, color: sc.color }}>
+            {sc.label}
+          </span>
+          <ThreeDotsMenu onDelete={onDelete} />
+        </div>
       </div>
 
       {/* Details */}
@@ -524,6 +639,24 @@ function MyProjectsView({ userId, onSwitchToHire }: { userId: string; onSwitchTo
       .catch(() => setLoadingIncoming(false));
   }, [userId]);
 
+  async function handleDeleteProject(id: string) {
+    await fetch(`/api/hire-requests/${id}`, {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ clientId: userId }),
+    });
+    setProjects(prev => prev.filter(p => p.id !== id));
+  }
+
+  async function handleDeleteIncoming(id: string) {
+    await fetch(`/api/hire-requests/${id}`, {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ artistClerkId: userId }),
+    });
+    setIncoming(prev => prev.filter(r => r.id !== id));
+  }
+
   async function handleDecide(id: string, status: "accepted" | "declined") {
     const res = await fetch(`/api/hire-requests/${id}`, {
       method: "PATCH",
@@ -576,7 +709,7 @@ function MyProjectsView({ userId, onSwitchToHire }: { userId: string; onSwitchTo
         ) : (
           <div className="flex flex-col gap-3">
             {incoming.map(r => (
-              <IncomingCard key={r.id} req={r} onDecide={handleDecide} />
+              <IncomingCard key={r.id} req={r} onDecide={handleDecide} onDelete={() => handleDeleteIncoming(r.id)} />
             ))}
           </div>
         )}
@@ -615,7 +748,7 @@ function MyProjectsView({ userId, onSwitchToHire }: { userId: string; onSwitchTo
                     </span>
                   </div>
                   <div className="flex flex-col gap-3">
-                    {group.map(p => <ProjectCard key={p.id} project={p} onClick={() => router.push(`/hiring/projects/${p.id}`)} />)}
+                    {group.map(p => <ProjectCard key={p.id} project={p} onClick={() => router.push(`/hiring/projects/${p.id}`)} onDelete={() => handleDeleteProject(p.id)} />)}
                   </div>
                 </section>
               );
@@ -715,21 +848,6 @@ export default function HiringPage() {
               </div>
             </div>
 
-            {/* Actions */}
-            <div className="flex items-center gap-2 shrink-0">
-              <button
-                onClick={() => setTab("hire")}
-                className="hidden sm:flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-semibold transition-all hover:opacity-85"
-                style={{
-                  background: "rgba(124,91,245,0.15)",
-                  color: "#9B7CF5",
-                  border: "1px solid rgba(124,91,245,0.35)",
-                }}
-              >
-                Post a Brief
-              </button>
-              <UserButton />
-            </div>
           </div>
 
           {/* Search + filters + categories — Hire tab only */}

@@ -308,7 +308,7 @@ export default function ProfilePage() {
                 <button onClick={openEdit}
                   className="flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-semibold transition-all hover:opacity-85"
                   style={{ background: "#7C5BF5", color: "#fff" }}>
-                  ✏️ Edit Profile
+                  Edit Profile
                 </button>
               </div>
 

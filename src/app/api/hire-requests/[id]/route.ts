@@ -73,3 +73,27 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
   return NextResponse.json({ error: "Must provide clientId or artistId" }, { status: 400 });
 }
+
+// DELETE /api/hire-requests/[id]
+// Body: { clientId: string } | { artistClerkId: string }
+export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  const body = await req.json();
+
+  const { data: hr } = await adminDb
+    .from("hire_requests")
+    .select("client_id, artist_clerk_id")
+    .eq("id", id)
+    .single();
+
+  if (!hr) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
+  const isClient = body.clientId && hr.client_id === body.clientId;
+  const isArtist = body.artistClerkId && hr.artist_clerk_id === body.artistClerkId;
+
+  if (!isClient && !isArtist) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+
+  const { error } = await adminDb.from("hire_requests").delete().eq("id", id);
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  return NextResponse.json({ success: true });
+}
