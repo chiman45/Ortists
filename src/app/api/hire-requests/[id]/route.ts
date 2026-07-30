@@ -56,6 +56,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
         type:     "commission",
         text:     `Your commission request was ${verb}`,
         sub_text: data?.project_title ?? null,
+        post_id:  id,
       });
     } catch {}
 

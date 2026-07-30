@@ -107,7 +107,7 @@ export async function POST(req: NextRequest) {
       // Notify the recipient (the other party in the hire request)
       const { data: hr } = await adminDb
         .from("hire_requests")
-        .select("client_id, artist_clerk_id, project_title")
+        .select("id, client_id, artist_clerk_id, project_title")
         .eq("conversation_id", conversation_id)
         .maybeSingle();
       if (hr) {
@@ -121,6 +121,7 @@ export async function POST(req: NextRequest) {
               type:         "comment",
               text:         `${sender_name ?? "Someone"} sent you a message`,
               sub_text:     hr.project_title ?? null,
+              post_id:      hr.id,
             });
           } catch {}
         }

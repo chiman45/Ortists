@@ -96,6 +96,7 @@ export async function POST(req: NextRequest) {
         type:         "commission",
         text:         `${body.client_name ?? "Someone"} sent you a commission request`,
         sub_text:     body.project_title ?? null,
+        post_id:      data.id,
       });
     } catch {}
   }
