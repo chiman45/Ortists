@@ -26,13 +26,25 @@ export async function POST(req: NextRequest) {
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  // Increment comment count
+  // Increment comment count + notify post owner
   const { data: post } = await adminDb
-    .from("posts").select("comments_count").eq("id", body.post_id).single();
+    .from("posts").select("comments_count, user_id, title").eq("id", body.post_id).single();
   if (post) {
     await adminDb.from("posts")
       .update({ comments_count: post.comments_count + 1 })
       .eq("id", body.post_id);
+    // Notify owner (skip self-comments)
+    if (post.user_id && post.user_id !== body.user_id) {
+      await adminDb.from("notifications").insert({
+        user_id:      post.user_id,
+        actor_name:   body.user_name ?? null,
+        actor_avatar: body.user_avatar ?? null,
+        type:         "comment",
+        text:         `${body.user_name ?? "Someone"} commented on your artwork`,
+        sub_text:     post.title ?? null,
+        post_id:      body.post_id,
+      });
+    }
   }
 
   return NextResponse.json({ comment: data });

@@ -118,7 +118,7 @@ export async function POST(req: NextRequest) {
               user_id:      recipientId,
               actor_name:   sender_name ?? null,
               actor_avatar: sender_avatar ?? null,
-              type:         "comment",
+              type:         "message",
               text:         `${sender_name ?? "Someone"} sent you a message`,
               sub_text:     hr.project_title ?? null,
               post_id:      hr.id,

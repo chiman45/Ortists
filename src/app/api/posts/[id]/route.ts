@@ -60,7 +60,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   // Fetch post once to get category + tags for ML interaction logging
   const { data: post } = await adminDb
     .from("posts")
-    .select("likes_count, saves_count, category, tags")
+    .select("likes_count, saves_count, category, tags, user_id, title")
     .eq("id", id)
     .single();
 
@@ -74,15 +74,25 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     if (post) {
       await Promise.all([
         adminDb.from("posts").update({ likes_count: post.likes_count + 1 }).eq("id", id),
-        // ML signal: record what category/tags this user liked
         adminDb.from("user_interactions").insert({
-          user_id: userId,
-          post_id: id,
-          action_type: "like",
-          category: post.category ?? null,
-          tags: post.tags ?? [],
+          user_id: userId, post_id: id, action_type: "like",
+          category: post.category ?? null, tags: post.tags ?? [],
         }),
       ]);
+    }
+    // Notify post owner (not self-likes)
+    if (post?.user_id && post.user_id !== userId) {
+      const { data: liker } = await adminDb
+        .from("profiles").select("display_name, avatar_url").eq("clerk_id", userId).maybeSingle();
+      await adminDb.from("notifications").insert({
+        user_id:      post.user_id,
+        actor_name:   liker?.display_name ?? null,
+        actor_avatar: liker?.avatar_url ?? null,
+        type:         "like",
+        text:         `${liker?.display_name ?? "Someone"} liked your artwork`,
+        sub_text:     post.title ?? null,
+        post_id:      id,
+      });
     }
   } else if (action === "unlike") {
     await adminDb.from("likes").delete().eq("post_id", id).eq("user_id", userId);

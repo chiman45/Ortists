@@ -41,7 +41,7 @@ export async function POST(req: NextRequest) {
   // Update both sides: followers_count on the followed, following_count on the follower
   const [{ data: followedProfile }, { data: followerProfile }] = await Promise.all([
     adminDb.from("profiles").select("followers_count").eq("clerk_id", followingId).maybeSingle(),
-    adminDb.from("profiles").select("following_count").eq("clerk_id", followerId).maybeSingle(),
+    adminDb.from("profiles").select("following_count, display_name, avatar_url").eq("clerk_id", followerId).maybeSingle(),
   ]);
 
   await Promise.all([
@@ -52,6 +52,16 @@ export async function POST(req: NextRequest) {
       .update({ following_count: (followerProfile.following_count ?? 0) + 1 })
       .eq("clerk_id", followerId),
   ]);
+
+  // Notify the followed user
+  await adminDb.from("notifications").insert({
+    user_id:      followingId,
+    actor_name:   followerProfile?.display_name ?? null,
+    actor_avatar: followerProfile?.avatar_url ?? null,
+    type:         "follow",
+    text:         `${followerProfile?.display_name ?? "Someone"} started following you`,
+    post_id:      followerId,
+  });
 
   return NextResponse.json({ ok: true });
 }
