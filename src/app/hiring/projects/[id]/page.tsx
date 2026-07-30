@@ -426,8 +426,16 @@ function ConversationPanel({ project, userId, userName, userAvatar }: {
 
     load();
     const interval = setInterval(load, 5000);
+
+    // Mark messages as read so the notification badge clears
+    fetch("/api/messages", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "mark_read", conversationId: convId, userId }),
+    }).catch(() => {});
+
     return () => clearInterval(interval);
-  }, [project.conversation_id]);
+  }, [project.conversation_id, userId]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });

@@ -104,6 +104,28 @@ export async function POST(req: NextRequest) {
         .update({ last_message: text, last_message_at: new Date().toISOString() })
         .eq("id", conversation_id);
 
+      // Notify the recipient (the other party in the hire request)
+      const { data: hr } = await adminDb
+        .from("hire_requests")
+        .select("client_id, artist_clerk_id, project_title")
+        .eq("conversation_id", conversation_id)
+        .maybeSingle();
+      if (hr) {
+        const recipientId = hr.client_id === sender_id ? hr.artist_clerk_id : hr.client_id;
+        if (recipientId && recipientId !== sender_id) {
+          try {
+            await adminDb.from("notifications").insert({
+              user_id:      recipientId,
+              actor_name:   sender_name ?? null,
+              actor_avatar: sender_avatar ?? null,
+              type:         "comment",
+              text:         `${sender_name ?? "Someone"} sent you a message`,
+              sub_text:     hr.project_title ?? null,
+            });
+          } catch {}
+        }
+      }
+
       return NextResponse.json({ message: data });
     }
 

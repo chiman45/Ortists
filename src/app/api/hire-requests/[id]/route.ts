@@ -47,6 +47,18 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       .select()
       .single();
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+    // Notify the client about the accept/decline
+    const verb = body.status === "accepted" ? "accepted" : "declined";
+    try {
+      await adminDb.from("notifications").insert({
+        user_id:  hr.client_id,
+        type:     "commission",
+        text:     `Your commission request was ${verb}`,
+        sub_text: data?.project_title ?? null,
+      });
+    } catch {}
+
     return NextResponse.json({ request: data });
   }
 

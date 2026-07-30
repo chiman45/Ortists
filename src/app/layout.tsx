@@ -4,6 +4,7 @@ import "./globals.css";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import ProfileSync from "@/components/layout/ProfileSync";
 import { ClerkProvider } from "@clerk/nextjs";
+import { Toaster } from "sonner";
 
 const inter = Inter({ subsets: ["latin"], display: "swap" });
 
@@ -29,6 +30,7 @@ export default function RootLayout({
           <ThemeProvider>
             <ProfileSync />
             {children}
+            <Toaster richColors position="top-right" closeButton />
           </ThemeProvider>
         </body>
       </html>

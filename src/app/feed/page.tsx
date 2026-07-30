@@ -7,6 +7,7 @@ import MainHeader from "@/components/layout/MainHeader";
 import Sidebar from "@/components/layout/Sidebar";
 import FeedGridSkeleton from "@/components/ui/skeletons/FeedCardSkeleton";
 import { type Post } from "@/lib/db/posts";
+import { useUser } from "@clerk/nextjs";
 import { ArrowLeft, MapPin, Search, Users, X } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
@@ -45,7 +46,10 @@ function isQuerySafe(q: string) {
   return q.length <= 100 && /^[\w\s\-_.@#]*$/.test(q);
 }
 
+const LIKES_KEY = "ortist_last_seen_likes";
+
 export default function FeedPage() {
+  const { user } = useUser();
   const [activeTab, setActiveTab]           = useState<"Latest" | "Popular">("Latest");
   const [search, setSearch]                 = useState("");
   const [query, setQuery]                   = useState("");
@@ -58,6 +62,17 @@ export default function FeedPage() {
   const [resultTab, setResultTab]           = useState<ResultTab>("All");
   const abortRef                            = useRef<AbortController | null>(null);
   const inputRef                            = useRef<HTMLInputElement>(null);
+
+  // Clear likes badge when user visits feed
+  useEffect(() => {
+    if (!user) return;
+    fetch(`/api/stats?userId=${user.id}`)
+      .then(r => r.json())
+      .then(({ totalLikes }) => {
+        if (totalLikes !== undefined) localStorage.setItem(LIKES_KEY, String(totalLikes));
+      })
+      .catch(() => {});
+  }, [user]);
 
   function openSearch() {
     setSearchOpen(true);

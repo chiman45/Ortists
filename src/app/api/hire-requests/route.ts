@@ -85,5 +85,20 @@ export async function POST(req: NextRequest) {
     .single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  // Notify the artist about the new commission request
+  if (body.artist_clerk_id) {
+    try {
+      await adminDb.from("notifications").insert({
+        user_id:      body.artist_clerk_id,
+        actor_name:   body.client_name ?? null,
+        actor_avatar: body.client_avatar ?? null,
+        type:         "commission",
+        text:         `${body.client_name ?? "Someone"} sent you a commission request`,
+        sub_text:     body.project_title ?? null,
+      });
+    } catch {}
+  }
+
   return NextResponse.json({ request: data });
 }
