@@ -45,6 +45,7 @@ export interface GalleryListing {
   deliveryTime?: string;
   likes: number;
   comments: number;
+  commissions: number;
   rating: number;
   saved: boolean;
   tags: string[];
@@ -61,6 +62,7 @@ export interface FeaturedArtist {
   specialty: string;
   listingsCount: number;
   followers: number;
+  commissions: number;
   rating: number;
   location: string;
 }
