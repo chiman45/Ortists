@@ -11,6 +11,7 @@ import { useUser } from "@clerk/nextjs";
 import { ArrowLeft, MapPin, Search, Users, X } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
+import { firstImage } from "@/lib/imageUrl";
 import { useEffect, useRef, useState } from "react";
 
 function toGridPost(p: Post) {
@@ -415,7 +416,7 @@ export default function FeedPage() {
                       <div className="relative overflow-hidden rounded-2xl"
                         style={{ boxShadow: "0 4px 20px var(--shadow)" }}>
                         <Image
-                          src={p.image_url}
+                          src={firstImage(p.image_url)}
                           alt={p.title}
                           width={400}
                           height={500}

@@ -45,10 +45,19 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ posts, hasMore: false });
   }
 
+  const galleryOnly = searchParams.get("gallery") === "1";
+
   // Filters MUST be applied before .order()/.range() in Supabase JS v2
   let query = adminDb.from("posts").select("*");
-  if (userId)   query = query.eq("user_id", userId);
-  if (category) query = query.eq("category", category);
+  if (userId)      query = query.eq("user_id", userId);
+  if (category)    query = query.eq("category", category);
+  if (galleryOnly) {
+    // Gallery page: only posts whose category starts with "gallery:"
+    query = query.ilike("category", "gallery:%");
+  } else if (!category && !userId) {
+    // Regular feed: exclude gallery posts so they don't pollute the feed
+    query = query.not("category", "ilike", "gallery:%");
+  }
 
   const { data, error } = await query
     .order("created_at", { ascending: false })

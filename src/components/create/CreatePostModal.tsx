@@ -43,10 +43,13 @@ export default function CreatePostModal({ onClose }: Props) {
   const [medium, setMedium]         = useState("");
   const [style, setStyle]           = useState("");
   const [location, setLocation]     = useState("");
+  const [price, setPrice]           = useState("");
+  const [currency, setCurrency]     = useState("£");
   const [visibility, setVisibility] = useState<"Public" | "Followers" | "Private">("Public");
   const [comments, setComments]     = useState(true);
   const [downloads, setDownloads]   = useState(false);
-  const fileRef = useRef<HTMLInputElement>(null);
+  const fileRef  = useRef<HTMLInputElement>(null);
+  const extraRef = useRef<HTMLInputElement>(null);
 
   function handleFile(file: File) {
     if (!file.type.startsWith("image/") && !file.type.startsWith("video/")) return;
@@ -270,9 +273,56 @@ export default function CreatePostModal({ onClose }: Props) {
                     )}
                   </div>
                   {imageUrl && (
-                    <button onClick={() => setImageUrl(null)} className="mt-2 text-xs transition-opacity hover:opacity-70 w-full text-center" style={{ color: "var(--text-5)" }}>
+                    <button onClick={() => { setImageUrl(null); setImageFile(null); setGalleryFiles([]); setGalleryUrls([]); }}
+                      className="mt-2 text-xs transition-opacity hover:opacity-70 w-full text-center" style={{ color: "var(--text-5)" }}>
                       Remove and choose different file
                     </button>
+                  )}
+
+                  {/* Multi-image add-on — available for non-video portfolio posts */}
+                  {imageUrl && !isVideo && (
+                    <div className="mt-3">
+                      <input
+                        ref={extraRef}
+                        type="file" accept="image/*" multiple className="hidden"
+                        onChange={e => { if (e.target.files) handleGalleryFiles(e.target.files); }}
+                      />
+                      {galleryUrls.length === 0 ? (
+                        <button
+                          onClick={() => extraRef.current?.click()}
+                          className="w-full py-2 rounded-xl text-xs font-medium transition-all"
+                          style={{ background: "var(--bg-card)", color: "var(--text-4)", border: "1px dashed var(--border)" }}
+                        >
+                          + Add more images to this post
+                        </button>
+                      ) : (
+                        <>
+                          <div className="flex items-center justify-between mb-2">
+                            <p className="text-xs font-medium" style={{ color: "var(--text-4)" }}>
+                              Additional images ({galleryUrls.length}/9)
+                            </p>
+                            <button onClick={() => extraRef.current?.click()} className="text-xs" style={{ color: "#9B7CF5" }}>
+                              + Add more
+                            </button>
+                          </div>
+                          <div className="grid grid-cols-3 gap-2">
+                            {galleryUrls.map((url, i) => (
+                              <div key={i} className="relative aspect-square rounded-xl overflow-hidden group">
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                <img src={url} alt="" className="w-full h-full object-cover" />
+                                <button
+                                  onClick={() => removeGalleryItem(i)}
+                                  className="absolute top-1 right-1 w-5 h-5 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                                  style={{ background: "rgba(0,0,0,0.7)" }}
+                                >
+                                  <X size={10} color="#fff" />
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        </>
+                      )}
+                    </div>
                   )}
                 </>
               )}
@@ -366,6 +416,38 @@ export default function CreatePostModal({ onClose }: Props) {
                   style={{ background: "var(--bg-card)", border: "1px solid var(--border)", color: "var(--text-1)" }}
                 />
               </div>
+
+              {/* Price — gallery posts only */}
+              {type === "gallery" && (
+                <div>
+                  <label className="text-xs font-medium mb-1.5 block" style={{ color: "var(--text-4)" }}>
+                    Price <span style={{ color: "rgba(124,91,245,0.7)" }}>*</span>
+                  </label>
+                  <div className="flex gap-2">
+                    {/* Currency selector */}
+                    <div className="relative">
+                      <select
+                        value={currency}
+                        onChange={e => setCurrency(e.target.value)}
+                        className="h-full px-3 py-2.5 rounded-xl text-sm outline-none appearance-none pr-7"
+                        style={{ background: "var(--bg-card)", border: "1px solid var(--border)", color: "var(--text-1)" }}
+                      >
+                        {["£", "$", "€", "₹", "¥"].map(c => <option key={c} value={c}>{c}</option>)}
+                      </select>
+                    </div>
+                    <input
+                      type="number"
+                      min="0"
+                      value={price}
+                      onChange={e => setPrice(e.target.value)}
+                      placeholder="0.00"
+                      className="flex-1 px-3 py-2.5 rounded-xl text-sm outline-none"
+                      style={{ background: "var(--bg-card)", border: "1px solid var(--border)", color: "var(--text-1)" }}
+                    />
+                  </div>
+                  <p className="text-[10px] mt-1" style={{ color: "var(--text-5)" }}>Set the price buyers will see on your gallery listing</p>
+                </div>
+              )}
             </div>
           )}
 
@@ -393,9 +475,9 @@ export default function CreatePostModal({ onClose }: Props) {
                 </div>
               </div>
               {[
-                { label: "Allow Comments",   val: comments,   set: setComments  },
-                { label: "Allow Downloads",  val: downloads,  set: setDownloads },
-              ].map(({ label, val, set }) => (
+                { label: "Allow Comments",  val: comments,  set: setComments,  show: true },
+                { label: "Allow Downloads", val: downloads, set: setDownloads, show: type !== "gallery" },
+              ].filter(({ show }) => show).map(({ label, val, set }) => (
                 <div key={label} className="flex items-center justify-between py-3 px-4 rounded-xl" style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}>
                   <span className="text-sm font-medium" style={{ color: "var(--text-2)" }}>{label}</span>
                   <button
@@ -493,33 +575,36 @@ export default function CreatePostModal({ onClose }: Props) {
                   if (!user) return;
                   const isGallery = type === "gallery";
                   if (isGallery && galleryFiles.length === 0) return;
-                  if (!isGallery && !imageFile) return;
+                  if (!isGallery && !imageFile && galleryFiles.length === 0) return;
                   setPublishing(true);
                   try {
                     let finalImageUrl = imageUrl ?? "";
 
-                    if (isGallery) {
-                      // Upload all gallery images in parallel
-                      const uploadedUrls = await Promise.all(
-                        galleryFiles.map(async file => {
-                          const form = new FormData();
-                          form.append("file", file);
-                          form.append("bucket", "post-media");
-                          const res = await fetch("/api/upload", { method: "POST", body: form });
-                          const { url } = await res.json();
-                          return url as string;
-                        })
-                      );
-                      // Store as JSON array; feed card reads first item + shows gallery badge
-                      finalImageUrl = JSON.stringify(uploadedUrls);
-                    } else if (imageFile) {
+                    async function uploadFile(file: File): Promise<string> {
                       const form = new FormData();
-                      form.append("file", imageFile);
+                      form.append("file", file);
                       form.append("bucket", "post-media");
-                      const upRes = await fetch("/api/upload", { method: "POST", body: form });
-                      const { url } = await upRes.json();
-                      finalImageUrl = url ?? imageUrl ?? "";
+                      const res = await fetch("/api/upload", { method: "POST", body: form });
+                      const { url } = await res.json();
+                      return url as string;
                     }
+
+                    if (isVideo && imageFile) {
+                      // Videos stored as plain URL (not JSON array)
+                      finalImageUrl = await uploadFile(imageFile);
+                    } else {
+                      // Images (both portfolio and gallery) always stored as JSON array
+                      const allFiles = isGallery
+                        ? galleryFiles
+                        : [imageFile, ...galleryFiles].filter((f): f is File => !!f);
+                      const uploadedUrls = await Promise.all(allFiles.map(uploadFile));
+                      finalImageUrl = JSON.stringify(uploadedUrls);
+                    }
+
+                    // For gallery posts embed price into description as structured JSON
+                    const descriptionPayload = isGallery && price
+                      ? JSON.stringify({ _price: `${currency}${price}`, _desc: desc })
+                      : (desc || undefined);
 
                     await fetch("/api/posts", {
                       method: "POST",
@@ -530,7 +615,7 @@ export default function CreatePostModal({ onClose }: Props) {
                         author_username: user.username ?? user.id.slice(0, 12),
                         author_avatar: user.imageUrl,
                         title: title || "Untitled",
-                        description: desc || undefined,
+                        description: descriptionPayload,
                         image_url: finalImageUrl,
                         category: isGallery ? `gallery:${category || "General"}` : (category || "General"),
                         tags,
@@ -539,7 +624,7 @@ export default function CreatePostModal({ onClose }: Props) {
                         location: location || undefined,
                         visibility,
                         allow_comments: comments,
-                        allow_downloads: downloads,
+                        allow_downloads: isGallery ? false : downloads,
                       }),
                     });
                     onClose();

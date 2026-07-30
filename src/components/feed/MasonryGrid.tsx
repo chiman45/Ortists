@@ -2,6 +2,7 @@
 
 import { type Post as DbPost } from "@/lib/db/posts";
 import { Post } from "@/lib/types";
+import { firstImage } from "@/lib/imageUrl";
 import { useEffect, useRef, useState } from "react";
 import FeedCard from "./FeedCard";
 
@@ -10,7 +11,7 @@ function toGridPost(p: DbPost): Post {
     id:          p.id,
     userId:      p.user_id,
     title:       p.title,
-    imageUrl:    p.image_url,
+    imageUrl:    firstImage(p.image_url),
     imageWidth:  400,
     imageHeight: 500,
     username:    p.author_username,

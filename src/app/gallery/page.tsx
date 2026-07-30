@@ -2,14 +2,40 @@
 
 import BottomNav from "@/components/layout/BottomNav";
 import Sidebar from "@/components/layout/Sidebar";
+import MainHeader from "@/components/layout/MainHeader";
 import {
-  GalleryListings, featuredArtists, GALLERY_CATEGORIES,
+  GalleryListings, GALLERY_CATEGORIES,
   heroListing, featuredGrid, newListings, collectionFeatured, mainGrid,
 } from "@/lib/galleryData";
 import type { GalleryListing } from "@/lib/types";
-import { Search, SlidersHorizontal, Star, ChevronRight, ArrowRight } from "lucide-react";
+import { Search, SlidersHorizontal, Star, ChevronRight, ArrowRight, Heart } from "lucide-react";
+import { parseImageUrls } from "@/lib/imageUrl";
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+
+// ── Real post types ──────────────────────────────────────────────────
+
+interface RealPost {
+  id: string; title: string; image_url: string; description: string | null;
+  author_name: string; author_username: string; author_avatar: string | null;
+  likes_count: number; comments_count: number; category: string | null;
+}
+
+interface RealArtist {
+  clerk_id: string; display_name: string | null; username: string | null;
+  avatar_url: string | null; tag: string | null; location: string | null;
+  followers_count: number; available: boolean;
+}
+
+
+function parsePostPrice(description: string | null): { price: string | null; desc: string } {
+  if (!description) return { price: null, desc: "" };
+  try {
+    const obj = JSON.parse(description);
+    if (obj._price) return { price: obj._price, desc: obj._desc ?? "" };
+  } catch {}
+  return { price: null, desc: description };
+}
 
 // ── Shared primitives ────────────────────────────────────────────────
 
@@ -103,11 +129,75 @@ function ArtworkCard({ item, className = "" }: { item: GalleryListing; className
   );
 }
 
+// Community card — for real user-uploaded gallery posts
+function CommunityCard({ post }: { post: RealPost }) {
+  const urls  = parseImageUrls(post.image_url);
+  const cover = urls[0] ?? "";
+  const { price } = parsePostPrice(post.description);
+  return (
+    <Link href={`/feed/${post.id}`} className="group block">
+      <div className="relative overflow-hidden rounded-xl" style={{ aspectRatio: "3/4" }}>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={cover} alt={post.title}
+          className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.04]"
+          draggable={false} onContextMenu={e => e.preventDefault()}
+        />
+        <div className="absolute inset-0" style={{ background: "linear-gradient(to top, rgba(0,0,0,0.6) 0%, transparent 50%)" }} />
+        {price && (
+          <div className="absolute bottom-3 right-3">
+            <span className="text-xs font-bold px-2.5 py-1 rounded-lg" style={{ background: "rgba(0,0,0,0.65)", color: "#fff", backdropFilter: "blur(8px)", border: "1px solid rgba(255,255,255,0.1)" }}>
+              {price}
+            </span>
+          </div>
+        )}
+        {urls.length > 1 && (
+          <div className="absolute top-2.5 left-2.5 px-2 py-0.5 rounded-full text-[10px] font-bold" style={{ background: "rgba(0,0,0,0.6)", color: "#fff", backdropFilter: "blur(6px)" }}>
+            ⊞ {urls.length}
+          </div>
+        )}
+      </div>
+      <div className="mt-2.5 px-0.5">
+        <p className="text-sm font-semibold leading-tight truncate" style={{ color: "var(--text-1)" }}>{post.title}</p>
+        <div className="flex items-center gap-1.5 mt-0.5">
+          {post.author_avatar && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={post.author_avatar} alt={post.author_name} className="w-4 h-4 rounded-full object-cover shrink-0" />
+          )}
+          <span className="text-[11px] truncate" style={{ color: "rgba(255,255,255,0.5)" }}>{post.author_name}</span>
+        </div>
+        <div className="flex items-center gap-1 mt-1" style={{ color: "rgba(255,255,255,0.4)", fontSize: 11 }}>
+          <Heart size={9} />
+          <span>{post.likes_count}</span>
+        </div>
+      </div>
+    </Link>
+  );
+}
+
 // ── Main page ────────────────────────────────────────────────────────
 
 export default function GalleryPage() {
   const [activeCategory, setActiveCategory] = useState("All");
   const [search, setSearch]                 = useState("");
+  const [realPosts, setRealPosts]     = useState<RealPost[]>([]);
+  const [realArtists, setRealArtists] = useState<RealArtist[]>([]);
+
+  // Fetch real user-uploaded gallery posts
+  useEffect(() => {
+    fetch("/api/posts?gallery=1&limit=24")
+      .then(r => r.json())
+      .then(({ posts }: { posts: RealPost[] }) => setRealPosts(posts ?? []))
+      .catch(() => {});
+  }, []);
+
+  // Fetch real artist accounts ordered by followers
+  useEffect(() => {
+    fetch("/api/profiles")
+      .then(r => r.json())
+      .then(({ profiles }: { profiles: RealArtist[] }) => setRealArtists(profiles ?? []))
+      .catch(() => {});
+  }, []);
 
   const isFiltered = search || activeCategory !== "All";
 
@@ -119,73 +209,74 @@ export default function GalleryPage() {
     return matchCat && matchSearch;
   });
 
+  // Filter community (real DB) posts for search
+  const filteredReal = realPosts.filter(post => {
+    const postCat = post.category?.replace(/^gallery:/, "") ?? "";
+    const matchCat = activeCategory === "All" || postCat.toLowerCase() === activeCategory.toLowerCase();
+    const matchSearch = !search
+      || post.title.toLowerCase().includes(search.toLowerCase())
+      || post.author_name.toLowerCase().includes(search.toLowerCase());
+    return matchCat && matchSearch;
+  });
+
+  const totalFiltered = filtered.length + filteredReal.length;
+
   return (
     <div className="flex min-h-screen" style={{ background: "var(--bg)" }}>
       <Sidebar />
 
       <div className="flex-1 flex flex-col lg:ml-17 min-h-screen">
 
-        {/* ── Sticky header ── */}
-        <div
-          className="sticky top-0 z-30"
-          style={{ background: "var(--bg-header)", backdropFilter: "blur(24px)", WebkitBackdropFilter: "blur(24px)", borderBottom: "1px solid var(--border)" }}
-        >
-          <div className="flex items-center gap-3 px-4 md:px-6 py-3">
-            <div
-              className="flex items-center gap-2 px-3 py-2 rounded-xl flex-1 max-w-xs"
-              style={{ background: "var(--bg-subtle)", border: "1px solid var(--border)" }}
-            >
-              <Search size={14} style={{ color: "var(--text-5)", flexShrink: 0 }} />
-              <input
-                value={search}
-                onChange={e => setSearch(e.target.value)}
-                placeholder="Search artworks…"
-                className="flex-1 bg-transparent text-sm outline-none min-w-0"
-                style={{ color: "var(--text-1)" }}
-              />
-            </div>
-
-            <div className="flex gap-2 overflow-x-auto flex-1" style={{ scrollbarWidth: "none" }}>
-              {GALLERY_CATEGORIES.map(cat => {
-                const active = activeCategory === cat;
-                return (
-                  <button
-                    key={cat}
-                    onClick={() => setActiveCategory(cat)}
-                    className="shrink-0 px-3.5 py-1.5 rounded-full text-xs font-medium transition-all"
-                    style={{
-                      background: active ? "linear-gradient(135deg,#361E7B,#7C5BF5)" : "transparent",
-                      color: active ? "#fff" : "var(--text-4)",
-                      border: "1px solid transparent",
-                    }}
-                  >
-                    {cat}
-                  </button>
-                );
-              })}
-            </div>
-
-            <button
-              className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 transition-opacity hover:opacity-70"
-              style={{ background: "var(--bg-subtle)", border: "1px solid var(--border)", color: "var(--text-4)" }}
-            >
-              <SlidersHorizontal size={15} />
-            </button>
+        {/* ── Top bar: search + Settings/Bell via MainHeader ── */}
+        <MainHeader>
+          <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl max-w-xs"
+            style={{ background: "var(--bg-subtle)", border: "1px solid var(--border)" }}>
+            <Search size={14} style={{ color: "var(--text-5)", flexShrink: 0 }} />
+            <input
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder="Search artworks…"
+              className="flex-1 bg-transparent text-sm outline-none min-w-0"
+              style={{ color: "var(--text-1)" }}
+            />
           </div>
+        </MainHeader>
+
+        {/* ── Category filter row ── */}
+        <div className="sticky top-12 z-20 flex items-center gap-2 px-4 md:px-6 py-2 overflow-x-auto"
+          style={{ background: "var(--bg-header)", backdropFilter: "blur(24px)", borderBottom: "1px solid var(--border)", scrollbarWidth: "none" }}>
+          {GALLERY_CATEGORIES.map(cat => {
+            const active = activeCategory === cat;
+            return (
+              <button key={cat} onClick={() => setActiveCategory(cat)}
+                className="shrink-0 px-3.5 py-1.5 rounded-full text-xs font-medium transition-all"
+                style={{
+                  background: active ? "linear-gradient(135deg,#361E7B,#7C5BF5)" : "transparent",
+                  color: active ? "#fff" : "var(--text-4)",
+                  border: "1px solid transparent",
+                }}>
+                {cat}
+              </button>
+            );
+          })}
+          <button className="ml-auto w-8 h-8 rounded-xl flex items-center justify-center shrink-0 transition-opacity hover:opacity-70"
+            style={{ background: "var(--bg-subtle)", border: "1px solid var(--border)", color: "var(--text-4)" }}>
+            <SlidersHorizontal size={14} />
+          </button>
         </div>
 
         {/* ── Content ── */}
         <main className="flex-1 pb-24 lg:pb-8">
 
           {isFiltered ? (
-            /* ── Filtered results ── */
+            /* ── Filtered results (static + community) ── */
             <div className="px-4 md:px-6 py-6">
               <p className="text-sm mb-5" style={{ color: "var(--text-5)" }}>
-                {filtered.length} result{filtered.length !== 1 ? "s" : ""}
+                {totalFiltered} result{totalFiltered !== 1 ? "s" : ""}
                 {search ? ` for "${search}"` : ""}
                 {activeCategory !== "All" ? ` in ${activeCategory}` : ""}
               </p>
-              {filtered.length === 0 ? (
+              {totalFiltered === 0 ? (
                 <div className="text-center py-24">
                   <p className="text-3xl mb-3">🎨</p>
                   <p className="text-sm font-semibold mb-1" style={{ color: "var(--text-2)" }}>No artworks found</p>
@@ -194,6 +285,7 @@ export default function GalleryPage() {
               ) : (
                 <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-5">
                   {filtered.map(item => <ArtworkCard key={item.id} item={item} />)}
+                  {filteredReal.map(post => <CommunityCard key={post.id} post={post} />)}
                 </div>
               )}
             </div>
@@ -368,38 +460,72 @@ export default function GalleryPage() {
                 </div>
               </section>
 
-              {/* ── 6. Artists to Watch ── */}
-              <section className="px-4 md:px-6 pb-10">
-                <p className="text-[10px] font-black tracking-[0.2em] mb-5" style={{ color: "rgba(255,255,255,0.35)" }}>ARTISTS TO WATCH</p>
-                <div className="flex gap-6 overflow-x-auto pb-2" style={{ scrollbarWidth: "none" }}>
-                  {featuredArtists.map(a => (
-                    <div key={a.id} className="shrink-0 flex flex-col items-center gap-2 cursor-pointer group" style={{ width: 120 }}>
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
-                        src={a.avatar} alt={a.name}
-                        className="w-16 h-16 rounded-full object-cover transition-all group-hover:scale-[1.06]"
-                        style={{ border: "2px solid rgba(124,91,245,0.4)" }}
-                      />
-                      <div className="text-center w-full">
-                        <p className="text-xs font-bold leading-tight truncate" style={{ color: "var(--text-1)" }}>{a.name}</p>
-                        <p className="text-[10px] truncate mt-0.5" style={{ color: "rgba(255,255,255,0.4)" }}>{a.location}</p>
-                        <div className="flex items-center justify-center gap-1 mt-1" style={{ color: "rgba(255,255,255,0.45)", fontSize: 10 }}>
-                          <Star size={8} fill="#FBBF24" color="#FBBF24" />
-                          <span>{a.rating.toFixed(1)}</span>
-                          <span style={{ color: "rgba(255,255,255,0.25)" }}>·</span>
-                          <span>{a.commissions} commissions</span>
+              {/* ── 6. Community Gallery — real user uploads ── */}
+              {realPosts.length > 0 && (
+                <section className="px-4 md:px-6 pb-8">
+                  <div className="flex items-center justify-between mb-5">
+                    <p className="text-[10px] font-black tracking-[0.2em]" style={{ color: "rgba(255,255,255,0.35)" }}>COMMUNITY GALLERY</p>
+                  </div>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-x-4 gap-y-7">
+                    {realPosts.map(post => <CommunityCard key={post.id} post={post} />)}
+                  </div>
+                </section>
+              )}
+
+              {/* ── 7. Artists to Watch — real accounts ── */}
+              {realArtists.length > 0 && (
+                <section className="px-4 md:px-6 pb-10">
+                  <p className="text-[10px] font-black tracking-[0.2em] mb-5" style={{ color: "rgba(255,255,255,0.35)" }}>ARTISTS TO WATCH</p>
+                  <div className="flex gap-6 overflow-x-auto pb-2" style={{ scrollbarWidth: "none" }}>
+                    {realArtists.slice(0, 12).map(a => (
+                      <Link
+                        key={a.clerk_id}
+                        href={`/profile/${a.username ?? a.clerk_id}`}
+                        className="shrink-0 flex flex-col items-center gap-2 group"
+                        style={{ width: 120 }}
+                      >
+                        {a.avatar_url ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            src={a.avatar_url} alt={a.display_name ?? "Artist"}
+                            className="w-16 h-16 rounded-full object-cover transition-all group-hover:scale-[1.06]"
+                            style={{ border: "2px solid rgba(124,91,245,0.4)" }}
+                          />
+                        ) : (
+                          <div
+                            className="w-16 h-16 rounded-full flex items-center justify-center text-lg font-black transition-all group-hover:scale-[1.06]"
+                            style={{ background: "linear-gradient(135deg,#361E7B,#7C5BF5)", color: "#fff", border: "2px solid rgba(124,91,245,0.4)" }}
+                          >
+                            {(a.display_name ?? a.username ?? "A")[0].toUpperCase()}
+                          </div>
+                        )}
+                        <div className="text-center w-full">
+                          <p className="text-xs font-bold leading-tight truncate" style={{ color: "var(--text-1)" }}>
+                            {a.display_name ?? a.username ?? "Artist"}
+                          </p>
+                          {a.location && (
+                            <p className="text-[10px] truncate mt-0.5" style={{ color: "rgba(255,255,255,0.4)" }}>{a.location}</p>
+                          )}
+                          {a.tag && (
+                            <p className="text-[10px] truncate mt-0.5" style={{ color: "rgba(124,91,245,0.7)" }}>{a.tag}</p>
+                          )}
+                          <div className="flex items-center justify-center gap-1 mt-1" style={{ color: "rgba(255,255,255,0.4)", fontSize: 10 }}>
+                            <span>{a.followers_count.toLocaleString()} followers</span>
+                          </div>
+                          {a.available && (
+                            <span className="inline-block mt-1 text-[9px] font-semibold px-2 py-0.5 rounded-full" style={{ background: "rgba(34,197,94,0.15)", color: "#4ade80" }}>
+                              Available
+                            </span>
+                          )}
+                          <p className="mt-1.5 text-[10px] font-semibold group-hover:opacity-80 transition-opacity" style={{ color: "#9B7CF5" }}>
+                            View Profile →
+                          </p>
                         </div>
-                        <button
-                          className="mt-1.5 text-[10px] font-semibold hover:opacity-80 transition-opacity"
-                          style={{ color: "#9B7CF5" }}
-                        >
-                          View Profile →
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </section>
+                      </Link>
+                    ))}
+                  </div>
+                </section>
+              )}
             </>
           )}
         </main>

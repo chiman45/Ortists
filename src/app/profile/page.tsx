@@ -13,6 +13,8 @@ import {
   Store, Briefcase, UserCircle, Eye,
   Clock, X, Check, Share2, Camera, Loader2,
 } from "lucide-react";
+import { firstImage } from "@/lib/imageUrl";
+const isVideoUrl = (u: string) => /\.(mp4|webm|mov|avi|mkv|ogv)(\?|$)/i.test(u);
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 
@@ -52,6 +54,7 @@ export default function ProfilePage() {
   const [activeTab, setActiveTab]       = useState<Tab>("Portfolio");
   const [profile, setProfile]           = useState<Profile | null>(null);
   const [dbPosts, setDbPosts]           = useState<DbPost[]>([]);
+  const [savedPosts, setSavedPosts]     = useState<DbPost[]>([]);
   const [recommended, setRecommended]   = useState<Profile[]>([]);
   const [followed, setFollowed]         = useState<Set<string>>(new Set());
   const [liveStats, setLiveStats]       = useState({ followers: 0, following: 0, totalLikes: 0, totalSaves: 0 });
@@ -89,10 +92,15 @@ export default function ProfilePage() {
       .then(r => r.json())
       .then(({ profile: p }) => { if (p) setProfile(p); });
 
-    // Load posts
+    // Load own posts
     fetch(`/api/posts?userId=${user.id}`)
       .then(r => r.json())
       .then(({ posts }) => { if (posts) setDbPosts(posts); });
+
+    // Load saved posts
+    fetch(`/api/posts?savedBy=${user.id}`)
+      .then(r => r.json())
+      .then(({ posts }) => { if (posts) setSavedPosts(posts); });
 
     // Load recommended artists (other users)
     fetch("/api/profiles")
@@ -313,56 +321,57 @@ export default function ProfilePage() {
               </div>
 
               {/* Avatar + info row */}
-              <div className="flex items-start gap-5 pr-40">
-                {/* Avatar */}
+              <div className="flex items-center gap-6">
+                {/* Avatar — larger so it fills the card height */}
                 <div className="shrink-0 relative">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img src={avatar} alt={name}
-                    className="w-20 h-20 rounded-full object-cover"
+                    className="w-28 h-28 rounded-full object-cover"
                     style={{ border: "3px solid rgba(124,91,245,0.5)", background: "linear-gradient(135deg,#361E7B,#7C5BF5)" }} />
                   {available && (
-                    <span className="absolute bottom-0.5 right-0.5 w-3.5 h-3.5 rounded-full border-2 border-(--bg-card)"
+                    <span className="absolute bottom-1 right-1 w-4 h-4 rounded-full border-2 border-(--bg-card)"
                       style={{ background: "#10B981" }} />
                   )}
                 </div>
 
-                {/* Name / stats / bio */}
-                <div className="flex-1 min-w-0">
-                  <h1 className="text-lg font-bold leading-none mb-0.5" style={{ color: "var(--text-1)" }}>{name}</h1>
-                  <p className="text-xs mb-3" style={{ color: "var(--text-5)" }}>{username}</p>
-
-                  {/* Stat row */}
-                  <div className="flex items-center gap-8 mb-3">
-                    <div className="text-center">
-                      <p className="text-2xl font-bold leading-none" style={{ color: "var(--text-1)" }}>{dbPosts.length}</p>
-                      <p className="text-[17px] mt-1" style={{ color: "var(--text-5)" }}>Posts</p>
-                    </div>
-                    <button onClick={() => openFollowList("followers")} className="text-center hover:opacity-70 transition-opacity">
-                      <p className="text-2xl font-bold leading-none" style={{ color: "var(--text-1)" }}>
-                        {followers >= 1000 ? `${(followers / 1000).toFixed(1)}K` : followers}
-                      </p>
-                      <p className="text-[17px] mt-1" style={{ color: "var(--text-5)" }}>Followers</p>
-                    </button>
-                    <button onClick={() => openFollowList("following")} className="text-center hover:opacity-70 transition-opacity">
-                      <p className="text-2xl font-bold leading-none" style={{ color: "var(--text-1)" }}>{following}</p>
-                      <p className="text-[17px] mt-1" style={{ color: "var(--text-5)" }}>Following</p>
-                    </button>
-                    <div className="text-center">
-                      <p className="text-2xl font-bold leading-none" style={{ color: "var(--text-1)" }}>
-                        {totalLikes >= 1000 ? `${(totalLikes / 1000).toFixed(1)}K` : totalLikes}
-                      </p>
-                      <p className="text-[17px] mt-1" style={{ color: "var(--text-5)" }}>Total Likes</p>
+                {/* Name + bio + stats column */}
+                <div className="flex-1 min-w-0 pr-52">
+                  {/* Row 1: Name inline with stats */}
+                  <div className="flex items-center gap-8 mb-2">
+                    <h1 className="text-lg font-bold leading-none shrink-0" style={{ color: "var(--text-1)" }}>{name}</h1>
+                    {/* Stats immediately after name, same line */}
+                    <div className="flex items-center gap-8">
+                      <div className="text-center">
+                        <p className="text-2xl font-bold leading-none" style={{ color: "var(--text-1)" }}>{dbPosts.length}</p>
+                        <p className="text-xs mt-1" style={{ color: "var(--text-5)" }}>Posts</p>
+                      </div>
+                      <button onClick={() => openFollowList("followers")} className="text-center hover:opacity-70 transition-opacity">
+                        <p className="text-2xl font-bold leading-none" style={{ color: "var(--text-1)" }}>
+                          {followers >= 1000 ? `${(followers / 1000).toFixed(1)}K` : followers}
+                        </p>
+                        <p className="text-xs mt-1" style={{ color: "var(--text-5)" }}>Followers</p>
+                      </button>
+                      <button onClick={() => openFollowList("following")} className="text-center hover:opacity-70 transition-opacity">
+                        <p className="text-2xl font-bold leading-none" style={{ color: "var(--text-1)" }}>{following}</p>
+                        <p className="text-xs mt-1" style={{ color: "var(--text-5)" }}>Following</p>
+                      </button>
+                      <div className="text-center">
+                        <p className="text-2xl font-bold leading-none" style={{ color: "var(--text-1)" }}>
+                          {totalLikes >= 1000 ? `${(totalLikes / 1000).toFixed(1)}K` : totalLikes}
+                        </p>
+                        <p className="text-xs mt-1" style={{ color: "var(--text-5)" }}>Total Likes</p>
+                      </div>
                     </div>
                   </div>
-
-                  {/* Tag + location */}
+                  {/* Row 2: username */}
+                  <p className="text-xs mb-1.5" style={{ color: "var(--text-5)" }}>{username}</p>
+                  {/* Row 3: tag + location */}
                   <p className="text-xs mb-1.5" style={{ color: "var(--text-4)" }}>
                     <span style={{ color: "#9B7CF5" }}>{tag}</span>
-                    {location && <span style={{ color: "var(--text-5)" }}>·{location}</span>}
+                    {location && <span style={{ color: "var(--text-5)" }}> · {location}</span>}
                   </p>
-
-                  {/* Bio */}
-                  <p className="text-xs leading-relaxed" style={{ color: "var(--text-5)", maxWidth: 420 }}>{bio}</p>
+                  {/* Row 4: bio */}
+                  <p className="text-xs leading-relaxed" style={{ color: "var(--text-5)", maxWidth: 320 }}>{bio}</p>
                 </div>
               </div>
             </div>
@@ -427,24 +436,35 @@ export default function ProfilePage() {
             {activeTab === "Portfolio" && (
               dbPosts.length > 0 ? (
                 <div className="columns-2 sm:columns-3 gap-3">
-                  {dbPosts.map(post => (
-                    <Link key={post.id} href={`/feed/${post.id}`}
-                      className="break-inside-avoid mb-3 rounded-xl overflow-hidden group cursor-pointer relative block">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={post.image_url} alt={post.title}
-                        className="w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]" />
-                      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-all duration-200 flex items-end p-2">
-                        <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-2">
-                          <span className="flex items-center gap-1 text-[11px] text-white">
-                            <Heart size={11} /> {post.likes_count}
-                          </span>
-                          <span className="flex items-center gap-1 text-[11px] text-white">
-                            <Bookmark size={11} /> {post.saves_count}
-                          </span>
+                  {dbPosts.map(post => {
+                    const src = firstImage(post.image_url);
+                    const isVid = isVideoUrl(src);
+                    return (
+                      <Link key={post.id} href={`/feed/${post.id}`}
+                        className="break-inside-avoid mb-3 rounded-xl overflow-hidden group cursor-pointer relative block">
+                        {isVid ? (
+                          <video src={src} className="w-full object-cover" style={{ maxHeight: 300 }}
+                            muted playsInline preload="metadata"
+                            onMouseEnter={e => (e.currentTarget as HTMLVideoElement).play()}
+                            onMouseLeave={e => { const v = e.currentTarget as HTMLVideoElement; v.pause(); v.currentTime = 0; }} />
+                        ) : (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={src} alt={post.title}
+                            className="w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]" />
+                        )}
+                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-all duration-200 flex items-end p-2">
+                          <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-2">
+                            <span className="flex items-center gap-1 text-[11px] text-white"><Heart size={11} /> {post.likes_count}</span>
+                            <span className="flex items-center gap-1 text-[11px] text-white"><Bookmark size={11} /> {post.saves_count}</span>
+                          </div>
                         </div>
-                      </div>
-                    </Link>
-                  ))}
+                        {isVid && (
+                          <span className="absolute top-2 left-2 px-2 py-0.5 rounded-full text-[10px] font-bold text-white"
+                            style={{ background: "rgba(0,0,0,0.55)", backdropFilter: "blur(6px)" }}>▶ Video</span>
+                        )}
+                      </Link>
+                    );
+                  })}
                 </div>
               ) : (
                 <div className="flex flex-col items-center py-20 gap-3">
@@ -456,7 +476,49 @@ export default function ProfilePage() {
             )}
 
 
-            {activeTab !== "Portfolio" && activeTab !== "About" && (
+            {/* Saved */}
+            {activeTab === "Saved" && (
+              savedPosts.length > 0 ? (
+                <div className="columns-2 sm:columns-3 gap-3">
+                  {savedPosts.map(post => {
+                    const src = firstImage(post.image_url);
+                    const isVid = isVideoUrl(src);
+                    return (
+                      <Link key={post.id} href={`/feed/${post.id}`}
+                        className="break-inside-avoid mb-3 rounded-xl overflow-hidden group cursor-pointer relative block">
+                        {isVid ? (
+                          <video src={src} className="w-full object-cover" style={{ maxHeight: 300 }}
+                            muted playsInline preload="metadata"
+                            onMouseEnter={e => (e.currentTarget as HTMLVideoElement).play()}
+                            onMouseLeave={e => { const v = e.currentTarget as HTMLVideoElement; v.pause(); v.currentTime = 0; }} />
+                        ) : (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={src} alt={post.title}
+                            className="w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]" />
+                        )}
+                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-all duration-200 flex items-end p-2">
+                          <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-2">
+                            <span className="flex items-center gap-1 text-[11px] text-white"><Heart size={11} /> {post.likes_count}</span>
+                          </div>
+                        </div>
+                        {isVid && (
+                          <span className="absolute top-2 left-2 px-2 py-0.5 rounded-full text-[10px] font-bold text-white"
+                            style={{ background: "rgba(0,0,0,0.55)", backdropFilter: "blur(6px)" }}>▶ Video</span>
+                        )}
+                      </Link>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="flex flex-col items-center py-20 gap-3">
+                  <p className="text-4xl">🔖</p>
+                  <p className="text-sm font-semibold" style={{ color: "var(--text-2)" }}>No saved posts yet</p>
+                  <p className="text-xs" style={{ color: "var(--text-5)" }}>Posts you save will appear here</p>
+                </div>
+              )
+            )}
+
+            {activeTab !== "Portfolio" && activeTab !== "Saved" && activeTab !== "About" && (
               <div className="flex flex-col items-center py-20 gap-3">
                 <p className="text-3xl">🚧</p>
                 <p className="text-sm" style={{ color: "var(--text-5)" }}>

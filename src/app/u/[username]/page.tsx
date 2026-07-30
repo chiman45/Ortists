@@ -6,10 +6,11 @@ import Sidebar from "@/components/layout/Sidebar";
 import { type Post as DbPost } from "@/lib/db/posts";
 import { type Profile } from "@/lib/db/profiles";
 import { useUser } from "@clerk/nextjs";
-import { Bookmark, Heart, MapPin, MessageCircle, Star, Users, UserPlus, TrendingUp, X } from "lucide-react";
+import { ArrowLeft, Bookmark, Heart, MapPin, MessageCircle, Star, Users, UserPlus, TrendingUp, X } from "lucide-react";
 import Link from "next/link";
 import { use, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { firstImage } from "@/lib/imageUrl";
 
 interface FollowUser {
   clerk_id: string;
@@ -152,20 +153,18 @@ export default function UserProfilePage({ params }: { params: Promise<{ username
         <main className="flex-1 flex gap-0 pb-24 lg:pb-0">
           <div className="flex-1 min-w-0 px-4 md:px-8 py-6">
 
-            {/* Back */}
-            <Link href="/feed"
-              className="inline-flex items-center gap-1.5 text-sm mb-5 transition-opacity hover:opacity-70"
-              style={{ color: "var(--text-5)" }}>
-              ← Feed
-            </Link>
-
             {/* Profile card */}
             <div className="rounded-2xl overflow-hidden mb-5"
               style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}>
-              {/* Cover */}
+              {/* Cover — back arrow floats here */}
               <div className="relative h-28 w-full" style={{ background: "linear-gradient(135deg,#1a0a3a,#2d1b69)" }}>
                 <div className="absolute inset-0 opacity-25"
                   style={{ background: `url(https://picsum.photos/seed/${profile.clerk_id}cover/900/200) center/cover` }} />
+                <Link href="/feed"
+                  className="absolute top-3 left-3 w-9 h-9 flex items-center justify-center rounded-full transition-all hover:opacity-80 z-10"
+                  style={{ background: "rgba(0,0,0,0.45)", backdropFilter: "blur(10px)", border: "1px solid rgba(255,255,255,0.15)" }}>
+                  <ArrowLeft size={16} color="#fff" />
+                </Link>
               </div>
 
               <div className="px-5 pb-5">
@@ -301,7 +300,7 @@ export default function UserProfilePage({ params }: { params: Promise<{ username
                     <Link key={p.id} href={`/feed/${p.id}`}
                       className="break-inside-avoid mb-3 rounded-xl overflow-hidden group cursor-pointer relative block">
                       {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={p.image_url} alt={p.title}
+                      <img src={firstImage(p.image_url)} alt={p.title}
                         className="w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]" />
                       <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-all duration-200 flex items-end p-2">
                         <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-2">
