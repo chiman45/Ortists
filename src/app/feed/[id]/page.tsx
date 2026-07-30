@@ -8,11 +8,11 @@ import { type Comment } from "@/lib/db/comments";
 import { type Post } from "@/lib/db/posts";
 import { allPosts } from "@/lib/mockData";
 import { useUser } from "@clerk/nextjs";
-import { ArrowLeft, Bookmark, Heart, Send, Share2, UserPlus } from "lucide-react";
+import { ArrowLeft, Bookmark, Heart, Send, UserPlus } from "lucide-react";
 import Link from "next/link";
 import { use, useEffect, useState } from "react";
 import MasonryGrid from "@/components/feed/MasonryGrid";
-import ShareModal from "@/components/ui/ShareModal";
+import ArtworkViewer from "@/components/ui/ArtworkViewer";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -30,7 +30,7 @@ export default function FeedPostPage({ params }: { params: Promise<{ id: string 
   const [comments, setComments]       = useState<Comment[]>([]);
   const [commentText, setCommentText] = useState("");
   const [loading, setLoading]         = useState(true);
-  const [shareOpen, setShareOpen]     = useState(false);
+  const [viewerOpen, setViewerOpen]   = useState(false);
 
   const mockPost = allPosts.find(p => p.id === id) ?? allPosts[0];
   const related  = allPosts.filter(p => p.id !== mockPost.id && p.category === mockPost.category).slice(0, 8);
@@ -172,9 +172,22 @@ export default function FeedPostPage({ params }: { params: Promise<{ id: string 
             <div className="lg:sticky lg:top-15 lg:self-start flex-1 flex items-center justify-center px-4 md:px-8 pt-5 pb-6 lg:pb-0"
               style={{ maxWidth: "55%" }}>
               <div className="relative w-full">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={img} alt={title} className="rounded-2xl w-full object-cover"
-                  style={{ maxHeight: "80vh", border: "1px solid var(--border)" }} />
+                <div className="relative" style={{ display: "inline-block", width: "100%" }}>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={img} alt={title}
+                    className="rounded-2xl w-full object-cover"
+                    style={{ maxHeight: "80vh", border: "1px solid var(--border)", display: "block", pointerEvents: "none" }}
+                    draggable={false}
+                  />
+                  {/* Overlay blocks "Save Image As" and handles click */}
+                  <div
+                    className="absolute inset-0 rounded-2xl cursor-zoom-in"
+                    onClick={() => setViewerOpen(true)}
+                    onContextMenu={e => e.preventDefault()}
+                    onDragStart={e => e.preventDefault()}
+                  />
+                </div>
                 <Link
                   href="/feed"
                   className="absolute top-3 left-3 w-9 h-9 flex items-center justify-center rounded-full transition-all hover:opacity-80"
@@ -233,12 +246,6 @@ export default function FeedPostPage({ params }: { params: Promise<{ id: string 
                     <Bookmark size={16} fill={saved ? "#9B7CF5" : "none"} stroke={saved ? "#9B7CF5" : "currentColor"} />
                     {saved ? "Saved" : "Save"}
                   </button>
-                  <button onClick={() => setShareOpen(true)}
-                    className="flex items-center gap-1.5 text-xs transition-opacity hover:opacity-70"
-                    style={{ color: "var(--text-4)" }}>
-                    <Share2 size={16} /> Share
-                  </button>
-
                 </div>
               </div>
 
@@ -293,12 +300,8 @@ export default function FeedPostPage({ params }: { params: Promise<{ id: string 
       </div>
       <BottomNav />
 
-      {shareOpen && (
-        <ShareModal
-          url={typeof window !== "undefined" ? window.location.href : ""}
-          title={post?.title ?? "Check this out on Ortist!"}
-          onClose={() => setShareOpen(false)}
-        />
+      {viewerOpen && (
+        <ArtworkViewer src={img} alt={title} onClose={() => setViewerOpen(false)} />
       )}
     </div>
   );

@@ -35,6 +35,7 @@ export interface GalleryListing {
   imageUrl: string;
   title: string;
   artistName: string;
+  artistLocation: string;
   avatar: string;
   price: number;
   currency: string;
@@ -43,6 +44,8 @@ export interface GalleryListing {
   dimensions?: string;
   deliveryTime?: string;
   likes: number;
+  comments: number;
+  rating: number;
   saved: boolean;
   tags: string[];
   description: string;
@@ -58,4 +61,6 @@ export interface FeaturedArtist {
   specialty: string;
   listingsCount: number;
   followers: number;
+  rating: number;
+  location: string;
 }

@@ -149,12 +149,22 @@ function RightSidebar({ project }: { project: HireRequest }) {
 // ── File message helpers ──────────────────────────────────────
 
 const FILE_PREFIX = "__FILE__:";
-function encodeFile(url: string, name: string, size: number, type: string) {
-  return FILE_PREFIX + JSON.stringify({ url, name, size, type });
+
+interface FileData {
+  url?: string;          // legacy public files / public buckets
+  path?: string;         // private files — used to fetch signed URL
+  bucket?: string;
+  name: string;
+  size: number;
+  type: string;
+}
+
+function encodeFile(data: FileData) {
+  return FILE_PREFIX + JSON.stringify(data);
 }
 function isFile(t: string | null) { return !!t?.startsWith(FILE_PREFIX); }
-function parseFile(t: string) {
-  try { return JSON.parse(t.slice(FILE_PREFIX.length)) as { url: string; name: string; size: number; type: string }; }
+function parseFile(t: string): FileData | null {
+  try { return JSON.parse(t.slice(FILE_PREFIX.length)) as FileData; }
   catch { return null; }
 }
 function fmtBytes(b: number) {
@@ -187,10 +197,27 @@ function Lightbox({ src, name, onClose }: { src: string; name: string; onClose: 
 
 // ── File bubble (in chat) ─────────────────────────────────────
 
-function FileBubble({ text, isMe }: { text: string; isMe: boolean }) {
+function FileBubble({ text, isMe, convId, userId }: {
+  text: string; isMe: boolean; convId: string; userId: string;
+}) {
   const f = parseFile(text);
-  const [lightbox, setLightbox] = useState(false);
-  if (!f) return null;
+  const [resolvedUrl, setResolvedUrl] = useState<string>(f?.url ?? "");
+  const [lightbox, setLightbox]       = useState(false);
+
+  // For private files (stored by path), fetch a time-limited signed URL
+  useEffect(() => {
+    if (!f || f.url) return; // already have a public URL
+    if (!f.path || !f.bucket) return;
+    fetch(
+      `/api/signed-url?path=${encodeURIComponent(f.path)}&bucket=${f.bucket}&userId=${userId}&convId=${convId}`
+    )
+      .then(r => r.json())
+      .then(({ url }) => { if (url) setResolvedUrl(url); })
+      .catch(() => {});
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [text]);
+
+  if (!f || !resolvedUrl) return null;
   const isImage = f.type.startsWith("image/");
   const isVideo = f.type.startsWith("video/");
 
@@ -203,10 +230,10 @@ function FileBubble({ text, isMe }: { text: string; isMe: boolean }) {
           onClick={() => setLightbox(true)}
         >
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={f.url} alt={f.name} className="w-full block" style={{ maxHeight: 180, objectFit: "cover" }} />
+          <img src={resolvedUrl} alt={f.name} className="w-full block" style={{ maxHeight: 180, objectFit: "cover" }} />
           <div className="px-2 py-1 text-[10px]" style={{ color: isMe ? "rgba(255,255,255,0.6)" : "var(--text-5)" }}>{f.name}</div>
         </div>
-        {lightbox && <Lightbox src={f.url} name={f.name} onClose={() => setLightbox(false)} />}
+        {lightbox && <Lightbox src={resolvedUrl} name={f.name} onClose={() => setLightbox(false)} />}
       </>
     );
   }
@@ -214,14 +241,14 @@ function FileBubble({ text, isMe }: { text: string; isMe: boolean }) {
   if (isVideo) {
     return (
       <div className="rounded-xl overflow-hidden" style={{ maxWidth: 240 }}>
-        <video src={f.url} controls className="w-full block" style={{ maxHeight: 180 }} />
+        <video src={resolvedUrl} controls className="w-full block" style={{ maxHeight: 180 }} />
         <div className="px-2 py-1 text-[10px]" style={{ color: isMe ? "rgba(255,255,255,0.6)" : "var(--text-5)" }}>{f.name}</div>
       </div>
     );
   }
 
   return (
-    <a href={f.url} target="_blank" rel="noopener noreferrer"
+    <a href={resolvedUrl} target="_blank" rel="noopener noreferrer"
       className="flex items-center gap-2 no-underline rounded-xl"
       style={{ minWidth: 160, maxWidth: 220, background: isMe ? "rgba(255,255,255,0.12)" : "var(--bg-subtle)", border: `1px solid ${isMe ? "rgba(255,255,255,0.18)" : "var(--border)"}`, padding: "8px 10px" }}
       onClick={e => e.stopPropagation()}
@@ -445,11 +472,11 @@ function ConversationPanel({ project, userId, userName, userAvatar }: {
     if (!project.conversation_id || !canChat) return;
     const form = new FormData();
     form.append("file", file);
-    form.append("bucket", "deliverables");
+    form.append("bucket", "message-media");
     const up = await fetch("/api/upload", { method: "POST", body: form });
     if (!up.ok) return;
-    const { url, name, size, type } = await up.json();
-    const encoded = encodeFile(url, name, size, type);
+    const uploadData = await up.json();
+    const encoded = encodeFile({ url: uploadData.url, path: uploadData.path, bucket: uploadData.bucket, name: uploadData.name, size: uploadData.size, type: uploadData.type });
     const res = await fetch("/api/messages", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -571,7 +598,7 @@ function ConversationPanel({ project, userId, userName, userAvatar }: {
                           borderBottomRightRadius: isMe ? 4 : 16,
                           borderBottomLeftRadius: isMe ? 16 : 4,
                         }}>
-                        {isFile(m.text) ? <FileBubble text={m.text!} isMe={isMe} /> : m.text}
+                        {isFile(m.text) ? <FileBubble text={m.text!} isMe={isMe} convId={project.conversation_id!} userId={userId} /> : m.text}
                       </div>
                     </div>
                   </div>

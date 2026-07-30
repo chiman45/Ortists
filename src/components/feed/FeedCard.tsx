@@ -17,6 +17,13 @@ interface FeedCardProps {
 
 function fmt(n: number) { return n >= 1000 ? `${(n / 1000).toFixed(1)}k` : String(n); }
 const isUUID = (s: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s);
+const isVideoUrl = (url: string) => /\.(mp4|webm|mov|avi|mkv|ogv)(\?|$)/i.test(url);
+
+function parseGallery(raw: string): string[] | null {
+  if (!raw.startsWith("[")) return null;
+  try { const a = JSON.parse(raw); return Array.isArray(a) && a.length > 0 ? a : null; }
+  catch { return null; }
+}
 
 export default function FeedCard({ post, priority = false, onDelete }: FeedCardProps) {
   const { user } = useUser();
@@ -87,15 +94,61 @@ export default function FeedCard({ post, priority = false, onDelete }: FeedCardP
       {/* Image + delete overlay */}
       <div className="relative overflow-hidden rounded-2xl transition-all duration-300"
         style={{ boxShadow: "0 4px 20px var(--shadow)" }}>
-        <Image
-          src={post.imageUrl}
-          alt={post.title}
-          width={post.imageWidth}
-          height={post.imageHeight}
-          priority={priority}
-          className="w-full object-cover transition-all duration-300 group-hover:scale-[1.03] group-hover:brightness-110"
-          sizes="(max-width: 768px) 50vw, 33vw"
-        />
+        {(() => {
+          const gallery = parseGallery(post.imageUrl);
+          if (gallery) {
+            return (
+              <div className="relative">
+                <Image
+                  src={gallery[0]}
+                  alt={post.title}
+                  width={post.imageWidth}
+                  height={post.imageHeight}
+                  priority={priority}
+                  className="w-full object-cover transition-all duration-300 group-hover:scale-[1.03] group-hover:brightness-110"
+                  sizes="(max-width: 768px) 50vw, 33vw"
+                />
+                <span
+                  className="absolute top-2 left-2 flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold text-white"
+                  style={{ background: "rgba(0,0,0,0.55)", backdropFilter: "blur(6px)" }}
+                >
+                  ⊞ {gallery.length}
+                </span>
+              </div>
+            );
+          }
+          if (isVideoUrl(post.imageUrl)) {
+            return (
+              <div className="relative">
+                <video
+                  src={post.imageUrl}
+                  className="w-full object-cover"
+                  style={{ maxHeight: 400 }}
+                  muted loop playsInline preload="metadata"
+                  onMouseEnter={e => (e.currentTarget as HTMLVideoElement).play()}
+                  onMouseLeave={e => { const v = e.currentTarget as HTMLVideoElement; v.pause(); v.currentTime = 0; }}
+                />
+                <span
+                  className="absolute top-2 left-2 flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold text-white"
+                  style={{ background: "rgba(0,0,0,0.55)", backdropFilter: "blur(6px)" }}
+                >
+                  ▶ Video
+                </span>
+              </div>
+            );
+          }
+          return (
+            <Image
+              src={post.imageUrl}
+              alt={post.title}
+              width={post.imageWidth}
+              height={post.imageHeight}
+              priority={priority}
+              className="w-full object-cover transition-all duration-300 group-hover:scale-[1.03] group-hover:brightness-110"
+              sizes="(max-width: 768px) 50vw, 33vw"
+            />
+          );
+        })()}
 
         {/* Trash button — own posts, appears on hover */}
         {isOwn && !deleteMode && (

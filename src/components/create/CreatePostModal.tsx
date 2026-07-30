@@ -2,7 +2,7 @@
 
 import {
   ArrowLeft, ArrowRight, BookmarkCheck,
-  Check, ImageIcon, MapPin, Send, Upload, X,
+  Check, Grid2X2, ImageIcon, MapPin, Send, Upload, X,
 } from "lucide-react";
 import { useUser } from "@clerk/nextjs";
 import { useCallback, useRef, useState } from "react";
@@ -10,7 +10,8 @@ import { useCallback, useRef, useState } from "react";
 const STEPS = ["Type", "Media", "Details", "Options", "Preview"] as const;
 
 const CONTENT_TYPES = [
-  { id: "portfolio", Icon: ImageIcon, title: "Portfolio Post", desc: "Showcase artwork, photography, designs, sketches, or creative projects." },
+  { id: "portfolio", Icon: ImageIcon,  title: "Portfolio Post", desc: "Showcase a single artwork, photo, or design with full detail." },
+  { id: "gallery",   Icon: Grid2X2,    title: "Gallery Post",   desc: "Share a collection of up to 10 images as one post." },
 ] as const;
 
 const PRESET_TAGS = [
@@ -26,12 +27,15 @@ interface Props { onClose: () => void }
 
 export default function CreatePostModal({ onClose }: Props) {
   const { user } = useUser();
-  const [step, setStep]             = useState(0);
-  const [type, setType]             = useState("portfolio");
-  const [imageUrl, setImageUrl]     = useState<string | null>(null);
-  const [imageFile, setImageFile]   = useState<File | null>(null);
-  const [publishing, setPublishing] = useState(false);
-  const [dragging, setDragging]     = useState(false);
+  const [step, setStep]               = useState(0);
+  const [type, setType]               = useState("portfolio");
+  const [imageUrl, setImageUrl]       = useState<string | null>(null);
+  const [imageFile, setImageFile]     = useState<File | null>(null);
+  const [isVideo, setIsVideo]         = useState(false);
+  const [galleryFiles, setGalleryFiles] = useState<File[]>([]);
+  const [galleryUrls, setGalleryUrls]   = useState<string[]>([]);
+  const [publishing, setPublishing]   = useState(false);
+  const [dragging, setDragging]       = useState(false);
   const [title, setTitle]           = useState("");
   const [desc, setDesc]             = useState("");
   const [category, setCategory]     = useState("");
@@ -48,14 +52,37 @@ export default function CreatePostModal({ onClose }: Props) {
     if (!file.type.startsWith("image/") && !file.type.startsWith("video/")) return;
     setImageFile(file);
     setImageUrl(URL.createObjectURL(file));
+    setIsVideo(file.type.startsWith("video/"));
+  }
+
+  function handleGalleryFiles(files: FileList | File[]) {
+    const imgs = Array.from(files).filter(f => f.type.startsWith("image/")).slice(0, 10);
+    setGalleryFiles(prev => {
+      const combined = [...prev, ...imgs].slice(0, 10);
+      setGalleryUrls(combined.map(f => URL.createObjectURL(f)));
+      return combined;
+    });
+  }
+
+  function removeGalleryItem(idx: number) {
+    setGalleryFiles(prev => {
+      const next = prev.filter((_, i) => i !== idx);
+      setGalleryUrls(next.map(f => URL.createObjectURL(f)));
+      return next;
+    });
   }
 
   const onDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     setDragging(false);
-    const file = e.dataTransfer.files[0];
-    if (file) handleFile(file);
-  }, []);
+    if (type === "gallery") {
+      if (e.dataTransfer.files.length) handleGalleryFiles(e.dataTransfer.files);
+    } else {
+      const file = e.dataTransfer.files[0];
+      if (file) handleFile(file);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [type]);
 
   function toggleTag(t: string) {
     setTags(prev => prev.includes(t) ? prev.filter(x => x !== t) : [...prev, t]);
@@ -63,7 +90,7 @@ export default function CreatePostModal({ onClose }: Props) {
 
   const canContinue = [
     true,
-    !!imageUrl,
+    type === "gallery" ? galleryUrls.length > 0 : !!imageUrl,
     !!title.trim(),
     true,
     true,
@@ -156,36 +183,98 @@ export default function CreatePostModal({ onClose }: Props) {
           {step === 1 && (
             <div>
               <h3 className="text-base font-bold text-center mb-4" style={{ color: "var(--text-1)" }}>Upload Media</h3>
-              <input ref={fileRef} type="file" accept="image/*,video/*" className="hidden" onChange={e => { if (e.target.files?.[0]) handleFile(e.target.files[0]); }} />
-              <div
-                onClick={() => fileRef.current?.click()}
-                onDragOver={e => { e.preventDefault(); setDragging(true); }}
-                onDragLeave={() => setDragging(false)}
-                onDrop={onDrop}
-                className="w-full rounded-2xl flex flex-col items-center justify-center cursor-pointer transition-all overflow-hidden"
-                style={{
-                  minHeight: imageUrl ? "auto" : 200,
-                  border: `2px dashed ${dragging ? "#7C5BF5" : "var(--border)"}`,
-                  background: dragging ? "rgba(124,91,245,0.06)" : "var(--bg-card)",
-                }}
-              >
-                {imageUrl ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={imageUrl} alt="preview" className="w-full rounded-2xl object-cover" style={{ maxHeight: 300 }} />
-                ) : (
-                  <div className="flex flex-col items-center py-10">
-                    <div className="w-12 h-12 rounded-full flex items-center justify-center mb-3" style={{ background: "rgba(124,91,245,0.15)" }}>
-                      <Upload size={20} style={{ color: "#9B7CF5" }} />
+
+              {type === "gallery" ? (
+                /* ── Gallery multi-upload ── */
+                <div className="flex flex-col gap-3">
+                  <input
+                    ref={fileRef}
+                    type="file" accept="image/*" multiple className="hidden"
+                    onChange={e => { if (e.target.files) handleGalleryFiles(e.target.files); }}
+                  />
+                  <div
+                    onClick={() => fileRef.current?.click()}
+                    onDragOver={e => { e.preventDefault(); setDragging(true); }}
+                    onDragLeave={() => setDragging(false)}
+                    onDrop={onDrop}
+                    className="w-full rounded-2xl flex flex-col items-center justify-center cursor-pointer transition-all"
+                    style={{
+                      minHeight: 120,
+                      border: `2px dashed ${dragging ? "#7C5BF5" : "var(--border)"}`,
+                      background: dragging ? "rgba(124,91,245,0.06)" : "var(--bg-card)",
+                    }}
+                  >
+                    <div className="flex flex-col items-center py-6">
+                      <div className="w-10 h-10 rounded-full flex items-center justify-center mb-2" style={{ background: "rgba(124,91,245,0.15)" }}>
+                        <Upload size={18} style={{ color: "#9B7CF5" }} />
+                      </div>
+                      <p className="text-sm font-semibold mb-0.5" style={{ color: "var(--text-2)" }}>
+                        {galleryUrls.length > 0 ? `Add more images (${galleryUrls.length}/10)` : "Drop images here"}
+                      </p>
+                      <p className="text-xs" style={{ color: "var(--text-5)" }}>or click to browse • Up to 10 images</p>
                     </div>
-                    <p className="text-sm font-semibold mb-1" style={{ color: "var(--text-2)" }}>Drop your media here</p>
-                    <p className="text-xs" style={{ color: "var(--text-5)" }}>or click to browse • Images and videos supported</p>
                   </div>
-                )}
-              </div>
-              {imageUrl && (
-                <button onClick={() => setImageUrl(null)} className="mt-2 text-xs transition-opacity hover:opacity-70 w-full text-center" style={{ color: "var(--text-5)" }}>
-                  Remove and choose different file
-                </button>
+
+                  {galleryUrls.length > 0 && (
+                    <div className="grid grid-cols-3 gap-2">
+                      {galleryUrls.map((url, i) => (
+                        <div key={i} className="relative aspect-square rounded-xl overflow-hidden group">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img src={url} alt="" className="w-full h-full object-cover" />
+                          <button
+                            onClick={() => removeGalleryItem(i)}
+                            className="absolute top-1 right-1 w-5 h-5 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                            style={{ background: "rgba(0,0,0,0.7)" }}
+                          >
+                            <X size={10} color="#fff" />
+                          </button>
+                          {i === 0 && (
+                            <span className="absolute bottom-1 left-1 text-[9px] font-bold px-1.5 py-0.5 rounded-full" style={{ background: "#7C5BF5", color: "#fff" }}>Cover</span>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ) : (
+                /* ── Single file (portfolio / video) ── */
+                <>
+                  <input ref={fileRef} type="file" accept="image/*,video/*" className="hidden" onChange={e => { if (e.target.files?.[0]) handleFile(e.target.files[0]); }} />
+                  <div
+                    onClick={() => fileRef.current?.click()}
+                    onDragOver={e => { e.preventDefault(); setDragging(true); }}
+                    onDragLeave={() => setDragging(false)}
+                    onDrop={onDrop}
+                    className="w-full rounded-2xl flex flex-col items-center justify-center cursor-pointer transition-all overflow-hidden"
+                    style={{
+                      minHeight: imageUrl ? "auto" : 200,
+                      border: `2px dashed ${dragging ? "#7C5BF5" : "var(--border)"}`,
+                      background: dragging ? "rgba(124,91,245,0.06)" : "var(--bg-card)",
+                    }}
+                  >
+                    {imageUrl ? (
+                      isVideo ? (
+                        <video src={imageUrl} controls className="w-full rounded-2xl object-cover" style={{ maxHeight: 300 }} />
+                      ) : (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={imageUrl} alt="preview" className="w-full rounded-2xl object-cover" style={{ maxHeight: 300 }} />
+                      )
+                    ) : (
+                      <div className="flex flex-col items-center py-10">
+                        <div className="w-12 h-12 rounded-full flex items-center justify-center mb-3" style={{ background: "rgba(124,91,245,0.15)" }}>
+                          <Upload size={20} style={{ color: "#9B7CF5" }} />
+                        </div>
+                        <p className="text-sm font-semibold mb-1" style={{ color: "var(--text-2)" }}>Drop your media here</p>
+                        <p className="text-xs" style={{ color: "var(--text-5)" }}>or click to browse • Images and videos supported</p>
+                      </div>
+                    )}
+                  </div>
+                  {imageUrl && (
+                    <button onClick={() => setImageUrl(null)} className="mt-2 text-xs transition-opacity hover:opacity-70 w-full text-center" style={{ color: "var(--text-5)" }}>
+                      Remove and choose different file
+                    </button>
+                  )}
+                </>
               )}
             </div>
           )}
@@ -329,9 +418,21 @@ export default function CreatePostModal({ onClose }: Props) {
             <div>
               <h3 className="text-base font-bold text-center mb-4" style={{ color: "var(--text-1)" }}>Preview</h3>
               <div className="rounded-2xl overflow-hidden" style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}>
-                {imageUrl ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={imageUrl} alt="preview" className="w-full object-cover" style={{ maxHeight: 260 }} />
+                {type === "gallery" && galleryUrls.length > 0 ? (
+                  <div className="relative">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={galleryUrls[0]} alt="cover" className="w-full object-cover" style={{ maxHeight: 220 }} />
+                    <div className="absolute bottom-2 right-2 flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-bold" style={{ background: "rgba(0,0,0,0.65)", color: "#fff", backdropFilter: "blur(6px)" }}>
+                      <Grid2X2 size={10} /> {galleryUrls.length} photos
+                    </div>
+                  </div>
+                ) : imageUrl ? (
+                  isVideo ? (
+                    <video src={imageUrl} controls className="w-full object-cover" style={{ maxHeight: 260 }} />
+                  ) : (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={imageUrl} alt="preview" className="w-full object-cover" style={{ maxHeight: 260 }} />
+                  )
                 ) : (
                   <div className="w-full flex items-center justify-center" style={{ height: 180, background: "var(--bg-subtle)" }}>
                     <ImageIcon size={32} style={{ color: "var(--text-5)" }} />
@@ -389,13 +490,37 @@ export default function CreatePostModal({ onClose }: Props) {
                 style={{ background: "#7C5BF5" }}
                 disabled={publishing}
                 onClick={async () => {
-                  if (!user || !imageFile) return;
+                  if (!user) return;
+                  const isGallery = type === "gallery";
+                  if (isGallery && galleryFiles.length === 0) return;
+                  if (!isGallery && !imageFile) return;
                   setPublishing(true);
                   try {
-                    const form = new FormData();
-                    form.append("file", imageFile);
-                    const upRes = await fetch("/api/upload", { method: "POST", body: form });
-                    const { url: uploadedUrl } = await upRes.json();
+                    let finalImageUrl = imageUrl ?? "";
+
+                    if (isGallery) {
+                      // Upload all gallery images in parallel
+                      const uploadedUrls = await Promise.all(
+                        galleryFiles.map(async file => {
+                          const form = new FormData();
+                          form.append("file", file);
+                          form.append("bucket", "post-media");
+                          const res = await fetch("/api/upload", { method: "POST", body: form });
+                          const { url } = await res.json();
+                          return url as string;
+                        })
+                      );
+                      // Store as JSON array; feed card reads first item + shows gallery badge
+                      finalImageUrl = JSON.stringify(uploadedUrls);
+                    } else if (imageFile) {
+                      const form = new FormData();
+                      form.append("file", imageFile);
+                      form.append("bucket", "post-media");
+                      const upRes = await fetch("/api/upload", { method: "POST", body: form });
+                      const { url } = await upRes.json();
+                      finalImageUrl = url ?? imageUrl ?? "";
+                    }
+
                     await fetch("/api/posts", {
                       method: "POST",
                       headers: { "Content-Type": "application/json" },
@@ -406,8 +531,8 @@ export default function CreatePostModal({ onClose }: Props) {
                         author_avatar: user.imageUrl,
                         title: title || "Untitled",
                         description: desc || undefined,
-                        image_url: uploadedUrl ?? imageUrl ?? "",
-                        category: category || "General",
+                        image_url: finalImageUrl,
+                        category: isGallery ? `gallery:${category || "General"}` : (category || "General"),
                         tags,
                         medium: medium || undefined,
                         style: style || undefined,
