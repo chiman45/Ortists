@@ -113,7 +113,7 @@ export default function UserProfilePage({ params }: { params: Promise<{ username
     return (
       <div className="flex min-h-screen" style={{ background: "var(--bg)" }}>
         <Sidebar />
-        <div className="flex-1 flex flex-col lg:ml-17 min-h-screen">
+        <div className="flex-1 flex flex-col lg:ml-17 min-h-screen min-w-0">
           <MainHeader />
           <div className="flex-1 flex items-center justify-center">
             <div className="w-8 h-8 rounded-full border-2 animate-spin"
@@ -128,7 +128,7 @@ export default function UserProfilePage({ params }: { params: Promise<{ username
     return (
       <div className="flex min-h-screen" style={{ background: "var(--bg)" }}>
         <Sidebar />
-        <div className="flex-1 flex flex-col lg:ml-17 min-h-screen">
+        <div className="flex-1 flex flex-col lg:ml-17 min-h-screen min-w-0">
           <MainHeader />
           <div className="flex-1 flex flex-col items-center justify-center gap-3">
             <p className="text-4xl">🎨</p>
@@ -147,7 +147,7 @@ export default function UserProfilePage({ params }: { params: Promise<{ username
   return (
     <div className="flex min-h-screen" style={{ background: "var(--bg)" }}>
       <Sidebar />
-      <div className="flex-1 flex flex-col lg:ml-17 min-h-screen">
+      <div className="flex-1 flex flex-col lg:ml-17 min-h-screen min-w-0">
         <MainHeader />
 
         <main className="flex-1 flex gap-0 pb-24 lg:pb-0">

@@ -190,7 +190,7 @@ export default function FeedPostPage({ params }: { params: Promise<{ id: string 
     <div className="flex min-h-screen"
       style={{ background: "radial-gradient(ellipse 60% 50% at 8% 50%, rgba(54,30,123,0.16) 0%, transparent 55%),var(--bg)" }}>
       <Sidebar />
-      <div className="flex-1 flex flex-col lg:ml-17 min-h-screen">
+      <div className="flex-1 flex flex-col lg:ml-17 min-h-screen min-w-0">
         <MainHeader />
         <main className="flex-1 pb-24 lg:pb-8">
           {loading && isUUID ? (

@@ -287,7 +287,7 @@ export default function ProfilePage() {
     <div className="flex min-h-screen" style={{ background: "var(--bg)" }}>
       <Sidebar />
 
-      <div className="flex-1 flex flex-col lg:ml-17 min-h-screen">
+      <div className="flex-1 flex flex-col lg:ml-17 min-h-screen min-w-0">
         <MainHeader />
 
         <main className="flex-1 flex gap-0 pb-24 lg:pb-0">
@@ -334,43 +334,43 @@ export default function ProfilePage() {
                   )}
                 </div>
 
-                {/* Name + bio + stats column */}
-                <div className="flex-1 min-w-0 pr-52">
-                  {/* Row 1: Name inline with stats */}
-                  <div className="flex items-center gap-8 mb-2">
-                    <h1 className="text-lg font-bold leading-none shrink-0" style={{ color: "var(--text-1)" }}>{name}</h1>
-                    {/* Stats immediately after name, same line */}
-                    <div className="flex items-center gap-8">
-                      <div className="text-center">
-                        <p className="text-2xl font-bold leading-none" style={{ color: "var(--text-1)" }}>{dbPosts.length}</p>
-                        <p className="text-xs mt-1" style={{ color: "var(--text-5)" }}>Posts</p>
-                      </div>
-                      <button onClick={() => openFollowList("followers")} className="text-center hover:opacity-70 transition-opacity">
-                        <p className="text-2xl font-bold leading-none" style={{ color: "var(--text-1)" }}>
-                          {followers >= 1000 ? `${(followers / 1000).toFixed(1)}K` : followers}
-                        </p>
-                        <p className="text-xs mt-1" style={{ color: "var(--text-5)" }}>Followers</p>
-                      </button>
-                      <button onClick={() => openFollowList("following")} className="text-center hover:opacity-70 transition-opacity">
-                        <p className="text-2xl font-bold leading-none" style={{ color: "var(--text-1)" }}>{following}</p>
-                        <p className="text-xs mt-1" style={{ color: "var(--text-5)" }}>Following</p>
-                      </button>
-                      <div className="text-center">
-                        <p className="text-2xl font-bold leading-none" style={{ color: "var(--text-1)" }}>
-                          {totalLikes >= 1000 ? `${(totalLikes / 1000).toFixed(1)}K` : totalLikes}
-                        </p>
-                        <p className="text-xs mt-1" style={{ color: "var(--text-5)" }}>Total Likes</p>
-                      </div>
+                {/* Name + stats + bio column */}
+                <div className="flex-1 min-w-0 pr-4 md:pr-16">
+                  {/* Row 1: Name */}
+                  <h1 className="text-lg font-bold leading-none mb-3" style={{ color: "var(--text-1)" }}>{name}</h1>
+
+                  {/* Row 2: Stats — left-aligned, same column as everything else */}
+                  <div className="flex items-center gap-6 mb-3">
+                    <div>
+                      <p className="text-xl font-bold leading-none" style={{ color: "var(--text-1)" }}>{dbPosts.length}</p>
+                      <p className="text-[11px] mt-0.5" style={{ color: "var(--text-5)" }}>Posts</p>
+                    </div>
+                    <button onClick={() => openFollowList("followers")} className="hover:opacity-70 transition-opacity">
+                      <p className="text-xl font-bold leading-none" style={{ color: "var(--text-1)" }}>
+                        {followers >= 1000 ? `${(followers / 1000).toFixed(1)}K` : followers}
+                      </p>
+                      <p className="text-[11px] mt-0.5" style={{ color: "var(--text-5)" }}>Followers</p>
+                    </button>
+                    <button onClick={() => openFollowList("following")} className="hover:opacity-70 transition-opacity">
+                      <p className="text-xl font-bold leading-none" style={{ color: "var(--text-1)" }}>{following}</p>
+                      <p className="text-[11px] mt-0.5" style={{ color: "var(--text-5)" }}>Following</p>
+                    </button>
+                    <div>
+                      <p className="text-xl font-bold leading-none" style={{ color: "var(--text-1)" }}>
+                        {totalLikes >= 1000 ? `${(totalLikes / 1000).toFixed(1)}K` : totalLikes}
+                      </p>
+                      <p className="text-[11px] mt-0.5" style={{ color: "var(--text-5)" }}>Total Likes</p>
                     </div>
                   </div>
-                  {/* Row 2: username */}
+
+                  {/* Row 3: username */}
                   <p className="text-xs mb-1.5" style={{ color: "var(--text-5)" }}>{username}</p>
-                  {/* Row 3: tag + location */}
+                  {/* Row 4: tag + location */}
                   <p className="text-xs mb-1.5" style={{ color: "var(--text-4)" }}>
                     <span style={{ color: "#9B7CF5" }}>{tag}</span>
                     {location && <span style={{ color: "var(--text-5)" }}> · {location}</span>}
                   </p>
-                  {/* Row 4: bio */}
+                  {/* Row 5: bio */}
                   <p className="text-xs leading-relaxed" style={{ color: "var(--text-5)", maxWidth: 320 }}>{bio}</p>
                 </div>
               </div>

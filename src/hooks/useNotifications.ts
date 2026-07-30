@@ -4,14 +4,15 @@ import { useUser } from "@clerk/nextjs";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
-const LIKES_KEY = "ortist_last_seen_likes";
+const LIKES_KEY       = "ortist_last_seen_likes";
+const TOAST_MSG_KEY   = "ortist_last_toast_msg";
+const TOAST_LIKES_KEY = "ortist_last_toast_likes";
 
 export function useNotifications() {
   const { user } = useUser();
   const [unreadMessages, setUnreadMessages] = useState(0);
   const [newLikes, setNewLikes]             = useState(0);
 
-  // Track previous values to detect increases after first load
   const prevMessages  = useRef(-1);
   const prevLikeDelta = useRef(-1);
   const totalLikesRef = useRef(0);
@@ -25,12 +26,17 @@ export function useNotifications() {
       if (msgRes?.ok) {
         const { unreadMessages: um } = await msgRes.json();
         const count = um ?? 0;
-        if (prevMessages.current !== -1 && count > prevMessages.current) {
-          const diff = count - prevMessages.current;
+        // Use localStorage as a cross-instance singleton so only ONE toast fires
+        const lastToastedMsg = parseInt(localStorage.getItem(TOAST_MSG_KEY) ?? "-1", 10);
+        if (lastToastedMsg !== -1 && count > lastToastedMsg) {
+          const diff = count - lastToastedMsg;
+          localStorage.setItem(TOAST_MSG_KEY, String(count));
           toast.message(`${diff} new message${diff > 1 ? "s" : ""}`, {
             description: "You have unread messages in your projects",
             action: { label: "View", onClick: () => { window.location.href = "/hiring"; } },
           });
+        } else if (lastToastedMsg === -1) {
+          localStorage.setItem(TOAST_MSG_KEY, String(count));
         }
         prevMessages.current = count;
         setUnreadMessages(count);
@@ -43,12 +49,17 @@ export function useNotifications() {
         totalLikesRef.current = totalLikes ?? 0;
         const lastSeen = parseInt(localStorage.getItem(LIKES_KEY) ?? String(totalLikes), 10);
         const delta = Math.max(0, (totalLikes ?? 0) - lastSeen);
-        if (prevLikeDelta.current !== -1 && delta > prevLikeDelta.current) {
-          const diff = delta - prevLikeDelta.current;
+        // Same localStorage singleton pattern to prevent duplicate toasts
+        const lastToastedLikes = parseInt(localStorage.getItem(TOAST_LIKES_KEY) ?? "-1", 10);
+        if (lastToastedLikes !== -1 && delta > lastToastedLikes) {
+          const diff = delta - lastToastedLikes;
+          localStorage.setItem(TOAST_LIKES_KEY, String(delta));
           toast.message(`${diff} new like${diff > 1 ? "s" : ""}`, {
             description: "People are loving your work!",
             action: { label: "View", onClick: () => { window.location.href = "/feed"; } },
           });
+        } else if (lastToastedLikes === -1) {
+          localStorage.setItem(TOAST_LIKES_KEY, String(delta));
         }
         prevLikeDelta.current = delta;
         setNewLikes(delta);

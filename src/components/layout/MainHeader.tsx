@@ -1,6 +1,7 @@
 "use client";
 
 import { useUser } from "@clerk/nextjs";
+import { useNotifications } from "@/hooks/useNotifications";
 import { Bell, CheckCheck, Settings, X } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
@@ -121,9 +122,11 @@ export default function MainHeader({ children }: { children?: React.ReactNode })
   const [notifs, setNotifs] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(false);
   const ref                 = useRef<HTMLDivElement>(null);
+  const { newLikes }        = useNotifications();
 
-  const unread    = notifs.filter(n => !n.read).length;
-  const filtered  = tab === "all" ? notifs : notifs.filter(n => meta(n.type).tab === tab);
+  const unread      = notifs.filter(n => !n.read).length;
+  const totalBadge  = unread + newLikes;
+  const filtered    = tab === "all" ? notifs : notifs.filter(n => meta(n.type).tab === tab);
 
   async function fetchNotifs() {
     if (!user) return;
@@ -178,6 +181,16 @@ export default function MainHeader({ children }: { children?: React.ReactNode })
       {children && <div className="flex-1 min-w-0">{children}</div>}
 
       <div className={`flex items-center gap-2 ${children ? "" : "ml-auto"}`}>
+        {/* Ortist logo — top-right on every page */}
+        <Link href="/feed" className="flex items-center mr-1" aria-label="Home">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/login-image/ortists logo1.png"
+            alt="Ortist"
+            style={{ height: 28, objectFit: "contain" }}
+          />
+        </Link>
+
         <Link
           href="/settings"
           className="p-2 rounded-xl transition-opacity hover:opacity-70 flex"
@@ -195,12 +208,12 @@ export default function MainHeader({ children }: { children?: React.ReactNode })
             aria-label="Notifications"
           >
             <Bell size={19} strokeWidth={1.8} />
-            {unread > 0 && (
+            {totalBadge > 0 && (
               <span
                 className="absolute top-1 right-1 flex items-center justify-center rounded-full text-[9px] font-bold text-white"
                 style={{ minWidth: 16, height: 16, padding: "0 3px", background: "#f43f5e" }}
               >
-                {unread > 9 ? "9+" : unread}
+                {totalBadge > 9 ? "9+" : totalBadge}
               </span>
             )}
           </button>
@@ -211,11 +224,11 @@ export default function MainHeader({ children }: { children?: React.ReactNode })
               style={{
                 width: 340,
                 maxHeight: 520,
-                background: "var(--bg-card)",
-                backdropFilter: "blur(24px)",
-                WebkitBackdropFilter: "blur(24px)",
+                background: "var(--bg-sidebar)",
+                backdropFilter: "blur(32px)",
+                WebkitBackdropFilter: "blur(32px)",
                 border: "1px solid var(--border)",
-                boxShadow: "0 16px 48px rgba(0,0,0,0.45)",
+                boxShadow: "0 20px 60px rgba(0,0,0,0.55)",
                 zIndex: 50,
               }}
             >

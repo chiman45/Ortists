@@ -87,6 +87,22 @@ const PRICE_RANGES: Record<string, [number, number]> = {
   "500+":   [500, Infinity],
 };
 
+const ORDERED_CATEGORIES = [
+  "Illustration", "Photography", "Digital Art", "Painting",
+  "Portrait", "Concept Art", "Sculpture",
+];
+const CATEGORY_DESC: Record<string, string> = {
+  "Illustration":  "Characters, concepts & visual storytelling",
+  "Photography":   "Editorial, portrait & fine art photography",
+  "Digital Art":   "Concept art, matte painting & digital design",
+  "Painting":      "Oil, watercolor & acrylic fine art",
+  "Portrait":      "Portrait & figurative art commission",
+  "Concept Art":   "Game, film & fantasy concept creation",
+  "Sculpture":     "3D, ceramics & mixed media sculpture",
+};
+
+const TRENDING_SEARCHES = ["editorial portraits", "neon cityscapes", "minimal logos", "watercolor scenes"];
+
 function toArtist(a: ArtistProfile): Artist {
   return {
     id:        0,
@@ -145,103 +161,44 @@ const STATUS_ORDER: ProjectStatus[] = ["active", "pending", "completed", "cancel
 
 // ── Featured card ──────────────────────────────────────────────
 
-function FeaturedCard({ a, price, onHire }: { a: ArtistProfile; price: number; onHire: () => void }) {
-  const banner = a.banner_url ?? `https://picsum.photos/seed/${a.clerk_id}featured/480/300`;
-  const name   = a.display_name ?? a.username ?? "Artist";
-
-  return (
-    <div
-      className="shrink-0 rounded-2xl overflow-hidden transition-all hover:scale-[1.02] cursor-pointer"
-      style={{ width: 260, border: "1px solid rgba(255,255,255,0.08)", boxShadow: "0 8px 32px rgba(0,0,0,0.4)" }}
-    >
-      {/* Image with overlays */}
-      <div className="relative" style={{ height: 160 }}>
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={banner} alt={name} className="w-full h-full object-cover" />
-
-        {/* Gradient overlay */}
-        <div className="absolute inset-0" style={{ background: "linear-gradient(to top, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.1) 55%, transparent 100%)" }} />
-
-        {/* FEATURED badge */}
-        <div
-          className="absolute top-2.5 right-2.5 text-[9px] font-black tracking-widest px-2 py-1 rounded-full"
-          style={{ background: "linear-gradient(135deg,#361E7B,#7C5BF5)", color: "#fff", boxShadow: "0 2px 8px rgba(124,91,245,0.5)" }}
-        >
-          ✦ FEATURED
-        </div>
-
-        {/* Artist name + specialty overlay */}
-        <div className="absolute bottom-2.5 left-3 right-3">
-          <p className="text-sm font-bold text-white leading-tight truncate">{name}</p>
-          <p className="text-[11px] mt-0.5 truncate" style={{ color: "rgba(255,255,255,0.65)" }}>{a.tag}</p>
-        </div>
-
-        {/* Rating badge */}
-        {a.rating > 0 && (
-          <div
-            className="absolute bottom-2.5 right-3 flex items-center gap-0.5 text-[11px] font-bold px-2 py-0.5 rounded-full"
-            style={{ background: "rgba(0,0,0,0.55)", backdropFilter: "blur(6px)", color: "#FBBF24" }}
-          >
-            <Star size={9} fill="currentColor" /> {a.rating % 1 === 0 ? a.rating : a.rating.toFixed(1)}
-          </div>
-        )}
-      </div>
-
-      {/* Footer */}
-      <div
-        className="flex items-center justify-between px-3 py-2.5 gap-2"
-        style={{ background: "rgba(18,12,40,0.97)", borderTop: "1px solid rgba(255,255,255,0.07)" }}
-      >
-        <div>
-          <p className="text-[9px] font-semibold tracking-wider" style={{ color: "rgba(255,255,255,0.35)" }}>FROM</p>
-          <p className="text-sm font-bold" style={{ color: "var(--text-1)" }}>${price}</p>
-        </div>
-        <button
-          onClick={onHire}
-          className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-xl transition-all hover:opacity-90 active:scale-95"
-          style={{ background: "linear-gradient(135deg,#361E7B,#7C5BF5)", color: "#fff", boxShadow: "0 2px 10px rgba(124,91,245,0.4)" }}
-        >
-          Request Work <ArrowRight size={11} />
-        </button>
-      </div>
-    </div>
-  );
-}
-
-// ── Artist grid card ───────────────────────────────────────────
+// ── Artist card — portrait-image style (matches design) ────────
 
 function ArtistCard({ a, price, onHire }: { a: ArtistProfile; price: number; onHire: () => void }) {
-  const banner   = a.banner_url ?? `https://picsum.photos/seed/${a.clerk_id}/400/240`;
-  const avatar   = a.avatar_url ?? `https://i.pravatar.cc/80?u=${a.clerk_id}`;
-  const name     = a.display_name ?? a.username ?? "Artist";
-  const { city, country } = parseLocation(a.location);
-  const medium   = a.tag ? a.tag.split(",")[0].trim() : "—";
-  const delivery = getDeliveryCategory(a) === "5-7" ? "5–7 Days" : "7+ Days";
+  const img        = a.banner_url ?? `https://picsum.photos/seed/${a.clerk_id}art/400/560`;
+  const name       = a.display_name ?? a.username ?? "Artist";
+  const { city }   = parseLocation(a.location);
+  const medium     = a.tag ? a.tag.split(",")[0].trim() : "";
+  const delivery   = getDeliveryCategory(a) === "5-7" ? "5–7 days" : "7+ days";
+  const subtitle   = [city, medium].filter(Boolean).join(" · ") || "Remote";
+  const profileUrl = `/u/${a.username ?? a.clerk_id}`;
 
   return (
-    <div
-      className="rounded-2xl overflow-hidden flex flex-col transition-all hover:scale-[1.015]"
+    <Link
+      href={profileUrl}
+      className="shrink-0 rounded-2xl overflow-hidden transition-all hover:scale-[1.02] active:scale-[0.99] flex flex-col"
       style={{
-        background: "rgba(22,14,50,0.97)",
+        width: 205,
+        background: "#0e0824",
         border: "1px solid rgba(255,255,255,0.08)",
-        boxShadow: "0 4px 24px rgba(0,0,0,0.3)",
+        boxShadow: "0 4px 20px rgba(0,0,0,0.35)",
+        textDecoration: "none",
       }}
       onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = "rgba(124,91,245,0.35)"; }}
       onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = "rgba(255,255,255,0.08)"; }}
     >
-      {/* Banner — shorter, avatar overlaps bottom edge */}
-      <div className="relative shrink-0" style={{ height: 100 }}>
+      {/* Portfolio image */}
+      <div className="relative" style={{ height: 220 }}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={banner} alt="" className="w-full h-full object-cover" draggable={false} />
-        <div className="absolute inset-0" style={{ background: "linear-gradient(to bottom, rgba(0,0,0,0.05) 0%, rgba(14,8,36,0.8) 100%)" }} />
-        {/* Availability badge */}
+        <img src={img} alt={name} className="w-full h-full object-cover" draggable={false} />
+        <div className="absolute inset-0" style={{ background: "linear-gradient(to top, rgba(0,0,0,0.5) 0%, transparent 45%)" }} />
+        {/* Available / Busy badge */}
         <div
-          className="absolute top-2.5 right-2.5 text-[9px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1"
+          className="absolute top-2.5 left-2.5 flex items-center gap-1 text-[10px] font-bold px-2.5 py-1 rounded-full"
           style={{
-            background: a.available ? "rgba(16,185,129,0.18)" : "rgba(245,158,11,0.18)",
-            color: a.available ? "#10B981" : "#F59E0B",
-            border: `1px solid ${a.available ? "#10B98140" : "#F59E0B40"}`,
-            backdropFilter: "blur(6px)",
+            background:     a.available ? "rgba(16,185,129,0.18)" : "rgba(245,158,11,0.18)",
+            color:          a.available ? "#10B981"                : "#F59E0B",
+            border:         `1px solid ${a.available ? "rgba(16,185,129,0.35)" : "rgba(245,158,11,0.35)"}`,
+            backdropFilter: "blur(8px)",
           }}
         >
           <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: a.available ? "#10B981" : "#F59E0B" }} />
@@ -249,67 +206,160 @@ function ArtistCard({ a, price, onHire }: { a: ArtistProfile; price: number; onH
         </div>
       </div>
 
-      {/* Avatar + identity — avatar overlaps banner */}
-      <div className="px-4 -mt-7 relative z-10 flex items-end gap-3 mb-3">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={avatar} alt={name}
-          className="w-14 h-14 rounded-2xl object-cover shrink-0"
-          style={{ border: "2px solid #7C5BF5", boxShadow: "0 4px 16px rgba(124,91,245,0.3)" }}
-          draggable={false}
-        />
-        <div className="pb-0.5 min-w-0 flex-1">
-          <p className="text-sm font-bold leading-tight truncate" style={{ color: "var(--text-1)" }}>{name}</p>
-          {(city || country) ? (
-            <p className="text-[11px] truncate" style={{ color: "rgba(255,255,255,0.45)" }}>
-              {[city, country].filter(Boolean).join(", ")}
-            </p>
-          ) : (
-            <p className="text-[11px]" style={{ color: "rgba(255,255,255,0.35)" }}>Remote</p>
+      {/* Card footer */}
+      <div className="px-3 pt-2.5 pb-3 flex flex-col gap-1.5">
+        <div className="flex items-center justify-between">
+          <p className="text-sm font-bold leading-tight truncate flex-1 mr-2" style={{ color: "var(--text-1)" }}>{name}</p>
+          {a.rating > 0 && (
+            <span className="flex items-center gap-0.5 text-[11px] font-bold shrink-0" style={{ color: "#FBBF24" }}>
+              <Star size={10} fill="currentColor" />
+              {a.rating % 1 === 0 ? a.rating : a.rating.toFixed(1)}
+            </span>
           )}
         </div>
-        {a.rating > 0 && (
-          <div className="pb-0.5 flex items-center gap-0.5 shrink-0 text-xs font-bold" style={{ color: "#FBBF24" }}>
-            <Star size={12} fill="currentColor" />
-            <span>{a.rating % 1 === 0 ? a.rating : a.rating.toFixed(1)}</span>
-          </div>
-        )}
-      </div>
-
-      {/* Stats grid: Medium · Starting Price · Delivery */}
-      <div className="px-4 pb-3 grid grid-cols-3 gap-2">
-        {([
-          { label: "MEDIUM",   value: medium,       color: "var(--text-2)" },
-          { label: "FROM",     value: `$${price}`,  color: "#9B7CF5"       },
-          { label: "DELIVERY", value: delivery,     color: "var(--text-2)" },
-        ] as { label: string; value: string; color: string }[]).map(({ label, value, color }) => (
-          <div
-            key={label}
-            className="rounded-xl py-2 px-1.5 text-center"
-            style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.06)" }}
-          >
-            <p className="text-[8px] font-bold tracking-wider mb-0.5" style={{ color: "rgba(255,255,255,0.28)" }}>{label}</p>
-            <p className="text-[11px] font-semibold truncate" style={{ color }}>{value}</p>
-          </div>
-        ))}
-      </div>
-
-      {/* Actions */}
-      <div className="px-4 pb-4 flex gap-2 mt-auto">
-        <Link
-          href={`/u/${a.username ?? a.clerk_id}`}
-          className="flex-1 py-2.5 rounded-xl text-xs font-semibold text-center transition-all hover:opacity-80"
-          style={{ background: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.75)", border: "1px solid rgba(255,255,255,0.1)" }}
-        >
-          View Profile
-        </Link>
+        <p className="text-[11px] truncate" style={{ color: "rgba(255,255,255,0.42)" }}>{subtitle}</p>
+        <div className="flex items-center justify-between mb-1">
+          <span>
+            <span className="text-[11px]" style={{ color: "rgba(255,255,255,0.4)" }}>from </span>
+            <span className="text-sm font-bold" style={{ color: "#9B7CF5" }}>${price}</span>
+          </span>
+          <span className="text-[10px]" style={{ color: "rgba(255,255,255,0.32)" }}>{delivery}</span>
+        </div>
+        {/* Hire button — stops propagation so card link doesn't fire */}
         <button
-          onClick={onHire}
-          className="flex-1 py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-1 transition-all hover:opacity-90 active:scale-[0.98]"
-          style={{ background: "linear-gradient(135deg,#361E7B,#7C5BF5)", color: "#fff", boxShadow: "0 2px 12px rgba(124,91,245,0.35)" }}
+          onClick={e => { e.preventDefault(); e.stopPropagation(); onHire(); }}
+          className="w-full py-1.5 rounded-xl text-xs font-bold text-white transition-all hover:opacity-90 active:scale-95"
+          style={{ background: "linear-gradient(135deg,#361E7B,#7C5BF5)" }}
         >
-          Hire <ArrowRight size={10} />
+          Hire
         </button>
+      </div>
+    </Link>
+  );
+}
+
+// ── View-all card at end of category row ───────────────────────
+
+function ViewAllCard({ category, onViewAll }: { category: string; onViewAll: () => void }) {
+  return (
+    <button
+      onClick={onViewAll}
+      className="shrink-0 rounded-2xl flex flex-col items-center justify-center gap-3 transition-all hover:scale-[1.02] active:scale-[0.99]"
+      style={{
+        width: 160,
+        height: 295,
+        background: "rgba(124,91,245,0.06)",
+        border: "1px solid rgba(124,91,245,0.18)",
+      }}
+    >
+      <div
+        className="w-12 h-12 rounded-full flex items-center justify-center"
+        style={{ background: "rgba(124,91,245,0.15)", border: "1px solid rgba(124,91,245,0.3)" }}
+      >
+        <ArrowRight size={20} style={{ color: "#9B7CF5" }} />
+      </div>
+      <div className="text-center px-3">
+        <p className="text-xs font-semibold leading-snug" style={{ color: "var(--text-3)" }}>View all {category}</p>
+        <p className="text-xs mt-0.5" style={{ color: "var(--text-5)" }}>artists</p>
+      </div>
+    </button>
+  );
+}
+
+// ── Browse-all grid card (larger, with avatar row + two buttons) ─
+
+function BrowseArtistCard({ a, price, onHire }: { a: ArtistProfile; price: number; onHire: () => void }) {
+  const img        = a.banner_url ?? `https://picsum.photos/seed/${a.clerk_id}art/600/400`;
+  const name       = a.display_name ?? a.username ?? "Artist";
+  const { city, country } = parseLocation(a.location);
+  const locationStr = [city, country].filter(Boolean).join(", ");
+  const medium     = a.tag ? a.tag.split(",")[0].trim() : "Artist";
+  const delivery   = getDeliveryCategory(a) === "5-7" ? "5–7 days" : "7+ days";
+  const profileUrl = `/u/${a.username ?? a.clerk_id}`;
+
+  return (
+    <div
+      className="rounded-2xl overflow-hidden flex flex-col transition-all hover:scale-[1.01]"
+      style={{
+        background: "var(--bg-card)",
+        border: "1px solid var(--border)",
+        boxShadow: "0 4px 24px rgba(0,0,0,0.28)",
+      }}
+    >
+      {/* Image */}
+      <div className="relative" style={{ height: 200 }}>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={img} alt={name} className="w-full h-full object-cover" draggable={false} />
+        <div className="absolute inset-0" style={{ background: "linear-gradient(to top, rgba(0,0,0,0.45) 0%, transparent 50%)" }} />
+        <div
+          className="absolute top-2.5 right-2.5 flex items-center gap-1 text-[10px] font-bold px-2.5 py-1 rounded-full"
+          style={{
+            background:     a.available ? "rgba(16,185,129,0.18)" : "rgba(245,158,11,0.18)",
+            color:          a.available ? "#10B981"                : "#F59E0B",
+            border:         `1px solid ${a.available ? "rgba(16,185,129,0.35)" : "rgba(245,158,11,0.35)"}`,
+            backdropFilter: "blur(8px)",
+          }}
+        >
+          <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: a.available ? "#10B981" : "#F59E0B" }} />
+          {a.available ? "Available" : "Busy"}
+        </div>
+      </div>
+
+      {/* Body */}
+      <div className="px-4 pt-3 pb-4 flex flex-col gap-2.5">
+        {/* Avatar + name + location + rating */}
+        <div className="flex items-center gap-2.5">
+          {a.avatar_url ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={a.avatar_url} alt={name} className="w-9 h-9 rounded-full object-cover shrink-0" />
+          ) : (
+            <div className="w-9 h-9 rounded-full shrink-0 flex items-center justify-center text-sm font-bold text-white"
+              style={{ background: "linear-gradient(135deg,#361E7B,#7C5BF5)" }}>
+              {name[0]?.toUpperCase()}
+            </div>
+          )}
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-bold truncate" style={{ color: "var(--text-1)" }}>{name}</p>
+            {locationStr && <p className="text-[11px] truncate" style={{ color: "var(--text-5)" }}>{locationStr}</p>}
+          </div>
+          {a.rating > 0 && (
+            <span className="flex items-center gap-0.5 text-[11px] font-bold shrink-0" style={{ color: "#FBBF24" }}>
+              <Star size={10} fill="currentColor" />
+              {a.rating % 1 === 0 ? a.rating : a.rating.toFixed(1)}
+            </span>
+          )}
+        </div>
+
+        {/* Tag / medium */}
+        <p className="text-xs font-medium" style={{ color: "#9B7CF5" }}>{medium}</p>
+
+        {/* Price + delivery */}
+        <div className="flex items-center gap-1.5">
+          <span className="text-[11px]" style={{ color: "var(--text-5)" }}>from</span>
+          <span className="text-base font-bold" style={{ color: "var(--text-1)" }}>${price}</span>
+          <span className="ml-auto flex items-center gap-1 text-[11px]" style={{ color: "var(--text-5)" }}>
+            <Clock size={11} />
+            {delivery}
+          </span>
+        </div>
+
+        {/* Buttons */}
+        <div className="flex gap-2 mt-0.5">
+          <Link
+            href={profileUrl}
+            className="flex-1 py-2 rounded-xl text-xs font-semibold text-center transition-all hover:opacity-80"
+            style={{ background: "var(--bg-subtle)", border: "1px solid var(--border)", color: "var(--text-3)" }}
+          >
+            View Profile
+          </Link>
+          <button
+            onClick={onHire}
+            className="flex-1 py-2 rounded-xl text-xs font-bold text-white transition-all hover:opacity-90 active:scale-95"
+            style={{ background: "linear-gradient(135deg,#361E7B,#7C5BF5)" }}
+          >
+            Hire
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -809,6 +859,7 @@ export default function HiringPage() {
   const [loadingArtists, setLoadingArtists] = useState(true);
   const [activeCategory, setActiveCategory] = useState("All");
   const [hireTarget, setHireTarget]         = useState<ArtistProfile | null>(null);
+  const [browsePage, setBrowsePage]         = useState(0);
 
   // Structured filter state
   const [filterMedium,    setFilterMedium]    = useState("");
@@ -861,7 +912,23 @@ export default function HiringPage() {
     return true;
   });
 
-  const featured = artists.filter(a => a.available && a.rating >= 4.5 && a.clerk_id !== user?.id).slice(0, 8);
+  // Group artists by category for the browse view
+  const categoryGroups: { category: string; description: string; artists: ArtistProfile[] }[] = [];
+  const _usedIds = new Set<string>();
+  for (const cat of ORDERED_CATEGORIES) {
+    const catArtists = filtered.filter(a => {
+      const tags = (a.tag ?? "").split(",").map(t => t.trim().toLowerCase());
+      return tags.some(t => t.includes(cat.toLowerCase()) || cat.toLowerCase().includes(t));
+    });
+    if (catArtists.length > 0) {
+      catArtists.forEach(a => _usedIds.add(a.clerk_id));
+      categoryGroups.push({ category: cat, description: CATEGORY_DESC[cat] ?? "", artists: catArtists });
+    }
+  }
+  const _otherArtists = filtered.filter(a => !_usedIds.has(a.clerk_id));
+  if (_otherArtists.length > 0) {
+    categoryGroups.push({ category: "Other", description: "More styles & specialties", artists: _otherArtists });
+  }
 
   return (
     <div
@@ -872,7 +939,7 @@ export default function HiringPage() {
     >
       <Sidebar />
 
-      <div className="flex-1 flex flex-col lg:ml-17 min-h-screen">
+      <div className="flex-1 flex flex-col lg:ml-17 min-h-screen min-w-0">
         {/* ── Custom hiring header ── */}
         <div
           className="sticky top-0 z-30"
@@ -883,38 +950,43 @@ export default function HiringPage() {
             borderBottom: "1px solid var(--border)",
           }}
         >
-          {/* Top row: Logo | Tabs | Actions */}
-          <div className="flex items-center gap-3 px-4 md:px-8 py-3">
+          {/* Top row: Logo left | Tabs centered */}
+          <div className="relative flex items-center px-4 md:px-8 py-3">
+            {/* Ortist logo — left anchor */}
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/login-image/ortists logo1.png"
+              alt="Ortist"
+              style={{ height: 30, objectFit: "contain", flexShrink: 0 }}
+            />
 
-            {/* Tab toggle — centred */}
-            <div className="flex-1 flex justify-center">
-              <div
-                className="flex p-1 rounded-full"
-                style={{ background: "var(--bg-subtle)", border: "1px solid var(--border)" }}
-              >
-                {(["hire", "projects"] as const).map(t => (
-                  <button
-                    key={t}
-                    onClick={() => switchTab(t)}
-                    className="px-5 py-1.5 rounded-full text-sm font-semibold transition-all"
-                    style={{
-                      background: tab === t ? "linear-gradient(135deg,#361E7B,#7C5BF5)" : "transparent",
-                      color: tab === t ? "#fff" : "var(--text-4)",
-                      boxShadow: tab === t ? "0 2px 12px rgba(124,91,245,0.35)" : "none",
-                    }}
-                  >
-                    {t === "hire" ? "Hire Artists" : "My Projects"}
-                  </button>
-                ))}
-              </div>
+            {/* Tab pills — absolutely centered */}
+            <div
+              className="absolute left-1/2 -translate-x-1/2 flex p-1 rounded-full"
+              style={{ background: "var(--bg-subtle)", border: "1px solid var(--border)" }}
+            >
+              {(["hire", "projects"] as const).map(t => (
+                <button
+                  key={t}
+                  onClick={() => switchTab(t)}
+                  className="px-5 py-1.5 rounded-full text-sm font-semibold transition-all whitespace-nowrap"
+                  style={{
+                    background: tab === t ? "linear-gradient(135deg,#361E7B,#7C5BF5)" : "transparent",
+                    color: tab === t ? "#fff" : "var(--text-4)",
+                    boxShadow: tab === t ? "0 2px 12px rgba(124,91,245,0.35)" : "none",
+                  }}
+                >
+                  {t === "hire" ? "Hire Artists" : "My Projects"}
+                </button>
+              ))}
             </div>
-
           </div>
 
-          {/* Search + filters + categories — Hire tab only */}
+          {/* Search + filters + categories + trending — Hire tab only */}
           {tab === "hire" && (
-            <div className="px-4 md:px-8 pb-4 flex flex-col gap-3">
-              <div className="flex gap-2">
+            <div className="pb-3 flex flex-col gap-2.5">
+              {/* Search + Filters */}
+              <div className="px-4 md:px-8 flex gap-2">
                 <div
                   className="flex-1 flex items-center gap-3 px-4 py-2.5 rounded-2xl"
                   style={{ background: "var(--bg-subtle)", border: "1px solid var(--border)" }}
@@ -923,7 +995,7 @@ export default function HiringPage() {
                   <input
                     value={search}
                     onChange={e => setSearch(e.target.value)}
-                    placeholder="Search artists, styles, or categories..."
+                    placeholder="Search artists, styles, mediums or locations..."
                     className="flex-1 bg-transparent text-sm outline-none min-w-0"
                     style={{ color: "var(--text-1)" }}
                   />
@@ -948,7 +1020,7 @@ export default function HiringPage() {
               </div>
 
               {/* Category pills */}
-              <div className="flex gap-2 overflow-x-auto" style={{ scrollbarWidth: "none" }}>
+              <div className="px-4 md:px-8 flex gap-2 overflow-x-auto" style={{ scrollbarWidth: "none" }}>
                 {categories.map(cat => {
                   const isActive = activeCategory === cat;
                   return (
@@ -968,6 +1040,23 @@ export default function HiringPage() {
                   );
                 })}
               </div>
+
+              {/* Trending searches */}
+              {!search && activeCategory === "All" && (
+                <div className="px-4 md:px-8 flex items-center gap-1.5 flex-wrap">
+                  <span className="text-[11px]" style={{ color: "var(--text-6)" }}>Trending</span>
+                  {TRENDING_SEARCHES.map((t, i) => (
+                    <button
+                      key={t}
+                      onClick={() => setSearch(t)}
+                      className="text-[11px] hover:opacity-70 transition-opacity"
+                      style={{ color: "var(--text-4)" }}
+                    >
+                      {t}{i < TRENDING_SEARCHES.length - 1 ? " ·" : ""}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -980,6 +1069,86 @@ export default function HiringPage() {
         {/* Hire Artists tab */}
         {tab === "hire" && (
           <main className="flex-1 pb-24 lg:pb-8">
+
+            {/* ── Hero section — shown when browsing (no active search/filter) ── */}
+            {!search && activeFilterCount === 0 && activeCategory === "All" && (
+              <div
+                className="px-4 md:px-8 pt-12 pb-8 flex flex-col items-center text-center"
+                style={{
+                  background: "radial-gradient(ellipse 60% 60% at 50% 0%, rgba(124,91,245,0.12) 0%, transparent 70%)",
+                }}
+              >
+                {/* Headline */}
+                <h1 className="text-3xl md:text-4xl font-bold mb-3 leading-tight">
+                  <span style={{ color: "var(--text-1)" }}>Find your next </span>
+                  <span style={{ background: "linear-gradient(90deg,#9B7CF5,#7C5BF5)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
+                    creative collaborator
+                  </span>
+                </h1>
+                <p className="text-sm mb-7 max-w-md" style={{ color: "#9B7CF5" }}>
+                  Discover artists across every medium and commission work that moves people.
+                </p>
+
+                {/* Search bar */}
+                <div
+                  className="w-full max-w-2xl flex items-center gap-3 px-4 py-3 rounded-2xl mb-4"
+                  style={{ background: "var(--bg-subtle)", border: "1px solid var(--border)", boxShadow: "0 4px 24px rgba(0,0,0,0.2)" }}
+                >
+                  <Search size={16} style={{ color: "var(--text-5)", flexShrink: 0 }} />
+                  <input
+                    value={search}
+                    onChange={e => setSearch(e.target.value)}
+                    placeholder="Search artists, styles, mediums or locations..."
+                    className="flex-1 bg-transparent text-sm outline-none"
+                    style={{ color: "var(--text-1)" }}
+                  />
+                  <div style={{ width: 1, height: 18, background: "var(--border)" }} />
+                  <button
+                    onClick={() => setShowFilters(v => !v)}
+                    className="flex items-center gap-1.5 text-xs font-semibold shrink-0 transition-opacity hover:opacity-70"
+                    style={{ color: "var(--text-4)" }}
+                  >
+                    <SlidersHorizontal size={13} />
+                    Filters
+                  </button>
+                </div>
+
+                {/* Category chips */}
+                <div className="flex flex-wrap justify-center gap-2 mb-3">
+                  {["Portrait", "Illustration", "Painting", "Photography", "Digital Art", "Sculpture", "Concept Art"].map(cat => (
+                    <button
+                      key={cat}
+                      onClick={() => setActiveCategory(cat)}
+                      className="px-4 py-1.5 rounded-full text-xs font-medium transition-all hover:opacity-80"
+                      style={{
+                        background: "var(--bg-subtle)",
+                        border: "1px solid var(--border)",
+                        color: "var(--text-3)",
+                      }}
+                    >
+                      {cat}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Trending */}
+                <div className="flex flex-wrap justify-center items-center gap-1.5 text-xs" style={{ color: "var(--text-5)" }}>
+                  <span className="font-semibold" style={{ color: "var(--text-5)" }}>Trending</span>
+                  {TRENDING_SEARCHES.map((t, i) => (
+                    <span key={t} className="flex items-center gap-1.5">
+                      {i > 0 && <span>·</span>}
+                      <button
+                        onClick={() => setSearch(t)}
+                        className="font-medium hover:underline transition-all"
+                        style={{ color: "var(--text-3)" }}
+                      >
+                        {t}
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* Filter drawer */}
             {showFilters && (
@@ -1090,61 +1259,170 @@ export default function HiringPage() {
               </div>
             )}
 
-            {/* ── Featured section ───────────────────────── */}
-            {activeCategory === "All" && !search && !loadingArtists && featured.length > 0 && (
-              <section className="px-4 md:px-8 pt-6 pb-8">
-                <h3 className="text-base font-bold mb-4" style={{ color: "var(--text-1)" }}>Featured</h3>
-                <div className="flex gap-3 overflow-x-auto pb-2" style={{ scrollbarWidth: "none" }}>
-                  {featured.map(a => (
-                    <FeaturedCard
-                      key={a.clerk_id}
-                      a={a}
-                      price={estimatePrice(a)}
-                      onHire={() => setHireTarget(a)}
-                    />
-                  ))}
-                </div>
-              </section>
+            {/* ── Skeletons while loading ── */}
+            {loadingArtists && (
+              <div className="px-4 md:px-8 pt-6 flex gap-3 overflow-x-hidden">
+                {Array.from({ length: 8 }).map((_, i) => <ArtistSkeleton key={i} />)}
+              </div>
             )}
 
-            {/* ── All Artists grid ───────────────────────── */}
-            <section className="px-4 md:px-8 pb-8">
-              <div className="flex items-baseline gap-2 mb-5">
-                <h3 className="text-base font-bold" style={{ color: "var(--text-1)" }}>
-                  {activeCategory === "All" ? "All Artists" : `${activeCategory} Artists`}
-                </h3>
-                {!loadingArtists && (
+            {/* ── Category rows (browse all, no search/filter active) ── */}
+            {!loadingArtists && activeCategory === "All" && !search && activeFilterCount === 0 && (
+              <div className="pt-6 pb-10 flex flex-col gap-10">
+
+                {/* Artists to Watch — top rated available artists */}
+                {(() => {
+                  const toWatch = artists
+                    .filter(a => a.available && a.rating >= 4.0 && a.clerk_id !== user?.id)
+                    .sort((a, b) => b.rating - a.rating)
+                    .slice(0, 10);
+                  if (toWatch.length === 0) return null;
+                  return (
+                    <section>
+                      <div className="px-4 md:px-8 mb-4 flex items-end justify-between">
+                        <div>
+                          <h2 className="text-xl font-bold" style={{ color: "var(--text-1)" }}>Artists to Watch</h2>
+                          <p className="text-sm mt-0.5" style={{ color: "var(--text-5)" }}>Top-rated & available right now</p>
+                        </div>
+                        <span className="text-[11px] font-semibold px-2.5 py-1 rounded-full" style={{ background: "rgba(16,185,129,0.12)", color: "#10B981" }}>
+                          {toWatch.length} available
+                        </span>
+                      </div>
+                      <div className="px-4 md:px-8 flex gap-3 overflow-x-auto pb-2" style={{ scrollbarWidth: "none" }}>
+                        {toWatch.map(a => (
+                          <ArtistCard key={a.clerk_id} a={a} price={estimatePrice(a)} onHire={() => setHireTarget(a)} />
+                        ))}
+                      </div>
+                    </section>
+                  );
+                })()}
+
+                {categoryGroups.length === 0 ? (
+                  <div className="text-center py-20">
+                    <p className="text-3xl mb-3">🎨</p>
+                    <p className="text-sm font-semibold" style={{ color: "var(--text-2)" }}>No artists yet</p>
+                  </div>
+                ) : categoryGroups.map(({ category, description, artists: catArtists }) => (
+                  <section key={category}>
+                    <div className="px-4 md:px-8 mb-4">
+                      <h2 className="text-xl font-bold" style={{ color: "var(--text-1)" }}>{category}</h2>
+                      {description && <p className="text-sm mt-0.5" style={{ color: "var(--text-5)" }}>{description}</p>}
+                    </div>
+                    <div className="px-4 md:px-8 flex gap-3 overflow-x-auto pb-2" style={{ scrollbarWidth: "none" }}>
+                      {catArtists.slice(0, 8).map(a => (
+                        <ArtistCard key={a.clerk_id} a={a} price={estimatePrice(a)} onHire={() => setHireTarget(a)} />
+                      ))}
+                      {catArtists.length >= 5 && (
+                        <ViewAllCard category={category} onViewAll={() => setActiveCategory(category)} />
+                      )}
+                    </div>
+                  </section>
+                ))}
+
+                {/* ── Browse All Artists — paginated grid ── */}
+                {(() => {
+                  const PAGE_SIZE = 9;
+                  const browseAll = filtered.slice().sort((a, b) => b.rating - a.rating);
+                  const totalPages = Math.ceil(browseAll.length / PAGE_SIZE);
+                  const pageArtists = browseAll.slice(browsePage * PAGE_SIZE, (browsePage + 1) * PAGE_SIZE);
+                  if (browseAll.length === 0) return null;
+                  return (
+                    <section className="px-4 md:px-8">
+                      {/* Section header */}
+                      <div className="flex items-center justify-between mb-5">
+                        <div>
+                          <h2 className="text-xl font-bold" style={{ color: "var(--text-1)" }}>Browse All Artists</h2>
+                          <p className="text-sm mt-0.5" style={{ color: "var(--text-5)" }}>
+                            {browseAll.length} artist{browseAll.length !== 1 ? "s" : ""} across all categories
+                          </p>
+                        </div>
+                        {/* Pagination buttons */}
+                        {totalPages > 1 && (
+                          <div className="flex items-center gap-1.5">
+                            {Array.from({ length: Math.min(totalPages, 6) }).map((_, i) => (
+                              <button
+                                key={i}
+                                onClick={() => setBrowsePage(i)}
+                                className="w-8 h-8 rounded-full text-xs font-bold transition-all"
+                                style={{
+                                  background: browsePage === i ? "linear-gradient(135deg,#361E7B,#7C5BF5)" : "var(--bg-subtle)",
+                                  color:      browsePage === i ? "#fff" : "var(--text-4)",
+                                  border:     browsePage === i ? "none" : "1px solid var(--border)",
+                                  boxShadow:  browsePage === i ? "0 2px 10px rgba(124,91,245,0.4)" : "none",
+                                }}
+                              >
+                                {i + 1}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* 3-column grid */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 mb-6">
+                        {pageArtists.map(a => (
+                          <BrowseArtistCard key={a.clerk_id} a={a} price={estimatePrice(a)} onHire={() => setHireTarget(a)} />
+                        ))}
+                      </div>
+
+                      {/* Bottom pagination */}
+                      {totalPages > 1 && (
+                        <div className="flex items-center justify-center gap-2 pb-4">
+                          <button
+                            onClick={() => setBrowsePage(p => Math.max(0, p - 1))}
+                            disabled={browsePage === 0}
+                            className="px-4 py-1.5 rounded-xl text-xs font-semibold transition-all disabled:opacity-30"
+                            style={{ background: "var(--bg-subtle)", border: "1px solid var(--border)", color: "var(--text-3)" }}
+                          >
+                            ← Prev
+                          </button>
+                          <span className="text-xs" style={{ color: "var(--text-5)" }}>
+                            Page {browsePage + 1} of {totalPages}
+                          </span>
+                          <button
+                            onClick={() => setBrowsePage(p => Math.min(totalPages - 1, p + 1))}
+                            disabled={browsePage === totalPages - 1}
+                            className="px-4 py-1.5 rounded-xl text-xs font-semibold transition-all disabled:opacity-30"
+                            style={{ background: "var(--bg-subtle)", border: "1px solid var(--border)", color: "var(--text-3)" }}
+                          >
+                            Next →
+                          </button>
+                        </div>
+                      )}
+                    </section>
+                  );
+                })()}
+              </div>
+            )}
+
+            {/* ── Flat grid for search / category filter ── */}
+            {!loadingArtists && (activeCategory !== "All" || search || activeFilterCount > 0) && (
+              <section className="px-4 md:px-8 pt-6 pb-10">
+                <div className="flex items-baseline gap-2 mb-5">
+                  <h3 className="text-base font-bold" style={{ color: "var(--text-1)" }}>
+                    {activeCategory === "All" ? "Search Results" : `${activeCategory} Artists`}
+                  </h3>
                   <span className="text-xs font-semibold px-2 py-0.5 rounded-full" style={{ background: "rgba(124,91,245,0.12)", color: "#9B7CF5" }}>
                     {filtered.length}
                   </span>
+                </div>
+                {filtered.length === 0 ? (
+                  <div className="text-center py-20">
+                    <p className="text-3xl mb-3">🎨</p>
+                    <p className="text-sm font-semibold mb-1" style={{ color: "var(--text-2)" }}>
+                      No artists found{search ? ` for "${search}"` : ""}
+                    </p>
+                    <p className="text-xs" style={{ color: "var(--text-5)" }}>Try adjusting your filters or search term</p>
+                  </div>
+                ) : (
+                  <div className="flex flex-wrap gap-4">
+                    {filtered.map(a => (
+                      <ArtistCard key={a.clerk_id} a={a} price={estimatePrice(a)} onHire={() => setHireTarget(a)} />
+                    ))}
+                  </div>
                 )}
-              </div>
-
-              {loadingArtists ? (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {Array.from({ length: 6 }).map((_, i) => <ArtistSkeleton key={i} />)}
-                </div>
-              ) : filtered.length === 0 ? (
-                <div className="text-center py-20">
-                  <p className="text-3xl mb-3">🎨</p>
-                  <p className="text-sm font-semibold mb-1" style={{ color: "var(--text-2)" }}>
-                    No artists found{search ? ` for "${search}"` : ""}
-                  </p>
-                  <p className="text-xs" style={{ color: "var(--text-5)" }}>Try adjusting your filters or search term</p>
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {filtered.map(a => (
-                    <ArtistCard
-                      key={a.clerk_id}
-                      a={a}
-                      price={estimatePrice(a)}
-                      onHire={() => setHireTarget(a)}
-                    />
-                  ))}
-                </div>
-              )}
-            </section>
+              </section>
+            )}
           </main>
         )}
       </div>

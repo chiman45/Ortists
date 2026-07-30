@@ -73,7 +73,7 @@ export default function MyHiresPage() {
     >
       <Sidebar />
 
-      <div className="flex-1 flex flex-col lg:ml-17 min-h-screen">
+      <div className="flex-1 flex flex-col lg:ml-17 min-h-screen min-w-0">
         <MainHeader />
 
         <main className="flex-1 px-4 md:px-8 py-7 pb-24 lg:pb-8">

@@ -89,7 +89,7 @@ export default function NotificationsPage() {
     <div className="flex min-h-screen" style={{ background: "var(--bg)" }}>
       <Sidebar />
 
-      <div className="flex-1 flex flex-col lg:ml-17 min-h-screen">
+      <div className="flex-1 flex flex-col lg:ml-17 min-h-screen min-w-0">
 
         <main className="flex-1 flex gap-0 pb-24 lg:pb-0">
 

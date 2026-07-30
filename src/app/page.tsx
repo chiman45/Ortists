@@ -408,16 +408,17 @@ export default function LandingPage() {
           </div>
         </RevealFade>
 
-        {/* Horizontal gallery */}
+        {/* Horizontal gallery — each card links to hire page */}
         <div
           className="flex gap-5 pl-8 md:pl-14 lg:pl-20 pr-8 overflow-x-auto pb-3"
           style={{ scrollbarWidth: "none" }}
         >
           {FEATURED_ARTISTS.map((artist, i) => (
             <RevealFade key={artist.id} delay={i * 0.07} style={{ minWidth: 276, flexShrink: 0 }}>
-              <div
-                className="group cursor-pointer"
-                style={{ background: SURF, borderRadius: 3, overflow: "hidden", border: "1px solid rgba(255,255,255,0.05)" }}
+              <Link
+                href={`/hiring?search=${encodeURIComponent(artist.category)}`}
+                className="group block"
+                style={{ background: SURF, borderRadius: 3, overflow: "hidden", border: "1px solid rgba(255,255,255,0.05)", textDecoration: "none" }}
               >
                 {/* Work */}
                 <div className="relative overflow-hidden" style={{ height: 360 }}>
@@ -430,6 +431,18 @@ export default function LandingPage() {
                   <div className="absolute inset-0 pointer-events-none" style={{
                     background: "linear-gradient(to top, rgba(5,5,5,0.75) 0%, transparent 50%)",
                   }} />
+                  {/* View artists overlay on hover */}
+                  <div
+                    className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+                    style={{ background: "rgba(0,0,0,0.35)" }}
+                  >
+                    <span
+                      className="px-5 py-2 rounded-full text-xs font-bold text-white"
+                      style={{ background: ACCENT, boxShadow: `0 0 24px ${ACCENT}60` }}
+                    >
+                      Explore {artist.category} →
+                    </span>
+                  </div>
                 </div>
                 {/* Info */}
                 <div className="p-5 flex items-center gap-3">
@@ -440,12 +453,12 @@ export default function LandingPage() {
                     className="w-10 h-10 rounded-full object-cover shrink-0"
                     style={{ border: `2px solid ${ACCENT}55` }}
                   />
-                  <div>
+                  <div className="min-w-0">
                     <p className="text-[13px] font-semibold text-white">{artist.name}</p>
                     <p className="text-[11px]" style={{ color: MUTED }}>{artist.category}</p>
                   </div>
                 </div>
-              </div>
+              </Link>
             </RevealFade>
           ))}
         </div>
