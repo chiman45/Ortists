@@ -2,7 +2,9 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
+// Link kept for footer/body links; useEffect/useState used by RevealFade & scroll
 import { Playfair_Display } from "next/font/google";
+import PublicNav from "@/components/layout/PublicNav";
 
 const playfair = Playfair_Display({
   subsets: ["latin"],
@@ -17,13 +19,6 @@ const BG     = "#050505";
 const SURF   = "#0B0B0F";
 const MUTED  = "#8B8B95";
 
-const NAV_LINKS = [
-  ["Feed",        "/feed"],
-  ["Marketplace", "/marketplace"],
-  ["Hire",        "/hiring"],
-  ["Artists",     "/hiring"],
-  ["About",       "/about"],
-] as const;
 
 const VALUES = [
   {
@@ -105,53 +100,10 @@ function Divider() {
 }
 
 export default function AboutPage() {
-  const [scrolled, setScrolled] = useState(false);
-
-  useEffect(() => {
-    const fn = () => setScrolled(window.scrollY > 70);
-    window.addEventListener("scroll", fn, { passive: true });
-    return () => window.removeEventListener("scroll", fn);
-  }, []);
-
   return (
     <div style={{ background: BG, color: "#fff", overflowX: "hidden" }}>
 
-      {/* NAV */}
-      <nav
-        className="fixed top-0 inset-x-0 z-50 flex items-center justify-between px-8 md:px-14 lg:px-20 py-5 transition-all duration-500"
-        style={{
-          background:    scrolled ? "rgba(5,5,5,0.88)" : "transparent",
-          backdropFilter: scrolled ? "blur(22px)" : "none",
-          borderBottom:  scrolled ? "1px solid rgba(255,255,255,0.05)" : "none",
-        }}
-      >
-        <Link href="/" className="flex items-center gap-2.5 shrink-0">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/login-image/ortists logo1.png" alt="Ortist" className="w-7 h-7 rounded-md object-cover" />
-          <span className="text-[15px] font-bold tracking-wide text-white">Ortist</span>
-        </Link>
-
-        <div className="hidden md:flex items-center gap-8 text-[13px] font-medium" style={{ color: MUTED }}>
-          {NAV_LINKS.map(([label, href]) => (
-            <Link
-              key={label}
-              href={href}
-              className="transition-colors duration-200 hover:text-white"
-              style={{ color: label === "About" ? "#fff" : MUTED }}
-            >
-              {label}
-            </Link>
-          ))}
-        </div>
-
-        <Link
-          href="/login"
-          className="hidden md:inline-flex items-center px-5 py-2.5 rounded-full text-[13px] font-semibold text-white transition-all duration-200 hover:opacity-80"
-          style={{ background: ACCENT }}
-        >
-          Join Now
-        </Link>
-      </nav>
+      <PublicNav />
 
       {/* HERO */}
       <section className="relative w-full flex items-end" style={{ minHeight: "92svh", paddingTop: 120 }}>

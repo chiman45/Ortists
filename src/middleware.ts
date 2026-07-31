@@ -6,12 +6,11 @@ const isProtected = createRouteMatcher([
   "/messages(.*)",
   "/profile(.*)",
   "/feed(.*)",
-  "/marketplace(.*)",
-  "/hiring(.*)",
   "/upload(.*)",
   "/dashboard(.*)",
   "/notifications(.*)",
   "/onboarding(.*)",
+  // /marketplace and /hiring are intentionally public (guest browsing allowed)
 ]);
 
 export default clerkMiddleware(async (auth, request: NextRequest) => {

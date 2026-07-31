@@ -3,7 +3,7 @@
 import { THEMES, useTheme } from "@/contexts/ThemeContext";
 import { useClerk, useUser, UserButton } from "@clerk/nextjs";
 import CreatePostModal from "@/components/create/CreatePostModal";
-import { LogOut, Palette, Plus, UserCircle } from "lucide-react";
+import { Palette, Plus, UserCircle } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -74,10 +74,6 @@ export default function Sidebar() {
     const interval = setInterval(fetchUnread, 30000);
     return () => clearInterval(interval);
   }, [user]);
-
-  function handleLogout() {
-    signOut(() => router.push("/"));
-  }
 
   const w = expanded ? 220 : 72;
 
@@ -304,7 +300,7 @@ export default function Sidebar() {
         {!expanded ? (
           <Tooltip label="Account">
             <div className="flex justify-center py-1">
-              <UserButton afterSignOutUrl="/" />
+              <UserButton />
             </div>
           </Tooltip>
         ) : (
@@ -312,7 +308,7 @@ export default function Sidebar() {
             className="flex items-center gap-3 rounded-xl px-3 py-2.5"
             style={{ background: "var(--bg-subtle)", border: "1px solid var(--border)" }}
           >
-            <UserButton afterSignOutUrl="/" />
+            <UserButton />
             <div className="flex-1 min-w-0">
               <p className="text-xs font-semibold truncate" style={{ color: "var(--text-1)" }}>
                 {user?.fullName ?? user?.username ?? "Artist"}
