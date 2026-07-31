@@ -10,7 +10,8 @@ import ShareModal from "@/components/ui/ShareModal";
 import { useUser } from "@clerk/nextjs";
 import {
   Star, Heart, Bookmark, Users, TrendingUp, LayoutGrid,
-  Store, Briefcase, UserCircle, Eye,
+  Store, Briefcase, UserCircle, Eye, MapPin, Pencil, Zap,
+  CheckCircle2, SlidersHorizontal, Plus, Pause, Copy, Trash2,
   Clock, X, Check, Share2, Camera, Loader2,
 } from "lucide-react";
 import { firstImage } from "@/lib/imageUrl";
@@ -37,7 +38,10 @@ interface EditForm {
   tag: string;
   available: boolean;
   response_time: string;
+  website: string;
 }
+
+type EditSection = "Basic Info" | "Portfolio" | "Services" | "Availability" | "Pricing" | "Preferences";
 
 function timeAgo(iso: string) {
   const m = Math.floor((Date.now() - new Date(iso).getTime()) / 60000);
@@ -52,6 +56,8 @@ export default function ProfilePage() {
   const { user, isLoaded } = useUser();
 
   const [activeTab, setActiveTab]       = useState<Tab>("Portfolio");
+  const [serviceSearch, setServiceSearch] = useState("");
+  const [serviceSort, setServiceSort]     = useState<"Popular" | "Latest" | "Price">("Popular");
   const [profile, setProfile]           = useState<Profile | null>(null);
   const [dbPosts, setDbPosts]           = useState<DbPost[]>([]);
   const [savedPosts, setSavedPosts]     = useState<DbPost[]>([]);
@@ -70,9 +76,10 @@ export default function ProfilePage() {
   const bannerInputRef                        = useRef<HTMLInputElement>(null);
   const [followModal, setFollowModal]   = useState<{ type: "followers" | "following"; users: FollowUser[] } | null>(null);
   const [followLoading, setFollowLoading] = useState(false);
+  const [editSection, setEditSection]   = useState<EditSection>("Basic Info");
   const [editForm, setEditForm]         = useState<EditForm>({
     display_name: "", username: "", bio: "", location: "",
-    tag: "Artist", available: true, response_time: "Within 24 hours",
+    tag: "Artist", available: true, response_time: "Within 24 hours", website: "",
   });
 
   useEffect(() => {
@@ -132,7 +139,8 @@ export default function ProfilePage() {
 
   }, [user, isLoaded]);
 
-  function openEdit() {
+  function openEdit(section: EditSection = "Basic Info") {
+    setEditSection(section);
     setEditForm({
       display_name:  profile?.display_name ?? user?.fullName ?? "",
       username:      profile?.username ?? user?.username ?? "",
@@ -141,6 +149,7 @@ export default function ProfilePage() {
       tag:           profile?.tag ?? "Artist",
       available:     profile?.available ?? true,
       response_time: profile?.response_time ?? "Within 24 hours",
+      website:       "",
     });
     setAvatarPreview(null);
     setBannerPreview(null);
@@ -302,106 +311,101 @@ export default function ProfilePage() {
           {/* ── Centre ── */}
           <div className={`flex-1 min-w-0 px-4 md:px-8 py-6${!isLoaded ? " hidden" : ""}`}>
 
-            {/* ── Profile header card ── */}
-            <div className="rounded-2xl p-5 mb-4 relative"
-              style={{ background: "var(--bg-card)", border: "1px dashed rgba(124,91,245,0.35)" }}>
-
-              {/* Edit + Share — top right */}
-              <div className="absolute top-4 right-4 flex items-center gap-2">
-                <button onClick={() => setShareOpen(true)}
-                  className="flex items-center gap-2 px-5 py-3 rounded-xl text-sm font-semibold transition-all hover:opacity-85"
-                  style={{ background: "var(--bg-subtle)", color: "var(--text-4)", border: "1px solid var(--border)" }}>
-                  <Share2 size={15} /> Share
-                </button>
-                <button onClick={openEdit}
-                  className="flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-semibold transition-all hover:opacity-85"
-                  style={{ background: "#7C5BF5", color: "#fff" }}>
-                  Edit Profile
-                </button>
-              </div>
-
-              {/* Avatar + info row */}
-              <div className="flex items-center gap-6">
-                {/* Avatar — larger so it fills the card height */}
-                <div className="shrink-0 relative">
+            {/* ── Profile header ── */}
+            <div className="mb-6">
+              <div className="flex items-start gap-5">
+                {/* Avatar — square rounded */}
+                <div className="relative shrink-0">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img src={avatar} alt={name}
-                    className="w-28 h-28 rounded-full object-cover"
-                    style={{ border: "3px solid rgba(124,91,245,0.5)", background: "linear-gradient(135deg,#361E7B,#7C5BF5)" }} />
+                    className="w-24 h-24 rounded-2xl object-cover"
+                    style={{ border: "2px solid rgba(124,91,245,0.3)" }} />
                   {available && (
-                    <span className="absolute bottom-1 right-1 w-4 h-4 rounded-full border-2 border-(--bg-card)"
-                      style={{ background: "#10B981" }} />
+                    <span className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2"
+                      style={{ background: "#10B981", borderColor: "var(--bg)" }} />
                   )}
                 </div>
 
-                {/* Name + stats + bio column */}
-                <div className="flex-1 min-w-0 pr-4 md:pr-16">
-                  {/* Row 1: Name */}
-                  <h1 className="text-lg font-bold leading-none mb-3" style={{ color: "var(--text-1)" }}>{name}</h1>
-
-                  {/* Row 2: Stats — left-aligned, same column as everything else */}
-                  <div className="flex items-center gap-6 mb-3">
-                    <div>
-                      <p className="text-xl font-bold leading-none" style={{ color: "var(--text-1)" }}>{dbPosts.length}</p>
-                      <p className="text-[11px] mt-0.5" style={{ color: "var(--text-5)" }}>Posts</p>
-                    </div>
-                    <button onClick={() => openFollowList("followers")} className="hover:opacity-70 transition-opacity">
-                      <p className="text-xl font-bold leading-none" style={{ color: "var(--text-1)" }}>
-                        {followers >= 1000 ? `${(followers / 1000).toFixed(1)}K` : followers}
-                      </p>
-                      <p className="text-[11px] mt-0.5" style={{ color: "var(--text-5)" }}>Followers</p>
-                    </button>
-                    <button onClick={() => openFollowList("following")} className="hover:opacity-70 transition-opacity">
-                      <p className="text-xl font-bold leading-none" style={{ color: "var(--text-1)" }}>{following}</p>
-                      <p className="text-[11px] mt-0.5" style={{ color: "var(--text-5)" }}>Following</p>
-                    </button>
-                    <div>
-                      <p className="text-xl font-bold leading-none" style={{ color: "var(--text-1)" }}>
-                        {totalLikes >= 1000 ? `${(totalLikes / 1000).toFixed(1)}K` : totalLikes}
-                      </p>
-                      <p className="text-[11px] mt-0.5" style={{ color: "var(--text-5)" }}>Total Likes</p>
-                    </div>
+                {/* Center info */}
+                <div className="flex-1 min-w-0">
+                  {/* Name + verified */}
+                  <div className="flex items-center gap-2 mb-1.5">
+                    <h1 className="text-2xl font-bold" style={{ color: "var(--text-1)" }}>{name}</h1>
+                    {rating >= 4.0 && <CheckCircle2 size={18} style={{ color: "#7C5BF5" }} />}
                   </div>
 
-                  {/* Row 3: username */}
-                  <p className="text-xs mb-1.5" style={{ color: "var(--text-5)" }}>{username}</p>
-                  {/* Row 4: tag + location */}
-                  <p className="text-xs mb-1.5" style={{ color: "var(--text-4)" }}>
-                    <span style={{ color: "#9B7CF5" }}>{tag}</span>
-                    {location && <span style={{ color: "var(--text-5)" }}> · {location}</span>}
-                  </p>
-                  {/* Row 5: bio */}
-                  <p className="text-xs leading-relaxed" style={{ color: "var(--text-5)", maxWidth: 320 }}>{bio}</p>
+                  {/* @username · location */}
+                  <div className="flex items-center gap-2 mb-3">
+                    <span className="text-sm" style={{ color: "var(--text-4)" }}>{username}</span>
+                    {location && (
+                      <>
+                        <span style={{ color: "var(--text-6)" }}>·</span>
+                        <MapPin size={12} style={{ color: "var(--text-5)" }} />
+                        <span className="text-sm" style={{ color: "var(--text-4)" }}>{location}</span>
+                      </>
+                    )}
+                  </div>
+
+                  {/* Tag chips */}
+                  {tag && (
+                    <div className="flex flex-wrap gap-2 mb-4">
+                      {tag.split(",").map(t => t.trim()).filter(Boolean).map(t => (
+                        <span key={t} className="px-3 py-1 rounded-full text-xs font-medium"
+                          style={{ border: "1px solid var(--border)", color: "var(--text-3)", background: "var(--bg-subtle)" }}>
+                          {t}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Bio + Improve with AI */}
+                  <div className="flex items-start gap-3">
+                    <p className="text-sm leading-relaxed flex-1" style={{ color: "var(--text-3)", maxWidth: 480 }}>{bio}</p>
+                    <button
+                      onClick={() => openEdit("Basic Info")}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold shrink-0 transition-opacity hover:opacity-80"
+                      style={{ background: "rgba(124,91,245,0.1)", border: "1px solid rgba(124,91,245,0.25)", color: "#9B7CF5" }}>
+                      <Zap size={11} /> Improve with AI
+                    </button>
+                  </div>
+                </div>
+
+                {/* Action buttons — top right */}
+                <div className="flex items-center gap-2 shrink-0">
+                  <button onClick={() => setShareOpen(true)}
+                    className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-opacity hover:opacity-70"
+                    style={{ background: "var(--bg-subtle)", border: "1px solid var(--border)", color: "var(--text-3)" }}>
+                    <Share2 size={15} /> Share
+                  </button>
+                  <button onClick={() => openEdit("Basic Info")}
+                    className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-opacity hover:opacity-90"
+                    style={{ background: "#7C5BF5", color: "#fff" }}>
+                    <Pencil size={14} /> Edit Profile
+                  </button>
                 </div>
               </div>
-            </div>
 
-            {/* ── This month analytics strip ── */}
-            <div className="rounded-2xl px-5 py-4 mb-4 flex items-center gap-4"
-              style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}>
-              <div className="flex items-center gap-3 shrink-0 pr-5" style={{ borderRight: "1px solid var(--border)" }}>
-                <div className="w-10 h-10 rounded-xl flex items-center justify-center"
-                  style={{ background: "rgba(124,91,245,0.12)" }}>
-                  <TrendingUp size={18} style={{ color: "#9B7CF5" }} />
-                </div>
-                <p className="text-sm font-bold leading-tight" style={{ color: "var(--text-1)" }}>this<br />month</p>
+              {/* Stats bar — below, separated by a divider */}
+              <div className="mt-6 pt-5 flex items-center gap-8 flex-wrap"
+                style={{ borderTop: "1px solid var(--border)" }}>
+                {[
+                  { value: dbPosts.length,  label: "Portfolio",  onClick: undefined },
+                  { value: followers >= 1000 ? `${(followers / 1000).toFixed(1)}K` : followers, label: "Followers",  onClick: () => openFollowList("followers") },
+                  { value: following >= 1000 ? `${(following / 1000).toFixed(1)}K` : following, label: "Following",  onClick: () => openFollowList("following") },
+                  { value: 0,               label: "Completed",  onClick: undefined },
+                  { value: totalLikes >= 1000000 ? `${(totalLikes / 1000000).toFixed(1)}M` : totalLikes >= 1000 ? `${(totalLikes / 1000).toFixed(1)}K` : totalLikes, label: "Likes", onClick: undefined },
+                  { value: rating > 0 ? `${rating.toFixed(1)}★` : "—", label: "Rating",    onClick: undefined },
+                ].map(({ value, label, onClick }) => (
+                  <button key={label} onClick={onClick}
+                    className="flex flex-col gap-0.5 text-left transition-opacity"
+                    style={{ cursor: onClick ? "pointer" : "default", opacity: 1 }}
+                    onMouseEnter={e => { if (onClick) (e.currentTarget as HTMLElement).style.opacity = "0.7"; }}
+                    onMouseLeave={e => { (e.currentTarget as HTMLElement).style.opacity = "1"; }}>
+                    <p className="text-lg font-bold leading-none" style={{ color: "var(--text-1)" }}>{value}</p>
+                    <p className="text-xs mt-0.5" style={{ color: "var(--text-5)" }}>{label}</p>
+                  </button>
+                ))}
               </div>
-              {[
-                { icon: Eye,     label: "Views",         value: "—", change: "", color: "#9B7CF5" },
-                { icon: Users,   label: "New Followers", value: following > 0 ? `+${Math.min(following, 99)}` : "—", change: "", color: "#10B981" },
-                { icon: Star,    label: "Rating",        value: rating ? rating.toFixed(1) : "—", change: "", color: "#F59E0B" },
-              ].map(({ icon: Icon, label, value, color }) => (
-                <div key={label} className="flex items-center gap-3 flex-1 pl-4">
-                  <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
-                    style={{ background: `${color}15` }}>
-                    <Icon size={14} style={{ color }} />
-                  </div>
-                  <div>
-                    <p className="text-xs font-semibold" style={{ color: "var(--text-5)" }}>{label}</p>
-                    <p className="text-base font-bold leading-none mt-0.5" style={{ color: "var(--text-1)" }}>{value}</p>
-                  </div>
-                </div>
-              ))}
             </div>
 
             {/* ── Tabs ── */}
@@ -518,12 +522,183 @@ export default function ProfilePage() {
               )
             )}
 
-            {activeTab !== "Portfolio" && activeTab !== "Saved" && activeTab !== "About" && (
+            {/* ── Services tab ── */}
+            {activeTab === "Services" && (
+              <div className="flex flex-col gap-6">
+                {/* Featured service card — only show image posts */}
+                {(() => {
+                  const featuredPost = dbPosts.find(p => !isVideoUrl(firstImage(p.image_url)));
+                  if (!featuredPost) return null;
+                  return (
+                  <div className="rounded-2xl overflow-hidden flex"
+                    style={{ background: "var(--bg-card)", border: "1px solid var(--border)", minHeight: 220 }}>
+                    <div className="w-2/5 shrink-0 relative">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={firstImage(featuredPost.image_url)} alt={featuredPost.title}
+                        className="w-full h-full object-cover" />
+                    </div>
+                    <div className="flex-1 p-6 flex flex-col">
+                      <div className="flex items-center gap-3 mb-3">
+                        <span className="text-[11px] font-bold tracking-wider" style={{ color: "#9B7CF5" }}>FEATURED</span>
+                        <span className="flex items-center gap-1 text-[11px] font-semibold"
+                          style={{ color: "#10B981" }}>
+                          <span className="w-1.5 h-1.5 rounded-full inline-block" style={{ background: "#10B981" }} />
+                          Available
+                        </span>
+                      </div>
+                      <h3 className="text-xl font-bold mb-2" style={{ color: "var(--text-1)" }}>{featuredPost.title}</h3>
+                      <p className="text-sm mb-4 flex-1" style={{ color: "var(--text-4)" }}>
+                        {featuredPost.category ?? "Original artwork commission"}
+                      </p>
+                      {rating > 0 && (
+                        <div className="flex items-center gap-2 mb-4">
+                          <div className="flex">
+                            {Array.from({ length: 5 }).map((_, i) => (
+                              <Star key={i} size={14} fill={i < Math.round(rating) ? "#F59E0B" : "none"}
+                                style={{ color: "#F59E0B" }} />
+                            ))}
+                          </div>
+                          <span className="text-sm font-bold" style={{ color: "var(--text-1)" }}>{rating.toFixed(1)}</span>
+                          <span className="text-xs" style={{ color: "var(--text-5)" }}>· {dbPosts.length} orders completed</span>
+                        </div>
+                      )}
+                      <div className="flex items-end justify-between mt-auto">
+                        <div>
+                          <p className="text-xs mb-0.5" style={{ color: "var(--text-5)" }}>Starting at</p>
+                          <p className="text-2xl font-bold" style={{ color: "var(--text-1)" }}>
+                            ${Math.round((80 + (rating || 3) * 40) / 10) * 10}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-4">
+                          <div className="flex items-center gap-3 text-xs" style={{ color: "var(--text-5)" }}>
+                            <span className="flex items-center gap-1"><Clock size={12} /> 5–7 days</span>
+                          </div>
+                          <button onClick={() => openEdit("Services")}
+                            className="flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-bold text-white transition-opacity hover:opacity-90"
+                            style={{ background: "#7C5BF5" }}>
+                            Request Service →
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  );
+                })()}
+
+                {/* Search + sort + grid */}
+                <div>
+                  <div className="flex items-center gap-3 mb-5">
+                    <div className="flex-1 flex items-center gap-2.5 px-4 py-2.5 rounded-2xl"
+                      style={{ background: "var(--bg-subtle)", border: "1px solid var(--border)" }}>
+                      <Eye size={14} style={{ color: "var(--text-5)" }} />
+                      <input
+                        type="text"
+                        value={serviceSearch}
+                        onChange={e => setServiceSearch(e.target.value)}
+                        placeholder="Search services..."
+                        className="flex-1 bg-transparent outline-none text-sm"
+                        style={{ color: "var(--text-1)" }}
+                      />
+                    </div>
+                    <div className="flex items-center gap-1 text-sm font-medium" style={{ color: "var(--text-5)" }}>
+                      <span>Sort:</span>
+                      {(["Popular", "Latest", "Price"] as const).map(s => (
+                        <button key={s} onClick={() => setServiceSort(s)} className="px-3 py-1.5 rounded-lg transition-all"
+                          style={{
+                            background: serviceSort === s ? "var(--bg-subtle)" : "transparent",
+                            color: serviceSort === s ? "var(--text-1)" : "var(--text-5)",
+                            fontWeight: serviceSort === s ? 700 : 400,
+                            border: serviceSort === s ? "1px solid var(--border)" : "none",
+                          }}>
+                          {s}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {(() => {
+                    const q = serviceSearch.toLowerCase();
+                    let filtered = dbPosts.filter(p => {
+                      const src = firstImage(p.image_url);
+                      if (isVideoUrl(src)) return false;
+                      if (!q) return true;
+                      return p.title?.toLowerCase().includes(q) || p.category?.toLowerCase().includes(q);
+                    });
+                    if (serviceSort === "Latest") filtered = [...filtered].sort((a, b) => new Date(b.created_at ?? 0).getTime() - new Date(a.created_at ?? 0).getTime());
+                    else if (serviceSort === "Price") filtered = [...filtered].sort((a, b) => (b.likes_count ?? 0) - (a.likes_count ?? 0));
+                    else filtered = [...filtered].sort((a, b) => (b.likes_count ?? 0) - (a.likes_count ?? 0));
+                    return filtered.length > 0 ? (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      {filtered.map((post, idx) => {
+                        const src = firstImage(post.image_url);
+                        if (isVideoUrl(src)) return null;
+                        const price = Math.round((80 + (rating || 3) * 40 + idx * 30) / 10) * 10;
+                        return (
+                          <div key={post.id} className="rounded-2xl overflow-hidden"
+                            style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}>
+                            <div className="relative" style={{ height: 200 }}>
+                              {/* eslint-disable-next-line @next/next/no-img-element */}
+                              <img src={src} alt={post.title} className="w-full h-full object-cover" />
+                              <span className="absolute top-3 left-3 px-3 py-1 rounded-full text-xs font-bold"
+                                style={{ background: "#F59E0B", color: "#000" }}>
+                                From ${price}
+                              </span>
+                            </div>
+                            <div className="p-4">
+                              <div className="flex items-center justify-between mb-1">
+                                <h4 className="font-bold text-sm" style={{ color: "var(--text-1)" }}>{post.title}</h4>
+                                <span className="text-[11px] font-semibold flex items-center gap-1"
+                                  style={{ color: available ? "#10B981" : "#EF4444" }}>
+                                  <span className="w-1.5 h-1.5 rounded-full inline-block"
+                                    style={{ background: available ? "#10B981" : "#EF4444" }} />
+                                  {available ? "Available" : "Fully Booked"}
+                                </span>
+                              </div>
+                              <p className="text-xs mb-3" style={{ color: "var(--text-5)" }}>
+                                {post.category ?? "Original artwork"}
+                              </p>
+                              <div className="flex items-center gap-4 text-xs" style={{ color: "var(--text-5)" }}>
+                                <span className="flex items-center gap-1"><Clock size={11} /> 5–7d</span>
+                                <span className="flex items-center gap-1"><Copy size={11} /> 2×</span>
+                                {rating > 0 && (
+                                  <span className="flex items-center gap-1">
+                                    <Star size={11} fill="#F59E0B" style={{ color: "#F59E0B" }} />
+                                    {rating.toFixed(1)} ({post.likes_count})
+                                  </span>
+                                )}
+                                <span className="ml-auto" style={{ color: "var(--text-4)" }}>→</span>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <div className="flex flex-col items-center py-16 gap-4">
+                      <div className="w-16 h-16 rounded-2xl flex items-center justify-center"
+                        style={{ background: "rgba(124,91,245,0.1)", border: "1px solid rgba(124,91,245,0.2)" }}>
+                        <Briefcase size={24} style={{ color: "#9B7CF5" }} />
+                      </div>
+                      <div className="text-center">
+                        <p className="font-semibold mb-1" style={{ color: "var(--text-2)" }}>No services yet</p>
+                        <p className="text-sm" style={{ color: "var(--text-5)" }}>Add your first service to start getting hired</p>
+                      </div>
+                      <button onClick={() => openEdit("Services")}
+                        className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold text-white"
+                        style={{ background: "linear-gradient(135deg,#361E7B,#7C5BF5)" }}>
+                        <Plus size={15} /> Add Service
+                      </button>
+                    </div>
+                  );
+                  })()}
+                </div>
+              </div>
+            )}
+
+            {activeTab === "Gallery" && (
               <div className="flex flex-col items-center py-20 gap-3">
-                <p className="text-3xl">🚧</p>
-                <p className="text-sm" style={{ color: "var(--text-5)" }}>
-                  No {activeTab.toLowerCase()} content yet
-                </p>
+                <p className="text-3xl">🖼️</p>
+                <p className="text-sm" style={{ color: "var(--text-5)" }}>Gallery coming soon</p>
               </div>
             )}
 
@@ -736,134 +911,288 @@ export default function ProfilePage() {
         </div>
       )}
 
-      {/* ── Edit Profile Modal ── */}
+      {/* ── Edit Profile Modal — sidebar layout ── */}
       {showEdit && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
-          style={{ background: "rgba(0,0,0,0.65)", backdropFilter: "blur(6px)" }}
+          style={{ background: "rgba(0,0,0,0.7)", backdropFilter: "blur(8px)" }}
           onClick={e => e.target === e.currentTarget && setShowEdit(false)}>
-          <div className="w-full max-w-md rounded-2xl overflow-hidden"
-            style={{ background: "var(--bg-card)", border: "1px solid var(--border)", boxShadow: "0 8px 40px rgba(0,0,0,0.5)" }}>
-            <div className="flex items-center gap-3 px-5 py-4" style={{ borderBottom: "1px solid var(--border)" }}>
-              <h3 className="text-sm font-bold flex-1" style={{ color: "var(--text-1)" }}>Edit Profile</h3>
-              <button onClick={() => setShowEdit(false)} className="transition-opacity hover:opacity-70" style={{ color: "var(--text-5)" }}>
-                <X size={16} />
-              </button>
-            </div>
+          <div className="w-full flex overflow-hidden rounded-2xl"
+            style={{ maxWidth: 860, height: 580, background: "var(--bg)", border: "1px solid var(--border)", boxShadow: "0 24px 80px rgba(0,0,0,0.6)" }}>
 
-            <div className="px-5 py-4 flex flex-col gap-4 overflow-y-auto" style={{ maxHeight: "70vh", scrollbarWidth: "none" }}>
-
-              {/* Avatar upload */}
-              <div className="flex flex-col items-center gap-2">
-                <div className="relative group cursor-pointer" onClick={() => !avatarUploading && avatarInputRef.current?.click()}>
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={avatarPreview ?? avatar}
-                    alt="Profile photo"
-                    className="w-20 h-20 rounded-full object-cover"
-                    style={{ border: "3px solid rgba(124,91,245,0.5)" }}
-                  />
-                  <div className="absolute inset-0 rounded-full flex items-center justify-center transition-opacity"
-                    style={{ background: "rgba(0,0,0,0.45)", opacity: 0 }}
-                    onMouseEnter={e => { (e.currentTarget as HTMLElement).style.opacity = "1"; }}
-                    onMouseLeave={e => { (e.currentTarget as HTMLElement).style.opacity = "0"; }}>
-                    {avatarUploading
-                      ? <Loader2 size={20} className="animate-spin text-white" />
-                      : <Camera size={20} className="text-white" />}
-                  </div>
-                </div>
-                <p className="text-xs" style={{ color: "var(--text-5)" }}>
-                  {avatarUploading ? "Uploading…" : "Click photo to change"}
-                </p>
-                <input ref={avatarInputRef} type="file" accept="image/*" className="hidden" onChange={handleAvatarChange} />
+            {/* ── Left sidebar ── */}
+            <div className="w-52 shrink-0 flex flex-col"
+              style={{ background: "rgba(124,91,245,0.05)", borderRight: "1px solid var(--border)" }}>
+              {/* Header */}
+              <div className="px-5 py-5" style={{ borderBottom: "1px solid var(--border)" }}>
+                <p className="text-sm font-bold mb-0.5" style={{ color: "var(--text-1)" }}>Edit Profile</p>
+                <p className="text-xs truncate" style={{ color: "var(--text-5)" }}>{name}</p>
               </div>
 
-              {/* Banner upload */}
-              <div>
-                <label className="text-xs font-semibold mb-1.5 block" style={{ color: "var(--text-4)" }}>Banner Image</label>
-                <div
-                  className="relative w-full h-24 rounded-xl overflow-hidden cursor-pointer group"
-                  style={{ background: "linear-gradient(135deg, #1a0a3a, #2d1b69)" }}
-                  onClick={() => !bannerUploading && bannerInputRef.current?.click()}
-                >
-                  {(bannerPreview ?? profile?.banner_url) && (
-                    /* eslint-disable-next-line @next/next/no-img-element */
-                    <img src={bannerPreview ?? profile?.banner_url ?? ""}
-                      alt="banner" className="absolute inset-0 w-full h-full object-cover" />
-                  )}
-                  <div className="absolute inset-0 flex items-center justify-center transition-opacity bg-black/0 group-hover:bg-black/40">
-                    <span className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1.5 text-xs font-semibold text-white">
-                      {bannerUploading
-                        ? <><Loader2 size={14} className="animate-spin" /> Uploading…</>
-                        : <><Camera size={14} /> Change Banner</>}
-                    </span>
-                  </div>
-                </div>
-                <input ref={bannerInputRef} type="file" accept="image/*" className="hidden" onChange={handleBannerChange} />
-              </div>
+              {/* Nav */}
+              <nav className="flex flex-col gap-0.5 p-3 flex-1">
+                {([
+                  { key: "Basic Info",   icon: UserCircle  },
+                  { key: "Portfolio",    icon: LayoutGrid  },
+                  { key: "Services",     icon: Briefcase   },
+                  { key: "Availability", icon: Clock       },
+                  { key: "Pricing",      icon: Store       },
+                  { key: "Preferences",  icon: SlidersHorizontal },
+                ] as { key: EditSection; icon: React.ElementType }[]).map(({ key, icon: Icon }) => (
+                  <button key={key} onClick={() => setEditSection(key)}
+                    className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-medium transition-all text-left w-full"
+                    style={{
+                      background: editSection === key ? "rgba(124,91,245,0.15)" : "transparent",
+                      color:      editSection === key ? "#9B7CF5" : "var(--text-4)",
+                    }}>
+                    <Icon size={15} strokeWidth={1.8} />
+                    {key}
+                  </button>
+                ))}
+              </nav>
 
-              {([
-                { label: "Display Name",  key: "display_name"  as const, placeholder: "Your full name"           },
-                { label: "Username",      key: "username"      as const, placeholder: "yourhandle"               },
-                { label: "Location",      key: "location"      as const, placeholder: "City, Country"            },
-                { label: "Tag / Role",    key: "tag"           as const, placeholder: "e.g. Artist, Illustrator" },
-                { label: "Response Time", key: "response_time" as const, placeholder: "e.g. Within 24 hours"    },
-              ] as const).map(({ label, key, placeholder }) => (
-                <div key={key}>
-                  <label className="text-xs font-semibold mb-1.5 block" style={{ color: "var(--text-4)" }}>{label}</label>
-                  <input
-                    value={editForm[key] as string}
-                    onChange={e => setEditForm(f => ({ ...f, [key]: e.target.value }))}
-                    placeholder={placeholder}
-                    className="w-full px-3 py-2.5 rounded-xl text-sm outline-none"
-                    style={{ background: "var(--bg-subtle)", border: "1px solid var(--border)", color: "var(--text-1)" }}
-                  />
-                </div>
-              ))}
-
-              <div>
-                <label className="text-xs font-semibold mb-1.5 block" style={{ color: "var(--text-4)" }}>Bio</label>
-                <textarea
-                  value={editForm.bio}
-                  onChange={e => setEditForm(f => ({ ...f, bio: e.target.value }))}
-                  placeholder="Tell the world about your art..."
-                  rows={3}
-                  className="w-full px-3 py-2.5 rounded-xl text-sm outline-none resize-none"
-                  style={{ background: "var(--bg-subtle)", border: "1px solid var(--border)", color: "var(--text-1)" }}
-                />
-              </div>
-
-              <div className="flex items-center justify-between py-1">
-                <div>
-                  <p className="text-sm font-semibold" style={{ color: "var(--text-2)" }}>Available for projects</p>
-                  <p className="text-xs" style={{ color: "var(--text-5)" }}>Show as available to potential clients</p>
-                </div>
-                <button
-                  onClick={() => setEditForm(f => ({ ...f, available: !f.available }))}
-                  className="w-11 h-6 rounded-full flex items-center px-0.5 transition-colors shrink-0"
-                  style={{ background: editForm.available ? "#7C5BF5" : "var(--bg-subtle)", border: "1px solid var(--border)" }}>
-                  <span className="w-5 h-5 rounded-full bg-white shadow transition-transform"
-                    style={{ transform: editForm.available ? "translateX(20px)" : "translateX(0)" }} />
+              {/* Save button */}
+              <div className="p-4" style={{ borderTop: "1px solid var(--border)" }}>
+                <button onClick={saveProfile} disabled={saving || avatarUploading}
+                  className="w-full py-2.5 rounded-xl text-sm font-bold text-white transition-opacity hover:opacity-90 disabled:opacity-50"
+                  style={{ background: "linear-gradient(135deg,#361E7B,#7C5BF5)" }}>
+                  {saving ? "Saving…" : "Save Changes"}
                 </button>
               </div>
             </div>
 
-            {saveError && (
-              <div className="px-5 pb-2">
-                <p className="text-xs text-center" style={{ color: "#EF4444" }}>{saveError}</p>
+            {/* ── Right content panel ── */}
+            <div className="flex-1 flex flex-col min-w-0">
+              {/* Panel header */}
+              <div className="flex items-center justify-between px-6 py-4 shrink-0"
+                style={{ borderBottom: "1px solid var(--border)" }}>
+                <h2 className="text-base font-bold" style={{ color: "var(--text-1)" }}>{editSection}</h2>
+                <button onClick={() => setShowEdit(false)}
+                  className="transition-opacity hover:opacity-70" style={{ color: "var(--text-5)" }}>
+                  <X size={18} />
+                </button>
               </div>
-            )}
 
-            <div className="flex items-center gap-3 px-5 py-4" style={{ borderTop: "1px solid var(--border)" }}>
-              <button onClick={() => { setShowEdit(false); setSaveError(null); }}
-                className="flex-1 py-2.5 rounded-xl text-sm font-semibold transition-opacity hover:opacity-80"
-                style={{ background: "var(--bg-subtle)", color: "var(--text-3)", border: "1px solid var(--border)" }}>
-                Cancel
-              </button>
-              <button onClick={saveProfile} disabled={saving || avatarUploading}
-                className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold transition-opacity hover:opacity-85 disabled:opacity-50"
-                style={{ background: "#7C5BF5", color: "#fff" }}>
-                {saving ? "Saving…" : avatarUploading ? "Uploading photo…" : <><Check size={14} /> Save Changes</>}
-              </button>
+              {/* Scrollable body */}
+              <div className="flex-1 overflow-y-auto px-6 py-5" style={{ scrollbarWidth: "none" }}>
+
+                {/* ── Basic Info ── */}
+                {editSection === "Basic Info" && (
+                  <div className="flex flex-col gap-5">
+                    {/* Profile photo row */}
+                    <div>
+                      <p className="text-xs font-semibold mb-3" style={{ color: "var(--text-5)" }}>Profile Photo</p>
+                      <div className="flex items-center gap-4">
+                        <div className="relative cursor-pointer shrink-0"
+                          onClick={() => !avatarUploading && avatarInputRef.current?.click()}>
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img src={avatarPreview ?? avatar} alt="avatar"
+                            className="w-16 h-16 rounded-xl object-cover"
+                            style={{ border: "2px solid rgba(124,91,245,0.3)" }} />
+                          {avatarUploading && (
+                            <div className="absolute inset-0 rounded-xl flex items-center justify-center"
+                              style={{ background: "rgba(0,0,0,0.5)" }}>
+                              <Loader2 size={16} className="animate-spin text-white" />
+                            </div>
+                          )}
+                        </div>
+                        <div>
+                          <button onClick={() => !avatarUploading && avatarInputRef.current?.click()}
+                            className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold transition-opacity hover:opacity-80 mb-1.5"
+                            style={{ background: "var(--bg-subtle)", border: "1px solid var(--border)", color: "var(--text-2)" }}>
+                            <Camera size={13} /> Upload Photo
+                          </button>
+                          <p className="text-[11px]" style={{ color: "var(--text-5)" }}>JPG, PNG or WEBP. Max 5 MB.</p>
+                        </div>
+                        <input ref={avatarInputRef} type="file" accept="image/*" className="hidden" onChange={handleAvatarChange} />
+                      </div>
+                    </div>
+
+                    {/* Full Name + Username */}
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="text-xs font-semibold mb-1.5 block" style={{ color: "var(--text-5)" }}>Full Name</label>
+                        <input value={editForm.display_name}
+                          onChange={e => setEditForm(f => ({ ...f, display_name: e.target.value }))}
+                          placeholder="Your full name"
+                          className="w-full px-3 py-2.5 rounded-xl text-sm outline-none"
+                          style={{ background: "var(--bg-subtle)", border: "1px solid var(--border)", color: "var(--text-1)" }} />
+                      </div>
+                      <div>
+                        <label className="text-xs font-semibold mb-1.5 block" style={{ color: "var(--text-5)" }}>Username</label>
+                        <input value={editForm.username}
+                          onChange={e => setEditForm(f => ({ ...f, username: e.target.value }))}
+                          placeholder="@yourhandle"
+                          className="w-full px-3 py-2.5 rounded-xl text-sm outline-none"
+                          style={{ background: "var(--bg-subtle)", border: "1px solid var(--border)", color: "var(--text-1)" }} />
+                      </div>
+                    </div>
+
+                    {/* Bio */}
+                    <div>
+                      <div className="flex items-center justify-between mb-1.5">
+                        <label className="text-xs font-semibold" style={{ color: "var(--text-5)" }}>Bio</label>
+                        <button className="flex items-center gap-1 text-[11px] font-semibold transition-opacity hover:opacity-80"
+                          style={{ color: "#9B7CF5" }}>
+                          <Zap size={11} /> Improve with AI
+                        </button>
+                      </div>
+                      <textarea value={editForm.bio}
+                        onChange={e => setEditForm(f => ({ ...f, bio: e.target.value.slice(0, 400) }))}
+                        placeholder="Tell the world about your art..."
+                        rows={4}
+                        className="w-full px-3 py-2.5 rounded-xl text-sm outline-none resize-none"
+                        style={{ background: "var(--bg-subtle)", border: "1px solid var(--border)", color: "var(--text-1)" }} />
+                      <p className="text-[11px] text-right mt-1" style={{ color: "var(--text-5)" }}>
+                        {editForm.bio.length} / 400
+                      </p>
+                    </div>
+
+                    {/* Location + Website */}
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="text-xs font-semibold mb-1.5 block" style={{ color: "var(--text-5)" }}>Location</label>
+                        <input value={editForm.location}
+                          onChange={e => setEditForm(f => ({ ...f, location: e.target.value }))}
+                          placeholder="City, Country"
+                          className="w-full px-3 py-2.5 rounded-xl text-sm outline-none"
+                          style={{ background: "var(--bg-subtle)", border: "1px solid var(--border)", color: "var(--text-1)" }} />
+                      </div>
+                      <div>
+                        <label className="text-xs font-semibold mb-1.5 block" style={{ color: "var(--text-5)" }}>Website</label>
+                        <input value={editForm.website}
+                          onChange={e => setEditForm(f => ({ ...f, website: e.target.value }))}
+                          placeholder="https://yoursite.com"
+                          className="w-full px-3 py-2.5 rounded-xl text-sm outline-none"
+                          style={{ background: "var(--bg-subtle)", border: "1px solid var(--border)", color: "var(--text-1)" }} />
+                      </div>
+                    </div>
+
+                    {saveError && (
+                      <p className="text-xs text-center" style={{ color: "#EF4444" }}>{saveError}</p>
+                    )}
+                  </div>
+                )}
+
+                {/* ── Services ── */}
+                {editSection === "Services" && (
+                  <div className="flex flex-col gap-4">
+                    <div className="flex items-center justify-between">
+                      <p className="text-xs" style={{ color: "var(--text-5)" }}>
+                        {dbPosts.length > 0 ? `${dbPosts.length} active · 0 paused` : "No services yet"}
+                      </p>
+                      <button className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold text-white"
+                        style={{ background: "#7C5BF5" }}>
+                        <Plus size={13} /> Add Service
+                      </button>
+                    </div>
+                    {dbPosts.length > 0 ? (
+                      <div className="rounded-xl overflow-hidden" style={{ border: "1px solid var(--border)" }}>
+                        {dbPosts.map((post, i) => (
+                          <div key={post.id} className="flex items-center gap-3 px-4 py-3"
+                            style={{ borderBottom: i < dbPosts.length - 1 ? "1px solid var(--border)" : "none" }}>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-bold truncate" style={{ color: "var(--text-1)" }}>{post.title}</p>
+                              <div className="flex items-center gap-2 mt-0.5">
+                                {rating > 0 && (
+                                  <span className="flex items-center gap-1 text-[11px]" style={{ color: "#F59E0B" }}>
+                                    <Star size={10} fill="currentColor" /> {rating.toFixed(1)}
+                                  </span>
+                                )}
+                                <span className="text-[11px]" style={{ color: "var(--text-5)" }}>
+                                  {post.likes_count} orders · From ${Math.round((80 + (rating || 3) * 40) / 10) * 10}
+                                </span>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-1 shrink-0">
+                              {[
+                                { icon: Pencil, label: "Edit" },
+                                { icon: Copy,   label: "Duplicate" },
+                                { icon: Pause,  label: "Pause" },
+                                { icon: Trash2, label: "" },
+                              ].map(({ icon: Icon, label }) => (
+                                <button key={label || "del"}
+                                  className="flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs transition-opacity hover:opacity-70"
+                                  style={{ color: label === "" ? "#EF4444" : "var(--text-4)" }}>
+                                  <Icon size={13} />
+                                  {label && <span>{label}</span>}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="flex flex-col items-center py-12 gap-3">
+                        <Briefcase size={32} style={{ color: "var(--text-6)" }} />
+                        <p className="text-sm" style={{ color: "var(--text-5)" }}>No services yet. Add one to start getting hired.</p>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* ── Availability ── */}
+                {editSection === "Availability" && (
+                  <div className="flex flex-col gap-5">
+                    <div className="flex items-center justify-between p-4 rounded-xl"
+                      style={{ background: "var(--bg-subtle)", border: "1px solid var(--border)" }}>
+                      <div>
+                        <p className="text-sm font-semibold" style={{ color: "var(--text-1)" }}>Available for projects</p>
+                        <p className="text-xs mt-0.5" style={{ color: "var(--text-5)" }}>Show as available to potential clients</p>
+                      </div>
+                      <button onClick={() => setEditForm(f => ({ ...f, available: !f.available }))}
+                        className="w-11 h-6 rounded-full flex items-center px-0.5 transition-all shrink-0"
+                        style={{ background: editForm.available ? "#7C5BF5" : "var(--bg-muted)" }}>
+                        <span className="w-5 h-5 rounded-full bg-white shadow transition-transform"
+                          style={{ transform: editForm.available ? "translateX(20px)" : "translateX(0)" }} />
+                      </button>
+                    </div>
+                    <div>
+                      <label className="text-xs font-semibold mb-1.5 block" style={{ color: "var(--text-5)" }}>Response Time</label>
+                      <input value={editForm.response_time}
+                        onChange={e => setEditForm(f => ({ ...f, response_time: e.target.value }))}
+                        placeholder="e.g. Within 24 hours"
+                        className="w-full px-3 py-2.5 rounded-xl text-sm outline-none"
+                        style={{ background: "var(--bg-subtle)", border: "1px solid var(--border)", color: "var(--text-1)" }} />
+                    </div>
+                    <div>
+                      <label className="text-xs font-semibold mb-1.5 block" style={{ color: "var(--text-5)" }}>Tag / Role</label>
+                      <input value={editForm.tag}
+                        onChange={e => setEditForm(f => ({ ...f, tag: e.target.value }))}
+                        placeholder="e.g. Artist, Illustrator, UI/UX Designer"
+                        className="w-full px-3 py-2.5 rounded-xl text-sm outline-none"
+                        style={{ background: "var(--bg-subtle)", border: "1px solid var(--border)", color: "var(--text-1)" }} />
+                      <p className="text-[11px] mt-1" style={{ color: "var(--text-5)" }}>Comma-separated for multiple tags</p>
+                    </div>
+                  </div>
+                )}
+
+                {/* ── Other sections placeholder ── */}
+                {(editSection === "Portfolio" || editSection === "Pricing" || editSection === "Preferences") && (
+                  <div className="flex flex-col items-center justify-center py-16 gap-3">
+                    <div className="w-14 h-14 rounded-2xl flex items-center justify-center"
+                      style={{ background: "rgba(124,91,245,0.1)", border: "1px solid rgba(124,91,245,0.2)" }}>
+                      <SlidersHorizontal size={22} style={{ color: "#9B7CF5" }} />
+                    </div>
+                    <p className="text-sm font-semibold" style={{ color: "var(--text-2)" }}>{editSection} settings</p>
+                    <p className="text-xs" style={{ color: "var(--text-5)" }}>Coming soon</p>
+                  </div>
+                )}
+              </div>
+
+              {/* Footer */}
+              <div className="px-6 py-4 flex items-center justify-between shrink-0"
+                style={{ borderTop: "1px solid var(--border)" }}>
+                <button onClick={() => { setShowEdit(false); setSaveError(null); }}
+                  className="text-sm font-semibold transition-opacity hover:opacity-70"
+                  style={{ color: "var(--text-4)" }}>
+                  Cancel
+                </button>
+                <button onClick={saveProfile} disabled={saving || avatarUploading}
+                  className="flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-bold text-white transition-opacity hover:opacity-90 disabled:opacity-50"
+                  style={{ background: "linear-gradient(135deg,#361E7B,#7C5BF5)" }}>
+                  {saving ? "Saving…" : <><Check size={14} /> Save Changes</>}
+                </button>
+              </div>
             </div>
           </div>
         </div>

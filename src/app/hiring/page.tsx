@@ -838,11 +838,19 @@ function MyProjectsView({ userId, onSwitchToHire }: { userId: string; onSwitchTo
 // ── Main page ──────────────────────────────────────────────────
 
 export default function HiringPage() {
-  const { user } = useUser();
+  const { user, isLoaded } = useUser();
 
   const [tab, setTab]                       = useState<"hire" | "projects">("hire");
 
   const router = useRouter();
+
+  function requireAuth(then: () => void) {
+    if (isLoaded && !user) {
+      router.push("/login?redirect=/hiring");
+      return;
+    }
+    then();
+  }
 
   useEffect(() => {
     const p = new URLSearchParams(window.location.search).get("tab");
@@ -968,7 +976,7 @@ export default function HiringPage() {
               {(["hire", "projects"] as const).map(t => (
                 <button
                   key={t}
-                  onClick={() => switchTab(t)}
+                  onClick={() => t === "projects" ? requireAuth(() => switchTab(t)) : switchTab(t)}
                   className="px-5 py-1.5 rounded-full text-sm font-semibold transition-all whitespace-nowrap"
                   style={{
                     background: tab === t ? "linear-gradient(135deg,#361E7B,#7C5BF5)" : "transparent",
@@ -1061,9 +1069,9 @@ export default function HiringPage() {
           )}
         </div>
 
-        {/* My Projects tab */}
-        {tab === "projects" && (
-          <MyProjectsView userId={user?.id ?? ""} onSwitchToHire={() => switchTab("hire")} />
+        {/* My Projects tab — requires auth */}
+        {tab === "projects" && user && (
+          <MyProjectsView userId={user.id} onSwitchToHire={() => switchTab("hire")} />
         )}
 
         {/* Hire Artists tab */}
@@ -1290,7 +1298,7 @@ export default function HiringPage() {
                       </div>
                       <div className="px-4 md:px-8 flex gap-3 overflow-x-auto pb-2" style={{ scrollbarWidth: "none" }}>
                         {toWatch.map(a => (
-                          <ArtistCard key={a.clerk_id} a={a} price={estimatePrice(a)} onHire={() => setHireTarget(a)} />
+                          <ArtistCard key={a.clerk_id} a={a} price={estimatePrice(a)} onHire={() => requireAuth(() => setHireTarget(a))} />
                         ))}
                       </div>
                     </section>
@@ -1310,7 +1318,7 @@ export default function HiringPage() {
                     </div>
                     <div className="px-4 md:px-8 flex gap-3 overflow-x-auto pb-2" style={{ scrollbarWidth: "none" }}>
                       {catArtists.slice(0, 8).map(a => (
-                        <ArtistCard key={a.clerk_id} a={a} price={estimatePrice(a)} onHire={() => setHireTarget(a)} />
+                        <ArtistCard key={a.clerk_id} a={a} price={estimatePrice(a)} onHire={() => requireAuth(() => setHireTarget(a))} />
                       ))}
                       {catArtists.length >= 5 && (
                         <ViewAllCard category={category} onViewAll={() => setActiveCategory(category)} />
@@ -1361,7 +1369,7 @@ export default function HiringPage() {
                       {/* 3-column grid */}
                       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 mb-6">
                         {pageArtists.map(a => (
-                          <BrowseArtistCard key={a.clerk_id} a={a} price={estimatePrice(a)} onHire={() => setHireTarget(a)} />
+                          <BrowseArtistCard key={a.clerk_id} a={a} price={estimatePrice(a)} onHire={() => requireAuth(() => setHireTarget(a))} />
                         ))}
                       </div>
 
@@ -1417,7 +1425,7 @@ export default function HiringPage() {
                 ) : (
                   <div className="flex flex-wrap gap-4">
                     {filtered.map(a => (
-                      <ArtistCard key={a.clerk_id} a={a} price={estimatePrice(a)} onHire={() => setHireTarget(a)} />
+                      <ArtistCard key={a.clerk_id} a={a} price={estimatePrice(a)} onHire={() => requireAuth(() => setHireTarget(a))} />
                     ))}
                   </div>
                 )}

@@ -8,6 +8,8 @@ const PUBLIC_EXACT = new Set([
   "/",          // landing page
   "/feed",      // feed listing — guests can browse
   "/api/posts", // feed data loader — guests need this to load posts
+  "/hiring",    // browse artists — guests can search; auth only required when hiring
+  "/api/profiles", // artist list used by /hiring
 ]);
 
 // Path prefixes that are publicly accessible
@@ -15,6 +17,7 @@ const PUBLIC_PREFIXES = [
   "/login",    // Clerk embedded auth page + sub-routes (verify, sso-callback, etc.)
   "/sign-in",  // Clerk default redirect target
   "/sign-up",  // Clerk default redirect target
+  "/u/",       // public artist profile pages
 ];
 
 function isPublic(pathname: string): boolean {

@@ -1,6 +1,7 @@
 ﻿"use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { Playfair_Display } from "next/font/google";
 import PublicNav from "@/components/layout/PublicNav";
@@ -34,13 +35,7 @@ const STATS = [
   { value: "2,100+",  label: "Listings"   },
 ];
 
-const HERO_SLIDES = [
-  { src: "/Landing-Images/1.jpeg",  label: "Oil on canvas · c. 1680"      },
-  { src: "/Landing-Images/4.jpeg",  label: "Charcoal study · c. 1720"     },
-  { src: "/Landing-Images/30.jpeg", label: "Mixed media · c. 1890"        },
-  { src: "/Landing-Images/40.jpeg", label: "Oil on panel · c. 1640"       },
-  { src: "/Landing-Images/37.jpeg", label: "Tempera on canvas · c. 1750"  },
-];
+const HERO_CATEGORIES = ["PORTRAIT", "ILLUSTRATION", "PHOTOGRAPHY", "OIL PAINTING", "DIGITAL ART", "SCULPTURE", "CONCEPT ART"];
 
 /* ── Scroll-reveal ── */
 function useReveal(threshold = 0.15) {
@@ -83,12 +78,8 @@ function Divider() {
 }
 
 export default function LandingPage() {
-  const [slide, setSlide] = useState(0);
-
-  useEffect(() => {
-    const t = setInterval(() => setSlide(s => (s + 1) % HERO_SLIDES.length), 6000);
-    return () => clearInterval(t);
-  }, []);
+  const router = useRouter();
+  const [heroSearch, setHeroSearch] = useState("");
 
   return (
     <div style={{ background: BG, color: "#fff", overflowX: "hidden" }}>
@@ -96,114 +87,90 @@ export default function LandingPage() {
       <PublicNav />
 
       {/* ════════════════════════════ HERO ════════════════════════════ */}
-      <section className="relative w-full" style={{ height: "100svh", minHeight: 640 }}>
+      <section className="relative w-full flex items-center justify-center" style={{ height: "100svh", minHeight: 640 }}>
 
-        {/* Cinematic background slider */}
+        {/* Static background */}
         <div className="absolute inset-0 overflow-hidden">
-          {HERO_SLIDES.map((s, i) => (
-            /* eslint-disable-next-line @next/next/no-img-element */
-            <img
-              key={s.src}
-              src={s.src}
-              alt=""
-              className="absolute inset-0 w-full h-full object-cover"
-              style={{
-                filter: "brightness(0.28) saturate(0.10)",
-                opacity: i === slide ? 1 : 0,
-                transform: i === slide ? "scale(1.04)" : "scale(1)",
-                transition: "opacity 1.6s ease-in-out, transform 8s ease-out",
-                zIndex: i === slide ? 1 : 0,
-              }}
-            />
-          ))}
-          {/* Right-side gradient for text legibility */}
-          <div className="absolute inset-0 z-10" style={{
-            background: `linear-gradient(108deg,
-              rgba(5,5,5,0)     0%,
-              rgba(5,5,5,0.25)  30%,
-              rgba(5,5,5,0.78)  58%,
-              ${BG}             100%)`,
-          }} />
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/Landing-Images/HeroSection background.png"
+            alt=""
+            className="absolute inset-0 w-full h-full object-cover"
+            style={{ filter: "brightness(0.32) saturate(0.85)" }}
+          />
           {/* Bottom fade */}
-          <div className="absolute bottom-0 inset-x-0 h-56 z-10" style={{
+          <div className="absolute bottom-0 inset-x-0 h-48" style={{
             background: `linear-gradient(to bottom, transparent, ${BG})`,
           }} />
         </div>
 
-        {/* Content */}
-        <div className="relative z-20 h-full flex items-center">
-          <div className="w-full max-w-[1440px] mx-auto px-8 md:px-14 lg:px-20 flex justify-end">
-            <div style={{ maxWidth: 560 }}>
-              <p className="text-[11px] font-semibold tracking-[0.32em] uppercase mb-7" style={{ color: GOLD }}>
-                ✦ &nbsp;The Creative Ecosystem
-              </p>
-              <h1
-                className={`${playfair.className} mb-7 leading-[1.05]`}
-                style={{ fontSize: "clamp(44px, 5.8vw, 80px)", fontWeight: 700 }}
-              >
-                Where Creativity<br />
-                <em style={{ color: ACCENT, fontStyle: "italic" }}>Finds Opportunity</em>
-              </h1>
-              <p
-                className="text-[17px] leading-[1.8] mb-12"
-                style={{ color: "rgba(255,255,255,0.52)", maxWidth: 400 }}
-              >
-                Showcase your work.&nbsp; Build your presence.<br />
-                Get discovered.&nbsp; Get hired.
-              </p>
-              <div className="flex items-center gap-4 flex-wrap">
-                <Link
-                  href="/feed"
-                  className="inline-flex items-center gap-2 px-8 py-4 rounded-full text-sm font-bold text-white transition-all duration-300 hover:scale-[1.04]"
-                  style={{ background: ACCENT, boxShadow: `0 0 44px ${ACCENT}48` }}
-                >
-                  Explore Ortist
-                </Link>
-                <Link
-                  href="/login"
-                  className="inline-flex items-center px-8 py-4 rounded-full text-sm font-semibold transition-all duration-300 hover:bg-white/8"
-                  style={{ border: "1px solid rgba(255,255,255,0.16)", color: "rgba(255,255,255,0.72)" }}
-                >
-                  Join as Creator
-                </Link>
-              </div>
-            </div>
-          </div>
-        </div>
+        {/* Centered content */}
+        <div className="relative z-10 flex flex-col items-center text-center px-6 w-full" style={{ maxWidth: 860 }}>
 
-        {/* Slide dots + artwork label — bottom left */}
-        <div className="absolute bottom-9 left-8 md:left-14 lg:left-20 z-20 flex flex-col gap-4">
-          <p className="text-[10px] font-medium tracking-[0.22em] uppercase" style={{ color: "rgba(255,255,255,0.28)" }}>
-            {HERO_SLIDES[slide].label}
-          </p>
-          <div className="flex items-center gap-2">
-            {HERO_SLIDES.map((_, i) => (
-              <button
-                key={i}
-                onClick={() => setSlide(i)}
-                aria-label={`Slide ${i + 1}`}
-                className="transition-all duration-500"
-                style={{
-                  width:  i === slide ? 28 : 6,
-                  height: 2,
-                  borderRadius: 9999,
-                  background: i === slide ? "#fff" : "rgba(255,255,255,0.25)",
-                  cursor: "pointer",
-                  border: "none",
-                  padding: 0,
-                }}
-              />
+          {/* — CREATIVE ECOSYSTEM — */}
+          <div className="flex items-center gap-4 mb-10">
+            <div style={{ height: 1, width: 56, background: "rgba(255,255,255,0.35)" }} />
+            <p className="text-[10px] font-semibold tracking-[0.36em] uppercase" style={{ color: "rgba(255,255,255,0.6)" }}>
+              Creative Ecosystem
+            </p>
+            <div style={{ height: 1, width: 56, background: "rgba(255,255,255,0.35)" }} />
+          </div>
+
+          {/* Headline */}
+          <h1
+            className={`${playfair.className} mb-10 leading-[1.04]`}
+            style={{ fontSize: "clamp(46px, 7.5vw, 100px)", fontWeight: 400, fontStyle: "italic" }}
+          >
+            The Home for<br />Creative Work
+          </h1>
+
+          {/* Search bar */}
+          <div className="w-full max-w-[540px] mb-6 flex items-center gap-3 px-5 py-3.5 rounded-lg"
+            style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.18)", backdropFilter: "blur(16px)" }}>
+            <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none"
+              stroke="rgba(255,255,255,0.45)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="11" cy="11" r="8" /><path d="m21 21-4.35-4.35" />
+            </svg>
+            <input
+              type="text"
+              value={heroSearch}
+              onChange={e => setHeroSearch(e.target.value)}
+              onKeyDown={e => { if (e.key === "Enter" && heroSearch.trim()) router.push(`/hiring?search=${encodeURIComponent(heroSearch.trim())}`); }}
+              placeholder="Search artists, artwork, services or categories..."
+              className="flex-1 bg-transparent outline-none text-sm"
+              style={{ color: "#fff" }}
+            />
+          </div>
+
+          {/* Category chips */}
+          <div className="flex flex-wrap justify-center gap-2 mb-10">
+            {HERO_CATEGORIES.map(cat => (
+              <Link
+                key={cat}
+                href={`/hiring?search=${encodeURIComponent(cat)}`}
+                className="px-4 py-2 text-[10px] font-semibold tracking-[0.18em] uppercase transition-all duration-200 hover:bg-white/10 hover:border-white/50"
+                style={{ border: "1px solid rgba(255,255,255,0.22)", color: "rgba(255,255,255,0.72)", borderRadius: 4 }}
+              >
+                {cat}
+              </Link>
             ))}
           </div>
+
+          {/* Nav links */}
+          <div className="flex items-center gap-10 text-[13px] font-medium" style={{ color: "rgba(255,255,255,0.5)" }}>
+            <Link href="/feed"    className="hover:text-white transition-colors duration-200">Browse Feed →</Link>
+            <Link href="/hiring"  className="hover:text-white transition-colors duration-200">Hire Artists →</Link>
+            <Link href="/gallery" className="hover:text-white transition-colors duration-200">Marketplace →</Link>
+          </div>
         </div>
 
-        {/* Scroll indicator — bottom center */}
+        {/* Scroll indicator */}
         <div
-          className="absolute bottom-9 left-1/2 -translate-x-1/2 z-20 flex flex-col items-center gap-3"
+          className="absolute bottom-8 left-1/2 -translate-x-1/2 z-10 flex flex-col items-center gap-3"
           style={{ color: MUTED, animation: "pulse 2.4s ease-in-out infinite" }}
         >
           <span className="text-[10px] font-medium tracking-[0.28em] uppercase">Scroll</span>
-          <div className="w-px h-14" style={{ background: `linear-gradient(to bottom, ${MUTED}70, transparent)` }} />
+          <div className="w-px h-12" style={{ background: `linear-gradient(to bottom, ${MUTED}70, transparent)` }} />
         </div>
       </section>
 
