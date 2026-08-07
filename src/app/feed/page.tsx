@@ -14,21 +14,6 @@ import Link from "next/link";
 import { firstImage } from "@/lib/imageUrl";
 import { useEffect, useRef, useState } from "react";
 
-function toGridPost(p: Post) {
-  return {
-    id:          p.id,
-    userId:      p.user_id,
-    title:       p.title,
-    imageUrl:    p.image_url,
-    imageWidth:  400,
-    imageHeight: 500,
-    username:    p.author_username,
-    avatar:      p.author_avatar ?? `https://i.pravatar.cc/80`,
-    likes:       p.likes_count,
-    comments:    p.comments_count,
-    category:    p.category,
-  };
-}
 
 interface SearchPost {
   id: string; title: string; image_url: string;
@@ -132,7 +117,6 @@ export default function FeedPage() {
       .catch(err => { if (err.name !== "AbortError") setSearching(false); });
   }, [query]);
 
-  const feedPosts = loading ? [] : dbPosts.map(toGridPost);
   const hasResults = searchPosts.length > 0 || searchAccounts.length > 0;
 
   return (
@@ -190,7 +174,7 @@ export default function FeedPage() {
             <FeedGridSkeleton count={12} />
           ) : (
             <MasonryGrid
-              posts={feedPosts as Parameters<typeof MasonryGrid>[0]["posts"]}
+              posts={loading ? [] : dbPosts}
               category={null}
               loadFromDb={true}
             />

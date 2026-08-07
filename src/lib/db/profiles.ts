@@ -77,18 +77,16 @@ export async function followUser(followerId: string, followingId: string) {
     .from("follows")
     .insert({ follower_id: followerId, following_id: followingId });
 
-  if (!error) {
-    const { data } = await db
-      .from("profiles")
-      .select("followers_count")
-      .eq("clerk_id", followingId)
-      .single();
-    if (data) {
-      await db
-        .from("profiles")
-        .update({ followers_count: data.followers_count + 1 })
-        .eq("clerk_id", followingId);
-    }
+  if (!error || error.code === "23505") {
+    // Recount from follows table — avoids read-then-write race condition
+    const [{ count: followersCount }, { count: followingCount }] = await Promise.all([
+      db.from("follows").select("*", { count: "exact", head: true }).eq("following_id", followingId),
+      db.from("follows").select("*", { count: "exact", head: true }).eq("follower_id", followerId),
+    ]);
+    await Promise.all([
+      db.from("profiles").update({ followers_count: followersCount ?? 0 }).eq("clerk_id", followingId),
+      db.from("profiles").update({ following_count: followingCount ?? 0 }).eq("clerk_id", followerId),
+    ]);
   }
 }
 
@@ -98,6 +96,16 @@ export async function unfollowUser(followerId: string, followingId: string) {
     .delete()
     .eq("follower_id", followerId)
     .eq("following_id", followingId);
+
+  // Recount after delete
+  const [{ count: followersCount }, { count: followingCount }] = await Promise.all([
+    db.from("follows").select("*", { count: "exact", head: true }).eq("following_id", followingId),
+    db.from("follows").select("*", { count: "exact", head: true }).eq("follower_id", followerId),
+  ]);
+  await Promise.all([
+    db.from("profiles").update({ followers_count: followersCount ?? 0 }).eq("clerk_id", followingId),
+    db.from("profiles").update({ following_count: followingCount ?? 0 }).eq("clerk_id", followerId),
+  ]);
 }
 
 export async function isFollowing(followerId: string, followingId: string): Promise<boolean> {

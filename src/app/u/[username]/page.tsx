@@ -3,14 +3,18 @@
 import BottomNav from "@/components/layout/BottomNav";
 import MainHeader from "@/components/layout/MainHeader";
 import Sidebar from "@/components/layout/Sidebar";
+import HireModal from "@/components/hiring/HireModal";
+import PostModal from "@/components/ui/PostModal";
 import { type Post as DbPost } from "@/lib/db/posts";
 import { type Profile } from "@/lib/db/profiles";
 import { useUser } from "@clerk/nextjs";
-import { ArrowLeft, Bookmark, Heart, MapPin, MessageCircle, Star, Users, UserPlus, TrendingUp, X } from "lucide-react";
+import { ArrowLeft, Bookmark, Briefcase, Heart, MapPin, Star, Users, UserPlus, TrendingUp, X } from "lucide-react";
 import Link from "next/link";
 import { use, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { firstImage } from "@/lib/imageUrl";
+
+const isVideoUrl = (u: string) => /\.(mp4|webm|mov|avi|mkv|ogv)(\?|$)/i.test(u);
 
 interface FollowUser {
   clerk_id: string;
@@ -32,6 +36,9 @@ export default function UserProfilePage({ params }: { params: Promise<{ username
   const [activeTab, setActiveTab]     = useState<"Portfolio" | "About">("Portfolio");
   const [followModal, setFollowModal] = useState<{ type: "followers" | "following"; users: FollowUser[] } | null>(null);
   const [followLoading, setFollowLoading] = useState(false);
+  const [followPending, setFollowPending] = useState(false);
+  const [openPostModal, setOpenPostModal] = useState<DbPost | null>(null);
+  const [hireOpen, setHireOpen] = useState(false);
 
   useEffect(() => {
     async function load() {
@@ -69,7 +76,8 @@ export default function UserProfilePage({ params }: { params: Promise<{ username
   }
 
   async function handleFollow() {
-    if (!user || !profile) return;
+    if (!user || !profile || followPending) return;
+    setFollowPending(true);
     const wasFollowing = following;
     // Optimistic update
     setFollowing(!wasFollowing);
@@ -80,33 +88,30 @@ export default function UserProfilePage({ params }: { params: Promise<{ username
         : p.followers_count + 1,
     } : p);
 
-    const res = await fetch("/api/follows", {
-      method: wasFollowing ? "DELETE" : "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ followerId: user.id, followingId: profile.clerk_id }),
-    });
-
-    if (!res.ok) {
-      // Revert on failure
-      setFollowing(wasFollowing);
-      setProfile(p => p ? {
-        ...p,
-        followers_count: wasFollowing
-          ? p.followers_count + 1
-          : Math.max(0, p.followers_count - 1),
-      } : p);
+    try {
+      const res = await fetch("/api/follows", {
+        method: wasFollowing ? "DELETE" : "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ followerId: user.id, followingId: profile.clerk_id }),
+      });
+      if (!res.ok) {
+        // Revert on failure
+        setFollowing(wasFollowing);
+        setProfile(p => p ? {
+          ...p,
+          followers_count: wasFollowing
+            ? p.followers_count + 1
+            : Math.max(0, p.followers_count - 1),
+        } : p);
+      }
+    } finally {
+      setFollowPending(false);
     }
   }
 
-  async function handleMessage() {
-    if (!user || !profile) return;
-    const res = await fetch("/api/messages", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "get_or_create_conversation", userId1: user.id, userId2: profile.clerk_id }),
-    });
-    const { conversation } = await res.json();
-    router.push(conversation?.id ? `/messages?conv=${conversation.id}` : "/messages");
+  function handleHire() {
+    if (!user) { router.push("/login?redirect=" + encodeURIComponent(`/u/${username}`)); return; }
+    setHireOpen(true);
   }
 
   if (loading) {
@@ -207,17 +212,18 @@ export default function UserProfilePage({ params }: { params: Promise<{ username
                   {!isOwnProfile && (
                     <div className="flex items-center gap-2 shrink-0">
                       <button onClick={handleFollow}
-                        className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold transition-all hover:opacity-85"
+                        disabled={followPending}
+                        className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold transition-all hover:opacity-85 disabled:opacity-60"
                         style={following
                           ? { background: "rgba(124,91,245,0.15)", color: "#9B7CF5", border: "1px solid rgba(124,91,245,0.4)" }
                           : { background: "#7C5BF5", color: "#fff" }}>
                         <UserPlus size={14} />
-                        {following ? "Following" : "Follow"}
+                        {followPending ? "…" : following ? "Following" : "Follow"}
                       </button>
-                      <button onClick={handleMessage}
-                        className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold transition-all hover:opacity-85"
-                        style={{ background: "var(--bg-subtle)", color: "var(--text-2)", border: "1px solid var(--border)" }}>
-                        <MessageCircle size={14} /> Message
+                      <button onClick={handleHire}
+                        className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold text-white transition-all hover:opacity-85"
+                        style={{ background: "linear-gradient(135deg,#361E7B,#7C5BF5)" }}>
+                        <Briefcase size={14} /> Hire
                       </button>
                     </div>
                   )}
@@ -295,25 +301,38 @@ export default function UserProfilePage({ params }: { params: Promise<{ username
 
             {activeTab === "Portfolio" && (
               posts.length > 0 ? (
-                <div className="columns-2 sm:columns-3 gap-3">
-                  {posts.map(p => (
-                    <Link key={p.id} href={`/feed/${p.id}`}
-                      className="break-inside-avoid mb-3 rounded-xl overflow-hidden group cursor-pointer relative block">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={firstImage(p.image_url)} alt={p.title}
-                        className="w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]" />
-                      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-all duration-200 flex items-end p-2">
-                        <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-2">
-                          <span className="flex items-center gap-1 text-[11px] text-white">
-                            <Heart size={11} /> {p.likes_count}
-                          </span>
-                          <span className="flex items-center gap-1 text-[11px] text-white">
-                            <Bookmark size={11} /> Save
-                          </span>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                  {posts.map(p => {
+                    const src = firstImage(p.image_url);
+                    const isVid = isVideoUrl(src);
+                    return (
+                      <button key={p.id} onClick={() => setOpenPostModal(p)}
+                        className="rounded-xl overflow-hidden group cursor-pointer relative w-full text-left"
+                        style={{ aspectRatio: "1", background: "var(--bg-subtle)" }}>
+                        {isVid ? (
+                          <video src={src} className="w-full h-full object-cover"
+                            muted playsInline preload="metadata"
+                            onMouseEnter={e => (e.currentTarget as HTMLVideoElement).play()}
+                            onMouseLeave={e => { const v = e.currentTarget as HTMLVideoElement; v.pause(); v.currentTime = 0; }} />
+                        ) : (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={src} alt={p.title}
+                            className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-[1.04]" />
+                        )}
+                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-all duration-200 flex flex-col items-start justify-end p-2.5">
+                          <p className="opacity-0 group-hover:opacity-100 transition-opacity text-[11px] font-semibold text-white truncate w-full mb-1">{p.title}</p>
+                          <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-2">
+                            <span className="flex items-center gap-1 text-[11px] text-white"><Heart size={11} /> {p.likes_count}</span>
+                            <span className="flex items-center gap-1 text-[11px] text-white"><Bookmark size={11} /> {p.saves_count}</span>
+                          </div>
                         </div>
-                      </div>
-                    </Link>
-                  ))}
+                        {isVid && (
+                          <span className="absolute top-2 left-2 px-2 py-0.5 rounded-full text-[10px] font-bold text-white"
+                            style={{ background: "rgba(0,0,0,0.55)", backdropFilter: "blur(6px)" }}>▶</span>
+                        )}
+                      </button>
+                    );
+                  })}
                 </div>
               ) : (
                 <div className="flex flex-col items-center py-16 gap-3">
@@ -389,18 +408,19 @@ export default function UserProfilePage({ params }: { params: Promise<{ username
             {!isOwnProfile && (
               <div className="flex flex-col gap-2">
                 <button onClick={handleFollow}
-                  className="w-full py-3 rounded-2xl text-sm font-bold text-white transition-opacity hover:opacity-85"
+                  disabled={followPending}
+                  className="w-full py-3 rounded-2xl text-sm font-bold text-white transition-opacity hover:opacity-85 disabled:opacity-60"
                   style={following
                     ? { background: "rgba(124,91,245,0.15)", color: "#9B7CF5", border: "1px solid rgba(124,91,245,0.4)" }
                     : { background: "linear-gradient(135deg,#361E7B,#7C5BF5)", boxShadow: "0 4px 20px rgba(124,91,245,0.35)" }}>
                   <UserPlus size={15} className="inline mr-2" />
-                  {following ? "Following" : "Follow"}
+                  {followPending ? "…" : following ? "Following" : "Follow"}
                 </button>
-                <button onClick={handleMessage}
-                  className="w-full py-3 rounded-2xl text-sm font-bold transition-opacity hover:opacity-85"
-                  style={{ background: "var(--bg-subtle)", color: "var(--text-2)", border: "1px solid var(--border)" }}>
-                  <MessageCircle size={15} className="inline mr-2" />
-                  Send Message
+                <button onClick={handleHire}
+                  className="w-full py-3 rounded-2xl text-sm font-bold text-white transition-opacity hover:opacity-85"
+                  style={{ background: "linear-gradient(135deg,#361E7B,#7C5BF5)" }}>
+                  <Briefcase size={15} className="inline mr-2" />
+                  Hire Artist
                 </button>
               </div>
             )}
@@ -408,6 +428,34 @@ export default function UserProfilePage({ params }: { params: Promise<{ username
         </main>
       </div>
       <BottomNav />
+
+      {openPostModal && (
+        <PostModal
+          post={openPostModal}
+          isOwner={false}
+          onClose={() => setOpenPostModal(null)}
+        />
+      )}
+
+      {hireOpen && profile && (
+        <HireModal
+          artist={{
+            id: 0,
+            name: profile.display_name ?? profile.username ?? "Artist",
+            location: profile.location ?? "",
+            medium: [],
+            followers: String(profile.followers_count ?? 0),
+            price: 0,
+            rating: 5.0,
+            available: true,
+            avatar: profile.avatar_url ?? `https://i.pravatar.cc/80?u=${profile.clerk_id}`,
+            cover: "",
+            bio: profile.bio ?? "",
+          }}
+          artistClerkId={profile.clerk_id}
+          onClose={() => setHireOpen(false)}
+        />
+      )}
 
       {/* Followers / Following Modal */}
       {(followModal || followLoading) && (

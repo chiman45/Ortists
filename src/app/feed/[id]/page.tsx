@@ -6,7 +6,6 @@ import Sidebar from "@/components/layout/Sidebar";
 import PostDetailSkeleton from "@/components/ui/skeletons/PostDetailSkeleton";
 import { type Comment } from "@/lib/db/comments";
 import { type Post } from "@/lib/db/posts";
-import { type Post as GridPost } from "@/lib/types";
 import { allPosts } from "@/lib/mockData";
 import { useUser } from "@clerk/nextjs";
 import { ArrowLeft, Bookmark, Heart, Send, UserPlus } from "lucide-react";
@@ -35,7 +34,7 @@ export default function FeedPostPage({ params }: { params: Promise<{ id: string 
   const [commentText, setCommentText] = useState("");
   const [loading, setLoading]         = useState(true);
   const [viewerOpen, setViewerOpen]   = useState(false);
-  const [relatedPosts, setRelatedPosts] = useState<GridPost[]>([]);
+  const [relatedPosts, setRelatedPosts] = useState<Post[]>([]);
 
   const mockPost = allPosts.find(p => p.id === id) ?? allPosts[0];
   const related  = allPosts.filter(p => p.id !== mockPost.id && p.category === mockPost.category).slice(0, 8);
@@ -72,13 +71,7 @@ export default function FeedPostPage({ params }: { params: Promise<{ id: string 
             .then(({ posts: rp }: { posts: Post[] }) => {
               setRelatedPosts((rp ?? [])
                 .filter((rp: Post) => rp.id !== id)
-                .slice(0, 8)
-                .map((rp: Post) => ({
-                  id: rp.id, userId: rp.user_id, title: rp.title,
-                  imageUrl: firstImage(rp.image_url), imageWidth: 400, imageHeight: 500,
-                  username: rp.author_username, avatar: rp.author_avatar ?? `https://i.pravatar.cc/80?u=${rp.user_id}`,
-                  likes: rp.likes_count, comments: rp.comments_count, category: rp.category,
-                })));
+                .slice(0, 8));
             }).catch(() => {});
         }
       }

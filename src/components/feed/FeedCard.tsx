@@ -1,16 +1,19 @@
 "use client";
 
 import { Post } from "@/lib/types";
+import { type Post as DbPost } from "@/lib/db/posts";
 import Avatar from "@/components/ui/Avatar";
 import AuthPromptModal from "@/components/ui/AuthPromptModal";
+import PostModal from "@/components/ui/PostModal";
 import { Heart, Loader2, MessageCircle, Trash2 } from "lucide-react";
 import Image from "next/image";
-import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useUser } from "@clerk/nextjs";
+import { useRouter } from "next/navigation";
 
 interface FeedCardProps {
   post: Post;
+  dbPost?: DbPost;
   priority?: boolean;
   onDelete?: (id: string) => void;
 }
@@ -25,18 +28,20 @@ function parseGallery(raw: string): string[] | null {
   catch { return null; }
 }
 
-export default function FeedCard({ post, priority = false, onDelete }: FeedCardProps) {
+export default function FeedCard({ post, dbPost, priority = false, onDelete }: FeedCardProps) {
   const { user } = useUser();
+  const router = useRouter();
   const [liked, setLiked]           = useState(false);
   const [count, setCount]           = useState(post.likes);
   const [pending, setPending]       = useState(false);
   const [deleteMode, setDeleteMode] = useState(false);
   const [deleting, setDeleting]     = useState(false);
   const [promptOpen, setPromptOpen] = useState(false);
+  const [modalPost, setModalPost]   = useState<DbPost | null>(null);
+  const clickTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const isOwn = !!user && !!post.userId && post.userId === user.id;
 
-  // Fetch real liked state on mount — prevents duplicate likes
   useEffect(() => {
     if (!user || !isUUID(post.id)) return;
     fetch(`/api/posts/${post.id}?userId=${user.id}`)
@@ -47,6 +52,38 @@ export default function FeedCard({ post, priority = false, onDelete }: FeedCardP
       })
       .catch(() => {});
   }, [post.id, user]);
+
+  // Cleanup timer on unmount
+  useEffect(() => () => { if (clickTimer.current) clearTimeout(clickTimer.current); }, []);
+
+  function handleCardClick(e: React.MouseEvent) {
+    // Ignore clicks on action buttons
+    if ((e.target as HTMLElement).closest("button")) return;
+
+    if (clickTimer.current) {
+      // Second click within 300ms = double click → navigate to full page
+      clearTimeout(clickTimer.current);
+      clickTimer.current = null;
+      if (!user) { setPromptOpen(true); return; }
+      router.push(`/feed/${post.id}`);
+    } else {
+      // First click → wait to see if double click arrives
+      clickTimer.current = setTimeout(() => {
+        clickTimer.current = null;
+        // Single click → open modal
+        if (!user) { setPromptOpen(true); return; }
+        if (dbPost) {
+          setModalPost(dbPost);
+        } else {
+          // Fetch full post if not available
+          fetch(`/api/posts/${post.id}?userId=${user.id}`)
+            .then(r => r.json())
+            .then(({ post: p }) => p && setModalPost(p))
+            .catch(() => {});
+        }
+      }, 280);
+    }
+  }
 
   async function handleLike(e: React.MouseEvent) {
     e.preventDefault();
@@ -86,10 +123,9 @@ export default function FeedCard({ post, priority = false, onDelete }: FeedCardP
 
   return (
     <>
-    <Link
-      href={`/feed/${post.id}`}
-      className="block break-inside-avoid mb-4 group"
-      onClick={e => { if (!user) { e.preventDefault(); setPromptOpen(true); } }}
+    <div
+      className="block break-inside-avoid mb-4 group cursor-pointer"
+      onClick={handleCardClick}
     >
       {/* Image + delete overlay */}
       <div className="relative overflow-hidden rounded-2xl transition-all duration-300"
@@ -150,10 +186,18 @@ export default function FeedCard({ post, priority = false, onDelete }: FeedCardP
           );
         })()}
 
+        {/* Double-click hint overlay — shows on hover */}
+        <div className="absolute inset-0 flex items-end justify-center pb-3 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+          <span className="text-[10px] font-semibold px-2.5 py-1 rounded-full"
+            style={{ background: "rgba(0,0,0,0.55)", backdropFilter: "blur(6px)", color: "rgba(255,255,255,0.7)" }}>
+            double-click to open full page
+          </span>
+        </div>
+
         {/* Trash button — own posts, appears on hover */}
         {isOwn && !deleteMode && (
           <button
-            onClick={e => { e.preventDefault(); e.stopPropagation(); setDeleteMode(true); }}
+            onClick={e => { e.stopPropagation(); setDeleteMode(true); }}
             className="absolute top-2 right-2 z-10 w-8 h-8 rounded-full flex items-center justify-center
                        opacity-0 group-hover:opacity-100 transition-opacity"
             style={{ background: "rgba(0,0,0,0.65)", backdropFilter: "blur(8px)" }}
@@ -168,14 +212,14 @@ export default function FeedCard({ post, priority = false, onDelete }: FeedCardP
           <div
             className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 rounded-2xl"
             style={{ background: "rgba(0,0,0,0.78)", backdropFilter: "blur(6px)" }}
-            onClick={e => { e.preventDefault(); e.stopPropagation(); }}
+            onClick={e => e.stopPropagation()}
           >
             <p className="text-white text-sm font-semibold text-center px-4 leading-snug">
               Delete this post?
             </p>
             <div className="flex gap-2">
               <button
-                onClick={e => { e.preventDefault(); e.stopPropagation(); setDeleteMode(false); }}
+                onClick={e => { e.stopPropagation(); setDeleteMode(false); }}
                 className="px-3.5 py-1.5 rounded-xl text-xs font-medium transition-opacity hover:opacity-70"
                 style={{ background: "rgba(255,255,255,0.15)", color: "#fff" }}
               >
@@ -216,7 +260,17 @@ export default function FeedCard({ post, priority = false, onDelete }: FeedCardP
           <span>{post.comments}</span>
         </div>
       </div>
-    </Link>
+    </div>
+
+    {modalPost && (
+      <PostModal
+        post={modalPost}
+        isOwner={isOwn}
+        ownerId={user?.id}
+        onClose={() => setModalPost(null)}
+        onUpdate={updated => setModalPost(updated)}
+      />
+    )}
     {promptOpen && <AuthPromptModal onClose={() => setPromptOpen(false)} />}
     </>
   );

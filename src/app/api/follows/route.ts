@@ -19,11 +19,26 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({ following: !!data });
 }
 
+// Recount and sync both sides from the follows table — avoids read-then-write race condition.
+async function resyncCounts(followerId: string, followingId: string) {
+  const [{ count: followersCount }, { count: followingCount }] = await Promise.all([
+    adminDb.from("follows").select("*", { count: "exact", head: true }).eq("following_id", followingId),
+    adminDb.from("follows").select("*", { count: "exact", head: true }).eq("follower_id", followerId),
+  ]);
+  await Promise.all([
+    adminDb.from("profiles").update({ followers_count: followersCount ?? 0 }).eq("clerk_id", followingId),
+    adminDb.from("profiles").update({ following_count: followingCount ?? 0 }).eq("clerk_id", followerId),
+  ]);
+}
+
 // POST /api/follows — follow a user
 export async function POST(req: NextRequest) {
   const { followerId, followingId } = await req.json();
   if (!followerId || !followingId) {
     return NextResponse.json({ error: "followerId and followingId required" }, { status: 400 });
+  }
+  if (followerId === followingId) {
+    return NextResponse.json({ error: "Cannot follow yourself" }, { status: 400 });
   }
 
   const { error: insertError } = await adminDb
@@ -31,29 +46,23 @@ export async function POST(req: NextRequest) {
     .insert({ follower_id: followerId, following_id: followingId });
 
   if (insertError) {
-    // Duplicate = already following, treat as success
+    // 23505 = unique_violation (already following) — treat as success
     if (insertError.code !== "23505") {
       console.error("POST /api/follows insert:", insertError.message);
       return NextResponse.json({ error: insertError.message }, { status: 500 });
     }
   }
 
-  // Update both sides: followers_count on the followed, following_count on the follower
-  const [{ data: followedProfile }, { data: followerProfile }] = await Promise.all([
-    adminDb.from("profiles").select("followers_count").eq("clerk_id", followingId).maybeSingle(),
-    adminDb.from("profiles").select("following_count, display_name, avatar_url").eq("clerk_id", followerId).maybeSingle(),
-  ]);
+  // Recount from the follows table (atomic-safe)
+  await resyncCounts(followerId, followingId);
 
-  await Promise.all([
-    followedProfile && adminDb.from("profiles")
-      .update({ followers_count: (followedProfile.followers_count ?? 0) + 1 })
-      .eq("clerk_id", followingId),
-    followerProfile && adminDb.from("profiles")
-      .update({ following_count: (followerProfile.following_count ?? 0) + 1 })
-      .eq("clerk_id", followerId),
-  ]);
+  // Notify the followed user (best-effort)
+  const { data: followerProfile } = await adminDb
+    .from("profiles")
+    .select("display_name, avatar_url")
+    .eq("clerk_id", followerId)
+    .maybeSingle();
 
-  // Notify the followed user
   await adminDb.from("notifications").insert({
     user_id:      followingId,
     actor_name:   followerProfile?.display_name ?? null,
@@ -61,7 +70,7 @@ export async function POST(req: NextRequest) {
     type:         "follow",
     text:         `${followerProfile?.display_name ?? "Someone"} started following you`,
     post_id:      followerId,
-  });
+  }).then(() => {}).catch(() => {}); // ignore notification errors
 
   return NextResponse.json({ ok: true });
 }
@@ -84,20 +93,8 @@ export async function DELETE(req: NextRequest) {
     return NextResponse.json({ error: deleteError.message }, { status: 500 });
   }
 
-  // Update both sides: decrement followers_count on the unfollowed, following_count on the unfollower
-  const [{ data: followedProfile }, { data: followerProfile }] = await Promise.all([
-    adminDb.from("profiles").select("followers_count").eq("clerk_id", followingId).maybeSingle(),
-    adminDb.from("profiles").select("following_count").eq("clerk_id", followerId).maybeSingle(),
-  ]);
-
-  await Promise.all([
-    followedProfile && adminDb.from("profiles")
-      .update({ followers_count: Math.max(0, (followedProfile.followers_count ?? 1) - 1) })
-      .eq("clerk_id", followingId),
-    followerProfile && adminDb.from("profiles")
-      .update({ following_count: Math.max(0, (followerProfile.following_count ?? 1) - 1) })
-      .eq("clerk_id", followerId),
-  ]);
+  // Recount from the follows table (atomic-safe)
+  await resyncCounts(followerId, followingId);
 
   return NextResponse.json({ ok: true });
 }

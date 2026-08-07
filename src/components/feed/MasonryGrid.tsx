@@ -1,7 +1,7 @@
 "use client";
 
 import { type Post as DbPost } from "@/lib/db/posts";
-import { Post } from "@/lib/types";
+import { type Post } from "@/lib/types";
 import { firstImage } from "@/lib/imageUrl";
 import { useEffect, useRef, useState } from "react";
 import FeedCard from "./FeedCard";
@@ -25,20 +25,19 @@ function toGridPost(p: DbPost): Post {
 const PAGE = 12;
 
 interface Props {
-  posts: Post[];
+  posts: DbPost[];
   category?: string | null;
   loadFromDb?: boolean;
 }
 
 export default function MasonryGrid({ posts: initial, category, loadFromDb = true }: Props) {
-  const [visible, setVisible] = useState<Post[]>(initial);
+  const [visible, setVisible] = useState<DbPost[]>(initial);
   const [loading, setLoading] = useState(false);
   const [done, setDone]       = useState(false);
   const dbOffset = useRef(initial.length);
   const busy     = useRef(false);
   const endRef   = useRef<HTMLDivElement>(null);
 
-  // Reset when initial posts or category changes
   useEffect(() => {
     setVisible(initial);
     setDone(false);
@@ -66,12 +65,11 @@ export default function MasonryGrid({ posts: initial, category, loadFromDb = tru
         .then(r => r.json())
         .then(({ posts: raw }: { posts: DbPost[] }) => {
           if (raw && raw.length > 0) {
-            const posts = raw.map(toGridPost);
             setVisible(v => {
               const ids = new Set(v.map(p => p.id));
-              return [...v, ...posts.filter(p => !ids.has(p.id))];
+              return [...v, ...raw.filter(p => !ids.has(p.id))];
             });
-            dbOffset.current += posts.length;
+            dbOffset.current += raw.length;
           } else {
             setDone(true);
           }
@@ -91,7 +89,8 @@ export default function MasonryGrid({ posts: initial, category, loadFromDb = tru
         {visible.map((p, i) => (
           <FeedCard
             key={p.id}
-            post={p}
+            post={toGridPost(p)}
+            dbPost={p}
             priority={i < 6}
             onDelete={id => setVisible(v => v.filter(x => x.id !== id))}
           />

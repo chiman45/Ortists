@@ -25,7 +25,7 @@ export async function GET(req: NextRequest) {
 
   const username = searchParams.get("username");
   if (username) {
-    // Try exact clerk_id first, then case-insensitive username match
+    // 1. Exact clerk_id match
     const { data: byId } = await adminDb
       .from("profiles")
       .select("*")
@@ -33,12 +33,21 @@ export async function GET(req: NextRequest) {
       .maybeSingle();
     if (byId) return NextResponse.json({ profile: byId });
 
-    const { data } = await adminDb
+    // 2. Case-insensitive username match
+    const { data: byUsername } = await adminDb
       .from("profiles")
       .select("*")
       .ilike("username", username)
       .maybeSingle();
-    return NextResponse.json({ profile: data ?? null });
+    if (byUsername) return NextResponse.json({ profile: byUsername });
+
+    // 3. Fallback: display_name match (e.g. someone navigated to /u/<display_name>)
+    const { data: byName } = await adminDb
+      .from("profiles")
+      .select("*")
+      .ilike("display_name", username)
+      .maybeSingle();
+    return NextResponse.json({ profile: byName ?? null });
   }
 
   if (query.trim()) {
@@ -46,6 +55,7 @@ export async function GET(req: NextRequest) {
       .from("profiles")
       .select("*")
       .or(`display_name.ilike.%${query}%,username.ilike.%${query}%`)
+      .order("followers_count", { ascending: false })
       .limit(30);
     return NextResponse.json({ profiles: data ?? [] });
   }

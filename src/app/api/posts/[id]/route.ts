@@ -1,6 +1,27 @@
 import { adminDb } from "@/utils/supabase/admin";
 import { NextRequest, NextResponse } from "next/server";
 
+// PATCH /api/posts/[id] — owner-only edit (title, description, category)
+export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  const { userId, title, description, category } = await req.json();
+
+  const { data: post } = await adminDb.from("posts").select("user_id").eq("id", id).single();
+  if (!post || post.user_id !== userId) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
+  const { data: updated, error } = await adminDb
+    .from("posts")
+    .update({ title, description, category })
+    .eq("id", id)
+    .select()
+    .single();
+
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  return NextResponse.json({ post: updated });
+}
+
 // DELETE /api/posts/[id]?userId= — owner-only post deletion
 export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;

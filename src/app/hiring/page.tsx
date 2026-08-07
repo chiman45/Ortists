@@ -7,7 +7,7 @@ import type { Artist } from "@/lib/hiringData";
 import { useUser, UserButton } from "@clerk/nextjs";
 import {
   ArrowRight, Briefcase, CheckCircle2, Clock,
-  Search, SlidersHorizontal, Star, XCircle, Zap,
+  Search, Star, XCircle, Zap,
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -79,13 +79,6 @@ function getDeliveryCategory(a: ArtistProfile): "5-7" | "7+" {
   return "7+";
 }
 
-const PRICE_RANGES: Record<string, [number, number]> = {
-  any:      [0, Infinity],
-  "u100":   [0, 99],
-  "100-300":[100, 300],
-  "300-500":[300, 500],
-  "500+":   [500, Infinity],
-};
 
 const ORDERED_CATEGORIES = [
   "Illustration", "Photography", "Digital Art", "Painting",
@@ -101,7 +94,6 @@ const CATEGORY_DESC: Record<string, string> = {
   "Sculpture":     "3D, ceramics & mixed media sculpture",
 };
 
-const TRENDING_SEARCHES = ["editorial portraits", "neon cityscapes", "minimal logos", "watercolor scenes"];
 
 function toArtist(a: ArtistProfile): Artist {
   return {
@@ -862,19 +854,11 @@ export default function HiringPage() {
     router.replace(`/hiring?tab=${t}`, { scroll: false });
   }
   const [search, setSearch]                 = useState("");
-  const [showFilters, setShowFilters]       = useState(false);
   const [artists, setArtists]               = useState<ArtistProfile[]>([]);
   const [loadingArtists, setLoadingArtists] = useState(true);
   const [activeCategory, setActiveCategory] = useState("All");
   const [hireTarget, setHireTarget]         = useState<ArtistProfile | null>(null);
   const [browsePage, setBrowsePage]         = useState(0);
-
-  // Structured filter state
-  const [filterMedium,    setFilterMedium]    = useState("");
-  const [filterStyle,     setFilterStyle]     = useState("");
-  const [filterPrice,     setFilterPrice]     = useState("any");
-  const [filterDelivery,  setFilterDelivery]  = useState("any");
-  const [filterAvailable, setFilterAvailable] = useState(false);
 
   useEffect(() => {
     setLoadingArtists(true);
@@ -886,37 +870,19 @@ export default function HiringPage() {
 
   const categories = ["All", ...Array.from(new Set(artists.map(a => a.tag).filter(Boolean))).sort()];
 
-  const allMediums = Array.from(new Set(
-    artists.flatMap(a => a.tag ? a.tag.split(",").map(t => t.trim()).filter(Boolean) : [])
-  )).sort();
-
-  function clearFilters() {
-    setFilterMedium(""); setFilterStyle(""); setFilterPrice("any");
-    setFilterDelivery("any"); setFilterAvailable(false);
-  }
-
-  const activeFilterCount = [
-    filterMedium ? 1 : 0,
-    filterStyle  ? 1 : 0,
-    filterPrice !== "any"    ? 1 : 0,
-    filterDelivery !== "any" ? 1 : 0,
-    filterAvailable ? 1 : 0,
-  ].reduce((a, b) => a + b, 0);
-
   const filtered = artists.filter(a => {
     if (a.clerk_id === user?.id) return false;
-    const name = (a.display_name ?? a.username ?? "").toLowerCase();
-    const tag  = (a.tag ?? "").toLowerCase();
-    if (search && !name.includes(search.toLowerCase()) && !tag.includes(search.toLowerCase()) && !(a.location ?? "").toLowerCase().includes(search.toLowerCase())) return false;
+    const term        = search.toLowerCase();
+    const displayName = (a.display_name ?? "").toLowerCase();
+    const username    = (a.username ?? "").toLowerCase();
+    const tag         = (a.tag ?? "").toLowerCase();
+    if (search &&
+      !displayName.includes(term) &&
+      !username.includes(term) &&
+      !tag.includes(term) &&
+      !(a.location ?? "").toLowerCase().includes(term)
+    ) return false;
     if (activeCategory !== "All" && !tag.includes(activeCategory.toLowerCase())) return false;
-    if (filterMedium  && !tag.includes(filterMedium.toLowerCase()))  return false;
-    if (filterStyle   && !tag.includes(filterStyle.toLowerCase()))   return false;
-    if (filterAvailable && !a.available) return false;
-    const p = estimatePrice(a);
-    const ranges: Record<string, [number, number]> = { any: [0, Infinity], u100: [0, 99], "100-300": [100, 300], "300-500": [300, 500], "500+": [500, Infinity] };
-    const [min, max] = ranges[filterPrice] ?? [0, Infinity];
-    if (p < min || p > max) return false;
-    if (filterDelivery !== "any" && getDeliveryCategory(a) !== filterDelivery) return false;
     return true;
   });
 
@@ -1008,23 +974,6 @@ export default function HiringPage() {
                     style={{ color: "var(--text-1)" }}
                   />
                 </div>
-                <button
-                  onClick={() => setShowFilters(v => !v)}
-                  className="flex items-center gap-2 px-4 py-2.5 rounded-2xl text-sm font-medium transition-all shrink-0"
-                  style={{
-                    background: showFilters ? "rgba(124,91,245,0.15)" : "var(--bg-subtle)",
-                    border: showFilters ? "1px solid rgba(124,91,245,0.4)" : "1px solid var(--border)",
-                    color: showFilters ? "#9B7CF5" : "var(--text-4)",
-                  }}
-                >
-                  <SlidersHorizontal size={14} />
-                  Filters
-                  {activeFilterCount > 0 && (
-                    <span className="w-4 h-4 rounded-full text-[9px] font-bold flex items-center justify-center" style={{ background: "#7C5BF5", color: "#fff" }}>
-                      {activeFilterCount}
-                    </span>
-                  )}
-                </button>
               </div>
 
               {/* Category pills */}
@@ -1049,22 +998,6 @@ export default function HiringPage() {
                 })}
               </div>
 
-              {/* Trending searches */}
-              {!search && activeCategory === "All" && (
-                <div className="px-4 md:px-8 flex items-center gap-1.5 flex-wrap">
-                  <span className="text-[11px]" style={{ color: "var(--text-6)" }}>Trending</span>
-                  {TRENDING_SEARCHES.map((t, i) => (
-                    <button
-                      key={t}
-                      onClick={() => setSearch(t)}
-                      className="text-[11px] hover:opacity-70 transition-opacity"
-                      style={{ color: "var(--text-4)" }}
-                    >
-                      {t}{i < TRENDING_SEARCHES.length - 1 ? " ·" : ""}
-                    </button>
-                  ))}
-                </div>
-              )}
             </div>
           )}
         </div>
@@ -1079,7 +1012,7 @@ export default function HiringPage() {
           <main className="flex-1 pb-24 lg:pb-8">
 
             {/* ── Hero section — shown when browsing (no active search/filter) ── */}
-            {!search && activeFilterCount === 0 && activeCategory === "All" && (
+            {!search && activeCategory === "All" && (
               <div
                 className="px-4 md:px-8 pt-12 pb-8 flex flex-col items-center text-center"
                 style={{
@@ -1110,15 +1043,6 @@ export default function HiringPage() {
                     className="flex-1 bg-transparent text-sm outline-none"
                     style={{ color: "var(--text-1)" }}
                   />
-                  <div style={{ width: 1, height: 18, background: "var(--border)" }} />
-                  <button
-                    onClick={() => setShowFilters(v => !v)}
-                    className="flex items-center gap-1.5 text-xs font-semibold shrink-0 transition-opacity hover:opacity-70"
-                    style={{ color: "var(--text-4)" }}
-                  >
-                    <SlidersHorizontal size={13} />
-                    Filters
-                  </button>
                 </div>
 
                 {/* Category chips */}
@@ -1139,133 +1063,9 @@ export default function HiringPage() {
                   ))}
                 </div>
 
-                {/* Trending */}
-                <div className="flex flex-wrap justify-center items-center gap-1.5 text-xs" style={{ color: "var(--text-5)" }}>
-                  <span className="font-semibold" style={{ color: "var(--text-5)" }}>Trending</span>
-                  {TRENDING_SEARCHES.map((t, i) => (
-                    <span key={t} className="flex items-center gap-1.5">
-                      {i > 0 && <span>·</span>}
-                      <button
-                        onClick={() => setSearch(t)}
-                        className="font-medium hover:underline transition-all"
-                        style={{ color: "var(--text-3)" }}
-                      >
-                        {t}
-                      </button>
-                    </span>
-                  ))}
-                </div>
               </div>
             )}
 
-            {/* Filter drawer */}
-            {showFilters && (
-              <div className="mx-4 md:mx-8 mt-4 p-5 rounded-2xl flex flex-col gap-5" style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}>
-
-                {/* Row 1: Medium + Style */}
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="text-[10px] font-bold tracking-wider mb-2 block" style={{ color: "var(--text-5)" }}>MEDIUM</label>
-                    <select
-                      value={filterMedium}
-                      onChange={e => setFilterMedium(e.target.value)}
-                      className="w-full px-3 py-2 rounded-xl text-sm outline-none"
-                      style={{ background: "var(--bg-subtle)", border: "1px solid var(--border)", color: "var(--text-1)" }}
-                    >
-                      <option value="">Any Medium</option>
-                      {allMediums.map(m => <option key={m} value={m}>{m}</option>)}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="text-[10px] font-bold tracking-wider mb-2 block" style={{ color: "var(--text-5)" }}>STYLE</label>
-                    <input
-                      value={filterStyle}
-                      onChange={e => setFilterStyle(e.target.value)}
-                      placeholder="e.g. Realism"
-                      className="w-full px-3 py-2 rounded-xl text-sm outline-none"
-                      style={{ background: "var(--bg-subtle)", border: "1px solid var(--border)", color: "var(--text-1)" }}
-                    />
-                  </div>
-                </div>
-
-                {/* Row 2: Price Range */}
-                <div>
-                  <label className="text-[10px] font-bold tracking-wider mb-2 block" style={{ color: "var(--text-5)" }}>PRICE RANGE</label>
-                  <div className="flex flex-wrap gap-2">
-                    {[
-                      { id: "any",     label: "Any"        },
-                      { id: "u100",    label: "Under $100" },
-                      { id: "100-300", label: "$100–$300"  },
-                      { id: "300-500", label: "$300–$500"  },
-                      { id: "500+",    label: "$500+"      },
-                    ].map(({ id, label }) => (
-                      <button
-                        key={id}
-                        onClick={() => setFilterPrice(id)}
-                        className="px-3 py-1.5 rounded-xl text-xs font-medium transition-all"
-                        style={{
-                          background: filterPrice === id ? "rgba(124,91,245,0.15)" : "var(--bg-subtle)",
-                          border:     filterPrice === id ? "1px solid rgba(124,91,245,0.45)" : "1px solid var(--border)",
-                          color:      filterPrice === id ? "#9B7CF5" : "var(--text-4)",
-                        }}
-                      >
-                        {label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Row 3: Delivery Time */}
-                <div>
-                  <label className="text-[10px] font-bold tracking-wider mb-2 block" style={{ color: "var(--text-5)" }}>DELIVERY TIME</label>
-                  <div className="flex gap-2">
-                    {[
-                      { id: "any", label: "Any"      },
-                      { id: "5-7", label: "5–7 Days" },
-                      { id: "7+",  label: "7+ Days"  },
-                    ].map(({ id, label }) => (
-                      <button
-                        key={id}
-                        onClick={() => setFilterDelivery(id)}
-                        className="px-4 py-1.5 rounded-xl text-xs font-medium transition-all"
-                        style={{
-                          background: filterDelivery === id ? "rgba(124,91,245,0.15)" : "var(--bg-subtle)",
-                          border:     filterDelivery === id ? "1px solid rgba(124,91,245,0.45)" : "1px solid var(--border)",
-                          color:      filterDelivery === id ? "#9B7CF5" : "var(--text-4)",
-                        }}
-                      >
-                        {label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Row 4: Available Now toggle + Clear */}
-                <div className="flex items-center justify-between">
-                  <label className="flex items-center gap-2.5 cursor-pointer" onClick={() => setFilterAvailable(v => !v)}>
-                    <div
-                      className="w-10 h-5 rounded-full relative transition-all shrink-0"
-                      style={{ background: filterAvailable ? "#7C5BF5" : "var(--bg-subtle)", border: "1px solid var(--border)" }}
-                    >
-                      <span
-                        className="absolute top-0.5 w-4 h-4 rounded-full transition-all"
-                        style={{ background: "#fff", left: filterAvailable ? "calc(100% - 18px)" : 2 }}
-                      />
-                    </div>
-                    <span className="text-xs font-medium" style={{ color: "var(--text-3)" }}>Available Now Only</span>
-                  </label>
-                  {activeFilterCount > 0 && (
-                    <button
-                      onClick={clearFilters}
-                      className="text-xs font-medium transition-opacity hover:opacity-70"
-                      style={{ color: "#9B7CF5" }}
-                    >
-                      Clear all
-                    </button>
-                  )}
-                </div>
-              </div>
-            )}
 
             {/* ── Skeletons while loading ── */}
             {loadingArtists && (
@@ -1275,7 +1075,7 @@ export default function HiringPage() {
             )}
 
             {/* ── Category rows (browse all, no search/filter active) ── */}
-            {!loadingArtists && activeCategory === "All" && !search && activeFilterCount === 0 && (
+            {!loadingArtists && activeCategory === "All" && !search && (
               <div className="pt-6 pb-10 flex flex-col gap-10">
 
                 {/* Artists to Watch — top rated available artists */}
@@ -1404,7 +1204,7 @@ export default function HiringPage() {
             )}
 
             {/* ── Flat grid for search / category filter ── */}
-            {!loadingArtists && (activeCategory !== "All" || search || activeFilterCount > 0) && (
+            {!loadingArtists && (activeCategory !== "All" || search) && (
               <section className="px-4 md:px-8 pt-6 pb-10">
                 <div className="flex items-baseline gap-2 mb-5">
                   <h3 className="text-base font-bold" style={{ color: "var(--text-1)" }}>

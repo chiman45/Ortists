@@ -1,7 +1,7 @@
 ﻿"use client";
 
 import Link from "next/link";
-import { ArrowRight, Award, Box, Briefcase, Camera, ChevronDown, Layers, Paintbrush, Palette, Search, Sparkles, Star, TrendingUp, Users, X, Zap } from "lucide-react";
+import { ArrowRight, Award, Briefcase, ChevronDown, Cpu, Feather, Layers, Paintbrush, Palette, Printer, Sparkles, Star, TrendingUp, Triangle, TreePine, Users } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 
@@ -18,66 +18,106 @@ const NAV_SIMPLE = [
 
 const HIRE_CATEGORIES = [
   {
-    label: "Illustration & Drawing", Icon: Paintbrush, color: "#9B7CF5",
-    desc: "Hand-crafted & digital illustrations",
+    label: "Fine Arts", Icon: Palette, color: "#F59E0B",
+    desc: "Painting, drawing & traditional fine art",
     items: [
-      { label: "Character Design",    href: "/hiring?category=character-design",  desc: "Original characters & sheets" },
-      { label: "Book Illustration",   href: "/hiring?category=book-illustration", desc: "Children's & editorial art" },
-      { label: "Concept Art",         href: "/hiring?category=concept",           desc: "Game & film concepts" },
-      { label: "Storyboarding",       href: "/hiring?category=storyboard",        desc: "Visual narratives" },
+      { label: "Painting" },          { label: "Drawing" },
+      { label: "Sketching" },         { label: "Illustration" },
+      { label: "Watercolor" },        { label: "Oil Painting" },
+      { label: "Acrylic Painting" },  { label: "Gouache" },
+      { label: "Ink Art" },           { label: "Pastel Art" },
+      { label: "Charcoal Art" },      { label: "Portrait Art" },
+      { label: "Landscape Art" },     { label: "Abstract Art" },
+      { label: "Contemporary Art" },  { label: "Realism" },
+      { label: "Hyperrealism" },      { label: "Surrealism" },
+      { label: "Expressionism" },     { label: "Figurative Art" },
+      { label: "Miniature Art" },     { label: "Religious Art" },
+      { label: "Conceptual Art" },    { label: "Mixed Media Art" },
+      { label: "Mural Art" },         { label: "Fresco Art" },
     ],
   },
   {
-    label: "Painting & Fine Art", Icon: Palette, color: "#F59E0B",
-    desc: "Traditional & mixed-media painting",
+    label: "Sculpture", Icon: Triangle, color: "#F43F5E",
+    desc: "Stone, clay, metal & mixed sculpture",
     items: [
-      { label: "Oil Painting",        href: "/hiring?category=oil",       desc: "Classic oil technique" },
-      { label: "Watercolor",          href: "/hiring?category=watercolor", desc: "Fluid & expressive work" },
-      { label: "Acrylic Painting",    href: "/hiring?category=acrylic",   desc: "Bold & versatile" },
-      { label: "Portrait Commission", href: "/hiring?category=portrait",  desc: "Realistic portraits" },
+      { label: "Stone Sculpture" },       { label: "Marble Sculpture" },
+      { label: "Wood Sculpture" },        { label: "Clay Sculpture" },
+      { label: "Ceramic Sculpture" },     { label: "Metal Sculpture" },
+      { label: "Bronze Casting" },        { label: "Metal Casting" },
+      { label: "Fiber Sculpture" },       { label: "Resin Sculpture" },
+      { label: "Kinetic Sculpture" },     { label: "Installation Sculpture" },
+      { label: "Public Art Sculpture" },  { label: "Monument Sculpture" },
+      { label: "Figurative Sculpture" },  { label: "Abstract Sculpture" },
     ],
   },
   {
-    label: "Digital Art & Design", Icon: Layers, color: "#06B6D4",
-    desc: "Logos, UI, branding & digital work",
+    label: "Tribal & Indigenous Arts", Icon: Feather, color: "#10B981",
+    desc: "Traditional tribal & folk art forms",
     items: [
-      { label: "Digital Illustration", href: "/hiring?category=digital",  desc: "Vector & raster art" },
-      { label: "Logo & Brand Design",  href: "/hiring?category=branding", desc: "Full visual identity" },
-      { label: "UI/UX Design",         href: "/hiring?category=ui-ux",    desc: "App & web interfaces" },
-      { label: "Social Media Art",     href: "/hiring?category=social",   desc: "Reels, posts & banners" },
+      { label: "Tribal Painting" },       { label: "Folk Art" },
+      { label: "Warli Art" },             { label: "Madhubani Art" },
+      { label: "Pattachitra" },           { label: "Gond Art" },
+      { label: "Tanjore Painting" },      { label: "Kalamkari" },
+      { label: "Dhokra Craft" },          { label: "Indigenous Weaving" },
+      { label: "Tribal Sculpture" },      { label: "Ceremonial Art" },
     ],
   },
   {
-    label: "Photography", Icon: Camera, color: "#10B981",
-    desc: "Portrait, editorial & product",
+    label: "Wood Arts", Icon: TreePine, color: "#A16207",
+    desc: "Carving, turning & woodwork",
     items: [
-      { label: "Portrait Photography", href: "/hiring?category=portrait-photo", desc: "Professional portraits" },
-      { label: "Photo Editing",        href: "/hiring?category=photo-edit",     desc: "Retouching & colour grading" },
-      { label: "Product Photography",  href: "/hiring?category=product-photo",  desc: "E-commerce ready shots" },
-      { label: "Event Photography",    href: "/hiring?category=events",         desc: "Moments captured" },
+      { label: "Wood Carving" },          { label: "Wood Turning" },
+      { label: "Relief Carving" },        { label: "Chip Carving" },
+      { label: "Pyrography" },            { label: "Marquetry" },
+      { label: "Intarsia" },              { label: "Furniture Design" },
+      { label: "Wooden Sculpture" },      { label: "Wood Burning Art" },
     ],
   },
   {
-    label: "Sculpture & 3D", Icon: Box, color: "#F43F5E",
-    desc: "Physical & digital 3D art",
+    label: "Digital Arts", Icon: Layers, color: "#06B6D4",
+    desc: "Digital illustration, design & media",
     items: [
-      { label: "3D Modeling",        href: "/hiring?category=3d-model",  desc: "Characters & objects" },
-      { label: "Physical Sculpture", href: "/hiring?category=sculpture", desc: "Clay & mixed media" },
-      { label: "3D Printing Design", href: "/hiring?category=3d-print",  desc: "Print-ready files" },
-      { label: "NFT Art",            href: "/hiring?category=nft",       desc: "Digital collectibles" },
+      { label: "Digital Illustration" },  { label: "Concept Art" },
+      { label: "Character Design" },      { label: "Logo & Branding" },
+      { label: "UI/UX Design" },          { label: "Motion Graphics" },
+      { label: "3D Modeling" },           { label: "NFT Art" },
+      { label: "Photo Manipulation" },    { label: "Social Media Art" },
+      { label: "GIF & Animation" },       { label: "Game Art" },
     ],
   },
   {
-    label: "Animation & Motion", Icon: Zap, color: "#8B5CF6",
-    desc: "2D, motion graphics & GIFs",
+    label: "Printmaking", Icon: Paintbrush, color: "#8B5CF6",
+    desc: "Relief, intaglio & screen printing",
     items: [
-      { label: "2D Animation",    href: "/hiring?category=2d-animation", desc: "Frame-by-frame art" },
-      { label: "Motion Graphics", href: "/hiring?category=motion",       desc: "After Effects & more" },
-      { label: "GIF & Sticker Art", href: "/hiring?category=gif",        desc: "Animated assets" },
-      { label: "Mixed Media",     href: "/hiring?category=mixed-media",  desc: "Blend of techniques" },
+      { label: "Woodblock Print" },       { label: "Linocut" },
+      { label: "Etching" },               { label: "Screen Printing" },
+      { label: "Lithography" },           { label: "Monotype" },
+      { label: "Aquatint" },              { label: "Engraving" },
+      { label: "Letterpress" },           { label: "Risograph" },
     ],
   },
-] as const;
+  {
+    label: "Resin Arts", Icon: Cpu, color: "#EC4899",
+    desc: "Epoxy, resin casting & fluid art",
+    items: [
+      { label: "Resin Pouring" },         { label: "Epoxy Table Art" },
+      { label: "Resin Jewellery" },       { label: "Fluid Art" },
+      { label: "Resin Sculpture" },       { label: "Geode Art" },
+      { label: "Ocean Art" },             { label: "Resin Coasters" },
+      { label: "Resin Clock Art" },       { label: "UV Resin Art" },
+    ],
+  },
+  {
+    label: "Print Art", Icon: Printer, color: "#64748B",
+    desc: "Fine art prints, posters & editions",
+    items: [
+      { label: "Fine Art Print" },        { label: "Giclée Print" },
+      { label: "Poster Art" },            { label: "Limited Edition Print" },
+      { label: "Archival Print" },        { label: "Canvas Print" },
+      { label: "Art Reproduction" },      { label: "Zine Making" },
+    ],
+  },
+];
 
 const ARTIST_BROWSE = [
   { label: "All Artists",      href: "/hiring",                    Icon: Users,      color: "#9B7CF5", desc: "Browse the full directory" },
@@ -104,7 +144,7 @@ function HireMenu({ onEnter, onLeave }: { onEnter: () => void; onLeave: () => vo
   return (
     <div
       className="absolute top-full left-1/2 -translate-x-1/2 pt-2"
-      style={{ minWidth: 680, zIndex: 200 }}
+      style={{ minWidth: 780, zIndex: 200 }}
       onMouseEnter={onEnter}
       onMouseLeave={onLeave}
     >
@@ -115,12 +155,13 @@ function HireMenu({ onEnter, onLeave }: { onEnter: () => void; onLeave: () => vo
           border: "1px solid rgba(255,255,255,0.08)",
           backdropFilter: "blur(32px)",
           boxShadow: "0 32px 80px rgba(0,0,0,0.75), 0 0 0 1px rgba(255,255,255,0.03)",
+          maxHeight: "80vh",
         }}
       >
-        {/* Left: categories */}
-        <div className="flex flex-col py-3 shrink-0" style={{ width: 230, borderRight: "1px solid rgba(255,255,255,0.06)" }}>
+        {/* Left: main categories */}
+        <div className="flex flex-col py-3 shrink-0 overflow-y-auto" style={{ width: 220, borderRight: "1px solid rgba(255,255,255,0.06)", scrollbarWidth: "none" }}>
           <p className="text-[9px] font-bold tracking-[0.28em] uppercase px-5 pt-2 pb-3" style={{ color: "rgba(255,255,255,0.18)" }}>
-            CATEGORIES
+            MAIN CATEGORY
           </p>
           {HIRE_CATEGORIES.map(({ label, Icon, color, desc }, i) => (
             <button
@@ -128,8 +169,8 @@ function HireMenu({ onEnter, onLeave }: { onEnter: () => void; onLeave: () => vo
               onMouseEnter={() => setActiveCat(i)}
               className="flex items-center gap-3 px-4 py-2.5 text-left w-full transition-all duration-100"
               style={{
-                background:  activeCat === i ? "rgba(255,255,255,0.05)" : "transparent",
-                borderLeft:  activeCat === i ? `2px solid ${color}` : "2px solid transparent",
+                background: activeCat === i ? "rgba(255,255,255,0.05)" : "transparent",
+                borderLeft: activeCat === i ? `2px solid ${color}` : "2px solid transparent",
               }}
             >
               <div
@@ -150,37 +191,45 @@ function HireMenu({ onEnter, onLeave }: { onEnter: () => void; onLeave: () => vo
           ))}
         </div>
 
-        {/* Right: sub-items */}
-        <div className="flex-1 p-5 flex flex-col">
-          <div className="flex items-center gap-2.5 mb-4">
-            <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: `${cat.color}20` }}>
+        {/* Right: sub-categories */}
+        <div className="flex-1 flex flex-col" style={{ minWidth: 0 }}>
+          {/* Header */}
+          <div className="flex items-center gap-2.5 px-5 py-4" style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
+            <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0" style={{ background: `${cat.color}20` }}>
               <cat.Icon size={13} style={{ color: cat.color }} />
             </div>
-            <p className="text-[11px] font-bold tracking-[0.18em] uppercase" style={{ color: cat.color }}>{cat.label}</p>
+            <div>
+              <p className="text-[11px] font-bold tracking-[0.18em] uppercase" style={{ color: cat.color }}>{cat.label}</p>
+              <p className="text-[10px]" style={{ color: "rgba(255,255,255,0.25)" }}>Sub-Category</p>
+            </div>
           </div>
-          <div className="grid grid-cols-2 gap-1.5 flex-1">
-            {cat.items.map(item => (
-              <Link
-                key={item.href}
-                href={item.href}
-                className="flex flex-col p-3 rounded-xl transition-all duration-100"
-                style={{ border: "1px solid transparent" }}
-                onMouseEnter={e => {
-                  (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.04)";
-                  (e.currentTarget as HTMLElement).style.borderColor = "rgba(255,255,255,0.07)";
-                }}
-                onMouseLeave={e => {
-                  (e.currentTarget as HTMLElement).style.background = "transparent";
-                  (e.currentTarget as HTMLElement).style.borderColor = "transparent";
-                }}
-              >
-                <p className="text-[13px] font-semibold mb-1" style={{ color: "rgba(255,255,255,0.85)" }}>{item.label}</p>
-                <p className="text-[11px]" style={{ color: "rgba(255,255,255,0.35)" }}>{item.desc}</p>
-              </Link>
-            ))}
+
+          {/* Scrollable sub-items grid */}
+          <div className="overflow-y-auto flex-1 p-4" style={{ scrollbarWidth: "thin", scrollbarColor: "rgba(255,255,255,0.1) transparent" }}>
+            <div className="grid grid-cols-3 gap-1">
+              {cat.items.map(item => (
+                  <Link
+                    key={item.label}
+                    href={`/hiring?search=${encodeURIComponent(item.label)}`}
+                    className="px-3 py-2 rounded-lg text-[12px] font-medium transition-all duration-100 truncate"
+                    style={{ color: "rgba(255,255,255,0.6)" }}
+                    onMouseEnter={e => {
+                      (e.currentTarget as HTMLElement).style.background = `${cat.color}15`;
+                      (e.currentTarget as HTMLElement).style.color = "#fff";
+                    }}
+                    onMouseLeave={e => {
+                      (e.currentTarget as HTMLElement).style.background = "transparent";
+                      (e.currentTarget as HTMLElement).style.color = "rgba(255,255,255,0.6)";
+                    }}
+                  >
+                    {item.label}
+                  </Link>
+              ))}
+            </div>
           </div>
-          <div className="h-px mt-4 mb-3" style={{ background: "rgba(255,255,255,0.06)" }} />
-          <div className="flex items-center gap-5">
+
+          {/* Footer */}
+          <div className="px-5 py-3 flex items-center gap-5" style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}>
             <Link href="/hiring" className="text-[12px] font-semibold flex items-center gap-1.5 transition-opacity hover:opacity-70" style={{ color: ACCENT }}>
               Browse all talent <ArrowRight size={11} />
             </Link>
@@ -283,9 +332,6 @@ export default function PublicNav() {
   const pathname = usePathname();
   const [scrolled,     setScrolled]     = useState(false);
   const [openDropdown, setOpenDropdown] = useState<"hire" | "artists" | null>(null);
-  const [searchOpen,   setSearchOpen]   = useState(false);
-  const [searchQuery,  setSearchQuery]  = useState("");
-  const searchRef = useRef<HTMLInputElement>(null);
   const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -293,10 +339,6 @@ export default function PublicNav() {
     window.addEventListener("scroll", fn, { passive: true });
     return () => window.removeEventListener("scroll", fn);
   }, []);
-
-  useEffect(() => {
-    if (searchOpen) searchRef.current?.focus();
-  }, [searchOpen]);
 
   function open(name: "hire" | "artists") {
     if (closeTimer.current) clearTimeout(closeTimer.current);
@@ -323,8 +365,8 @@ export default function PublicNav() {
       {/* Logo */}
       <Link href="/" className="flex items-center gap-2.5 shrink-0 mr-2">
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/login-image/ortists logo1.png" alt="Ortist" className="w-7 h-7 rounded-md object-cover" />
-        <span className="text-[15px] font-bold tracking-wide text-white">Ortist</span>
+        <img src="/login-image/ortists logo1.png" alt="Ortists" className="w-7 h-7 rounded-md object-cover" />
+        <span className="text-[15px] font-bold tracking-[0.06em] text-white">Ortists</span>
       </Link>
 
       {/* Left nav links */}
@@ -365,45 +407,8 @@ export default function PublicNav() {
         </div>
       </div>
 
-      {/* Right: search + auth buttons */}
+      {/* Right: auth buttons */}
       <div className="hidden md:flex items-center gap-3 ml-auto shrink-0">
-        {/* Expandable search */}
-        <div className="flex items-center transition-all duration-300"
-          style={{
-            background: searchOpen ? "rgba(255,255,255,0.07)" : "transparent",
-            border: searchOpen ? "1px solid rgba(255,255,255,0.12)" : "1px solid transparent",
-            borderRadius: 999,
-            padding: searchOpen ? "5px 14px 5px 12px" : "5px",
-          }}
-        >
-          <button
-            onClick={() => { setSearchOpen(v => !v); if (searchOpen) setSearchQuery(""); }}
-            className="transition-opacity hover:opacity-70 flex items-center"
-            style={{ color: MUTED }}
-          >
-            {searchOpen
-              ? <X size={15} />
-              : <Search size={15} />
-            }
-          </button>
-          {searchOpen && (
-            <input
-              ref={searchRef}
-              value={searchQuery}
-              onChange={e => setSearchQuery(e.target.value)}
-              placeholder="Search artists, styles…"
-              className="bg-transparent outline-none text-[13px] ml-2"
-              style={{ color: "#fff", width: 180 }}
-              onKeyDown={e => {
-                if (e.key === "Enter" && searchQuery.trim()) {
-                  window.location.href = `/hiring?q=${encodeURIComponent(searchQuery.trim())}`;
-                }
-                if (e.key === "Escape") { setSearchOpen(false); setSearchQuery(""); }
-              }}
-            />
-          )}
-        </div>
-
         {/* Sign In */}
         <Link
           href="/login"

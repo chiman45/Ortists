@@ -6,6 +6,7 @@ import Sidebar from "@/components/layout/Sidebar";
 import ProfileSkeleton from "@/components/ui/skeletons/ProfileSkeleton";
 import { type Post as DbPost } from "@/lib/db/posts";
 import { type Profile } from "@/lib/db/profiles";
+import PostModal from "@/components/ui/PostModal";
 import ShareModal from "@/components/ui/ShareModal";
 import { useUser } from "@clerk/nextjs";
 import {
@@ -38,7 +39,6 @@ interface EditForm {
   tag: string;
   available: boolean;
   response_time: string;
-  website: string;
 }
 
 type EditSection = "Basic Info" | "Portfolio" | "Services" | "Availability" | "Pricing" | "Preferences";
@@ -79,8 +79,9 @@ export default function ProfilePage() {
   const [editSection, setEditSection]   = useState<EditSection>("Basic Info");
   const [editForm, setEditForm]         = useState<EditForm>({
     display_name: "", username: "", bio: "", location: "",
-    tag: "Artist", available: true, response_time: "Within 24 hours", website: "",
+    tag: "Artist", available: true, response_time: "Within 24 hours",
   });
+  const [openPostModal, setOpenPostModal] = useState<DbPost | null>(null);
 
   useEffect(() => {
     if (!isLoaded || !user) return;
@@ -149,7 +150,6 @@ export default function ProfilePage() {
       tag:           profile?.tag ?? "Artist",
       available:     profile?.available ?? true,
       response_time: profile?.response_time ?? "Within 24 hours",
-      website:       "",
     });
     setAvatarPreview(null);
     setBannerPreview(null);
@@ -439,24 +439,26 @@ export default function ProfilePage() {
             {/* Portfolio */}
             {activeTab === "Portfolio" && (
               dbPosts.length > 0 ? (
-                <div className="columns-2 sm:columns-3 gap-3">
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                   {dbPosts.map(post => {
                     const src = firstImage(post.image_url);
                     const isVid = isVideoUrl(src);
                     return (
-                      <Link key={post.id} href={`/feed/${post.id}`}
-                        className="break-inside-avoid mb-3 rounded-xl overflow-hidden group cursor-pointer relative block">
+                      <button key={post.id} onClick={() => setOpenPostModal(post)}
+                        className="rounded-xl overflow-hidden group cursor-pointer relative block text-left w-full"
+                        style={{ aspectRatio: "1", background: "var(--bg-subtle)" }}>
                         {isVid ? (
-                          <video src={src} className="w-full object-cover" style={{ maxHeight: 300 }}
+                          <video src={src} className="w-full h-full object-cover"
                             muted playsInline preload="metadata"
                             onMouseEnter={e => (e.currentTarget as HTMLVideoElement).play()}
                             onMouseLeave={e => { const v = e.currentTarget as HTMLVideoElement; v.pause(); v.currentTime = 0; }} />
                         ) : (
                           // eslint-disable-next-line @next/next/no-img-element
                           <img src={src} alt={post.title}
-                            className="w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]" />
+                            className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-[1.04]" />
                         )}
-                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-all duration-200 flex items-end p-2">
+                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-all duration-200 flex flex-col items-start justify-end p-2.5">
+                          <p className="opacity-0 group-hover:opacity-100 transition-opacity text-[11px] font-semibold text-white truncate w-full mb-1">{post.title}</p>
                           <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-2">
                             <span className="flex items-center gap-1 text-[11px] text-white"><Heart size={11} /> {post.likes_count}</span>
                             <span className="flex items-center gap-1 text-[11px] text-white"><Bookmark size={11} /> {post.saves_count}</span>
@@ -464,9 +466,9 @@ export default function ProfilePage() {
                         </div>
                         {isVid && (
                           <span className="absolute top-2 left-2 px-2 py-0.5 rounded-full text-[10px] font-bold text-white"
-                            style={{ background: "rgba(0,0,0,0.55)", backdropFilter: "blur(6px)" }}>▶ Video</span>
+                            style={{ background: "rgba(0,0,0,0.55)", backdropFilter: "blur(6px)" }}>▶</span>
                         )}
-                      </Link>
+                      </button>
                     );
                   })}
                 </div>
@@ -483,33 +485,33 @@ export default function ProfilePage() {
             {/* Saved */}
             {activeTab === "Saved" && (
               savedPosts.length > 0 ? (
-                <div className="columns-2 sm:columns-3 gap-3">
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                   {savedPosts.map(post => {
                     const src = firstImage(post.image_url);
                     const isVid = isVideoUrl(src);
                     return (
-                      <Link key={post.id} href={`/feed/${post.id}`}
-                        className="break-inside-avoid mb-3 rounded-xl overflow-hidden group cursor-pointer relative block">
+                      <button key={post.id} onClick={() => setOpenPostModal(post)}
+                        className="rounded-xl overflow-hidden group cursor-pointer relative w-full text-left"
+                        style={{ aspectRatio: "1", background: "var(--bg-subtle)" }}>
                         {isVid ? (
-                          <video src={src} className="w-full object-cover" style={{ maxHeight: 300 }}
+                          <video src={src} className="w-full h-full object-cover"
                             muted playsInline preload="metadata"
                             onMouseEnter={e => (e.currentTarget as HTMLVideoElement).play()}
                             onMouseLeave={e => { const v = e.currentTarget as HTMLVideoElement; v.pause(); v.currentTime = 0; }} />
                         ) : (
                           // eslint-disable-next-line @next/next/no-img-element
                           <img src={src} alt={post.title}
-                            className="w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]" />
+                            className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-[1.04]" />
                         )}
-                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-all duration-200 flex items-end p-2">
-                          <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-2">
-                            <span className="flex items-center gap-1 text-[11px] text-white"><Heart size={11} /> {post.likes_count}</span>
-                          </div>
+                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-all duration-200 flex flex-col items-start justify-end p-2.5">
+                          <p className="opacity-0 group-hover:opacity-100 transition-opacity text-[11px] font-semibold text-white truncate w-full mb-1">{post.title}</p>
+                          <span className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 text-[11px] text-white"><Heart size={11} /> {post.likes_count}</span>
                         </div>
                         {isVid && (
                           <span className="absolute top-2 left-2 px-2 py-0.5 rounded-full text-[10px] font-bold text-white"
-                            style={{ background: "rgba(0,0,0,0.55)", backdropFilter: "blur(6px)" }}>▶ Video</span>
+                            style={{ background: "rgba(0,0,0,0.55)", backdropFilter: "blur(6px)" }}>▶</span>
                         )}
-                      </Link>
+                      </button>
                     );
                   })}
                 </div>
@@ -1047,24 +1049,14 @@ export default function ProfilePage() {
                       </p>
                     </div>
 
-                    {/* Location + Website */}
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <label className="text-xs font-semibold mb-1.5 block" style={{ color: "var(--text-5)" }}>Location</label>
-                        <input value={editForm.location}
-                          onChange={e => setEditForm(f => ({ ...f, location: e.target.value }))}
-                          placeholder="City, Country"
-                          className="w-full px-3 py-2.5 rounded-xl text-sm outline-none"
-                          style={{ background: "var(--bg-subtle)", border: "1px solid var(--border)", color: "var(--text-1)" }} />
-                      </div>
-                      <div>
-                        <label className="text-xs font-semibold mb-1.5 block" style={{ color: "var(--text-5)" }}>Website</label>
-                        <input value={editForm.website}
-                          onChange={e => setEditForm(f => ({ ...f, website: e.target.value }))}
-                          placeholder="https://yoursite.com"
-                          className="w-full px-3 py-2.5 rounded-xl text-sm outline-none"
-                          style={{ background: "var(--bg-subtle)", border: "1px solid var(--border)", color: "var(--text-1)" }} />
-                      </div>
+                    {/* Location */}
+                    <div>
+                      <label className="text-xs font-semibold mb-1.5 block" style={{ color: "var(--text-5)" }}>Location</label>
+                      <input value={editForm.location}
+                        onChange={e => setEditForm(f => ({ ...f, location: e.target.value }))}
+                        placeholder="City, Country"
+                        className="w-full px-3 py-2.5 rounded-xl text-sm outline-none"
+                        style={{ background: "var(--bg-subtle)", border: "1px solid var(--border)", color: "var(--text-1)" }} />
                     </div>
 
                     {saveError && (
@@ -1196,6 +1188,15 @@ export default function ProfilePage() {
             </div>
           </div>
         </div>
+      )}
+      {openPostModal && (
+        <PostModal
+          post={openPostModal}
+          isOwner={true}
+          ownerId={user?.id}
+          onClose={() => setOpenPostModal(null)}
+          onUpdate={updated => setDbPosts(posts => posts.map(p => p.id === updated.id ? updated : p))}
+        />
       )}
       {shareOpen && (
         <ShareModal

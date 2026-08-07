@@ -35,7 +35,9 @@ const STATS = [
   { value: "2,100+",  label: "Listings"   },
 ];
 
-const HERO_CATEGORIES = ["PORTRAIT", "ILLUSTRATION", "PHOTOGRAPHY", "OIL PAINTING", "DIGITAL ART", "SCULPTURE", "CONCEPT ART"];
+const HERO_CATEGORIES = ["PORTRAIT", "WATERCOLOR", "ACRYLIC PAINTING", "OIL PAINTING", "SCULPTURE", "TRIBAL ART", "DIGITAL ART", "PRINTMAKING"];
+
+const MARQUEE_ITEMS = ["ARTISTS", "GALLERY", "PORTRAIT", "ACRYLIC & OIL PAINTING", "WATERCOLOR", "SCULPTURE", "ILLUSTRATION", "PHOTOGRAPHY", "DIGITAL ART", "PRINTMAKING", "TRIBAL ART", "MIXED MEDIA"];
 
 /* ── Scroll-reveal ── */
 function useReveal(threshold = 0.15) {
@@ -124,6 +126,25 @@ export default function LandingPage() {
             The Home for<br />Creative Work
           </h1>
 
+          {/* Marquee ticker */}
+          <div className="w-full mb-8 overflow-hidden" style={{ maskImage: "linear-gradient(to right, transparent, black 12%, black 88%, transparent)" }}>
+            <div
+              className="flex gap-0 whitespace-nowrap"
+              style={{ animation: "marquee 28s linear infinite" }}
+            >
+              {[...MARQUEE_ITEMS, ...MARQUEE_ITEMS].map((item, i) => (
+                <span
+                  key={i}
+                  className="text-[10px] font-bold tracking-[0.32em] uppercase shrink-0 px-6"
+                  style={{ color: "rgba(255,255,255,0.28)" }}
+                >
+                  {item} <span style={{ color: "rgba(255,255,255,0.14)" }}>·</span>
+                </span>
+              ))}
+            </div>
+          </div>
+          <style>{`@keyframes marquee { from { transform: translateX(0) } to { transform: translateX(-50%) } }`}</style>
+
           {/* Search bar */}
           <div className="w-full max-w-[540px] mb-6 flex items-center gap-3 px-5 py-3.5 rounded-lg"
             style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.18)", backdropFilter: "blur(16px)" }}>
@@ -164,14 +185,6 @@ export default function LandingPage() {
           </div>
         </div>
 
-        {/* Scroll indicator */}
-        <div
-          className="absolute bottom-8 left-1/2 -translate-x-1/2 z-10 flex flex-col items-center gap-3"
-          style={{ color: MUTED, animation: "pulse 2.4s ease-in-out infinite" }}
-        >
-          <span className="text-[10px] font-medium tracking-[0.28em] uppercase">Scroll</span>
-          <div className="w-px h-12" style={{ background: `linear-gradient(to bottom, ${MUTED}70, transparent)` }} />
-        </div>
       </section>
 
       {/* ════════════════════════════ S2 – CREATIVE FEED ════════════════════════════ */}
@@ -495,20 +508,20 @@ export default function LandingPage() {
                   letterSpacing: "-0.02em",
                 }}
               >
-                ORTIST
+                ORTISTS
               </h2>
             </div>
           </RevealFade>
 
           {/* Links grid */}
           <RevealFade delay={0.1}>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-12 mb-20">
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-10 mb-20">
               {/* Brand */}
               <div className="col-span-2 md:col-span-1">
                 <div className="flex items-center gap-2.5 mb-4">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src="/login-image/ortists logo1.png" alt="Ortist" className="w-7 h-7 rounded-md object-cover" />
-                  <span className="font-bold text-white text-[15px]">Ortist</span>
+                  <img src="/login-image/ortists logo1.png" alt="Ortists" className="w-7 h-7 rounded-md object-cover" />
+                  <span className="font-bold text-white text-[15px] tracking-[0.06em]">Ortists</span>
                 </div>
                 <p className="text-[13px] leading-relaxed mb-7" style={{ color: MUTED, maxWidth: 220 }}>
                   A creative ecosystem for artists to showcase, connect, and thrive.
@@ -516,9 +529,10 @@ export default function LandingPage() {
                 {/* Socials */}
                 <div className="flex gap-3">
                   {[
-                    { label: "X", d: "M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.746l7.73-8.835L1.254 2.25H8.08l4.253 5.622zm-1.161 17.52h1.833L7.084 4.126H5.117z" },
-                    { label: "Instagram", d: "M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37zM17.5 6.5h.01" },
-                  ].map(({ label, d }) => (
+                    { label: "Facebook", path: "M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z" },
+                    { label: "Instagram", path: "M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37zM17.5 6.5h.01M7.5 2h9a5.5 5.5 0 0 1 5.5 5.5v9a5.5 5.5 0 0 1-5.5 5.5h-9A5.5 5.5 0 0 1 2 16.5v-9A5.5 5.5 0 0 1 7.5 2z" },
+                    { label: "LinkedIn", path: "M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6zM2 9h4v12H2zM4 6a2 2 0 1 0 0-4 2 2 0 0 0 0 4z" },
+                  ].map(({ label, path }) => (
                     <a
                       key={label}
                       href="#"
@@ -528,7 +542,7 @@ export default function LandingPage() {
                     >
                       <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none"
                         stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d={d} />
+                        <path d={path} />
                       </svg>
                     </a>
                   ))}
@@ -570,7 +584,32 @@ export default function LandingPage() {
                 <p className="text-[11px] font-bold tracking-[0.22em] uppercase mb-5"
                   style={{ color: "rgba(255,255,255,0.22)" }}>Legal</p>
                 <ul className="flex flex-col gap-3">
-                  {[["Privacy Policy", "#"], ["Terms of Service", "#"], ["Cookie Policy", "#"]].map(([l, h]) => (
+                  {[
+                    ["Privacy Policy",            "/privacy"],
+                    ["Terms of Service",          "/terms"],
+                    ["Refund & Cancellation",     "/refund"],
+                    ["Shipping & Delivery",       "/shipping"],
+                    ["Artists Agreement",         "/artists-agreement"],
+                    ["Client Agreement",          "/client-agreement"],
+                  ].map(([l, h]) => (
+                    <li key={l}>
+                      <Link href={h} className="text-[13px] transition-colors duration-200 hover:text-white" style={{ color: MUTED }}>
+                        {l}
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+
+              {/* Support */}
+              <div>
+                <p className="text-[11px] font-bold tracking-[0.22em] uppercase mb-5"
+                  style={{ color: "rgba(255,255,255,0.22)" }}>Support</p>
+                <ul className="flex flex-col gap-3">
+                  {[
+                    ["Help & Support", "/help"],
+                    ["Contact Us",     "/contact"],
+                  ].map(([l, h]) => (
                     <li key={l}>
                       <Link href={h} className="text-[13px] transition-colors duration-200 hover:text-white" style={{ color: MUTED }}>
                         {l}
