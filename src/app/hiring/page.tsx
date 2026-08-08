@@ -162,7 +162,7 @@ function ArtistCard({ a, price, onHire }: { a: ArtistProfile; price: number; onH
   const medium     = a.tag ? a.tag.split(",")[0].trim() : "";
   const delivery   = getDeliveryCategory(a) === "5-7" ? "5–7 days" : "7+ days";
   const subtitle   = [city, medium].filter(Boolean).join(" · ") || "Remote";
-  const profileUrl = `/u/${a.username ?? a.clerk_id}`;
+  const profileUrl = `/u/${(a.username || a.clerk_id).replace(/^@+/, "")}`;
 
   return (
     <Link
@@ -267,7 +267,7 @@ function BrowseArtistCard({ a, price, onHire }: { a: ArtistProfile; price: numbe
   const locationStr = [city, country].filter(Boolean).join(", ");
   const medium     = a.tag ? a.tag.split(",")[0].trim() : "Artist";
   const delivery   = getDeliveryCategory(a) === "5-7" ? "5–7 days" : "7+ days";
-  const profileUrl = `/u/${a.username ?? a.clerk_id}`;
+  const profileUrl = `/u/${(a.username || a.clerk_id).replace(/^@+/, "")}`;
 
   return (
     <div
@@ -871,7 +871,6 @@ export default function HiringPage() {
   const categories = ["All", ...Array.from(new Set(artists.map(a => a.tag).filter(Boolean))).sort()];
 
   const filtered = artists.filter(a => {
-    if (a.clerk_id === user?.id) return false;
     const term        = search.toLowerCase();
     const displayName = (a.display_name ?? "").toLowerCase();
     const username    = (a.username ?? "").toLowerCase();

@@ -94,9 +94,18 @@ export default function FeedPage() {
     if (query) return;
     setLoading(true);
     setDbPosts([]);
-    fetch("/api/posts?limit=24&offset=0")
+    fetch("/api/posts?limit=48&offset=0")
       .then(r => r.json())
-      .then(({ posts }: { posts: Post[] }) => { setDbPosts(posts ?? []); setLoading(false); })
+      .then(({ posts }: { posts: Post[] }) => {
+        const arr = posts ?? [];
+        // Fisher-Yates shuffle so order differs on every visit
+        for (let i = arr.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [arr[i], arr[j]] = [arr[j], arr[i]];
+        }
+        setDbPosts(arr);
+        setLoading(false);
+      })
       .catch(() => setLoading(false));
   }, [query]);
 

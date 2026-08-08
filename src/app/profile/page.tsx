@@ -821,7 +821,7 @@ export default function ProfilePage() {
                         alt={p.display_name ?? "Artist"}
                         className="w-8 h-8 rounded-full object-cover shrink-0" />
                       <div className="flex-1 min-w-0">
-                        <Link href={`/u/${p.username ?? p.clerk_id}`}>
+                        <Link href={`/u/${(p.username || p.clerk_id).replace(/^@+/, "")}`}>
                           <p className="text-xs font-semibold truncate hover:underline"
                             style={{ color: "var(--text-1)" }}>
                             {p.display_name ?? p.username}
@@ -883,7 +883,7 @@ export default function ProfilePage() {
               {!followLoading && followModal?.users.map(u => (
                 <Link
                   key={u.clerk_id}
-                  href={`/u/${u.username ?? u.clerk_id}`}
+                  href={`/u/${(u.username || u.clerk_id).replace(/^@+/, "")}`}
                   onClick={() => setFollowModal(null)}
                   className="flex items-center gap-3 px-5 py-3 transition-colors"
                   style={{ borderBottom: "1px solid var(--border)" }}

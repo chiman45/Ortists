@@ -39,28 +39,32 @@ function meta(type: string) {
 }
 
 function notifLink(n: Notification): string {
-  const { type, text, post_id } = n;
-  if (type === "like" || type === "comment" || type === "mention") return "/feed";
-  if (type === "follow") return post_id ? `/profile?userId=${post_id}` : "/profile";
-  if (type === "commission") {
-    return text.includes("sent you a commission") ? "/hiring?tab=requests"
-      : post_id ? `/hiring/projects/${post_id}` : "/hiring";
-  }
-  if (type === "message") return post_id ? `/hiring/projects/${post_id}` : "/hiring";
-  if (type === "purchase" || type === "order") return "/hiring";
-  if (type === "artwork_inquiry") return "/hiring";
+  const { type, post_id } = n;
+  // like / comment / mention → open the specific post
+  if (type === "like" || type === "comment" || type === "mention")
+    return post_id ? `/feed/${post_id}` : "/feed";
+  // follow → open the follower's profile (post_id stores follower clerk_id)
+  if (type === "follow")
+    return post_id ? `/u/${post_id}` : "/feed";
+  // commission / message → open the hire-request project chat
+  if (type === "commission" || type === "message")
+    return post_id ? `/hiring/projects/${post_id}` : "/hiring?tab=requests";
+  if (type === "milestone")
+    return post_id ? `/hiring/projects/${post_id}` : "/hiring";
+  if (type === "purchase" || type === "order" || type === "artwork_inquiry")
+    return "/hiring";
   return "/feed";
 }
 
 function actionLabel(n: Notification): string {
-  if (n.type === "like" || n.type === "comment" || n.type === "mention") return "View Post";
-  if (n.type === "follow") return "View Profile";
-  if (n.type === "commission")
-    return n.text.includes("sent you a commission") ? "Open Request" : "View Project";
-  if (n.type === "message") return "View Message";
+  if (n.type === "like")     return "View Post";
+  if (n.type === "comment")  return "View Comment";
+  if (n.type === "mention")  return "View Post";
+  if (n.type === "follow")   return "View Profile";
+  if (n.type === "commission" || n.type === "message") return "Open Chat";
+  if (n.type === "milestone") return "View Project";
   if (n.type === "purchase" || n.type === "order") return "View Order";
   if (n.type === "artwork_inquiry") return "View Inquiry";
-  if (n.type === "milestone") return "View Project";
   return "View";
 }
 

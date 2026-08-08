@@ -1,11 +1,20 @@
 "use client";
 
 import { type Post as DbPost } from "@/lib/db/posts";
-import { firstImage } from "@/lib/imageUrl";
 import { Bookmark, Check, Heart, Pencil, RotateCcw, X, ZoomIn, ZoomOut } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 const isVideoUrl = (u: string) => /\.(mp4|webm|mov|avi|mkv|ogv)(\?|$)/i.test(u);
+
+function parseImages(raw: string): string[] {
+  if (raw.startsWith("[")) {
+    try {
+      const a = JSON.parse(raw);
+      if (Array.isArray(a) && a.length > 0) return a;
+    } catch { /* fall through */ }
+  }
+  return [raw];
+}
 
 interface Props {
   post: DbPost;
@@ -27,15 +36,29 @@ export default function PostModal({ post: initialPost, isOwner, ownerId, onClose
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
 
+  const [carouselIdx, setCarouselIdx] = useState(0);
+  const images = parseImages(post.image_url);
+  const total = images.length;
+  const touchStartX = useRef<number | null>(null);
+
   const lastDist = useRef<number | null>(null);
   const lastPan = useRef<{ x: number; y: number } | null>(null);
   const pointers = useRef<Map<number, { x: number; y: number }>>(new Map());
 
+  function goTo(i: number) { setCarouselIdx(i); resetZoom(); }
+  function goPrev() { if (carouselIdx > 0) goTo(carouselIdx - 1); }
+  function goNext() { if (carouselIdx < total - 1) goTo(carouselIdx + 1); }
+
   useEffect(() => {
-    const handler = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+      if (e.key === "ArrowLeft")  goPrev();
+      if (e.key === "ArrowRight") goNext();
+    };
     document.addEventListener("keydown", handler);
     return () => document.removeEventListener("keydown", handler);
-  }, [onClose]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [onClose, carouselIdx, total]);
 
   const resetZoom = () => { setZoom(1); setPanX(0); setPanY(0); };
 
@@ -103,7 +126,7 @@ export default function PostModal({ post: initialPost, isOwner, ownerId, onClose
     setSaveError(null);
   }
 
-  const src = firstImage(post.image_url);
+  const src = images[Math.min(carouselIdx, total - 1)];
   const isVid = isVideoUrl(src);
   const imgStyle: React.CSSProperties = {
     maxWidth: "100%",
@@ -138,7 +161,7 @@ export default function PostModal({ post: initialPost, isOwner, ownerId, onClose
             background: "#060606",
             minHeight: 280,
             maxHeight: "60vh",
-            cursor: zoom > 1 ? "grab" : "zoom-in",
+            cursor: zoom > 1 ? "grab" : "default",
             touchAction: "none",
           }}
           onWheel={handleWheel}
@@ -146,6 +169,14 @@ export default function PostModal({ post: initialPost, isOwner, ownerId, onClose
           onPointerMove={handlePointerMove}
           onPointerUp={handlePointerUp}
           onPointerCancel={handlePointerUp}
+          onTouchStart={e => { if (zoom === 1) touchStartX.current = e.touches[0].clientX; }}
+          onTouchEnd={e => {
+            if (zoom !== 1 || touchStartX.current === null) return;
+            const diff = touchStartX.current - e.changedTouches[0].clientX;
+            if (diff > 50) goNext();
+            else if (diff < -50) goPrev();
+            touchStartX.current = null;
+          }}
         >
           {isVid
             ? <video src={src} style={imgStyle} autoPlay muted loop playsInline />
@@ -153,11 +184,62 @@ export default function PostModal({ post: initialPost, isOwner, ownerId, onClose
             : <img src={src} alt={post.title} draggable={false} style={imgStyle} />
           }
 
+          {/* Counter badge */}
+          {total > 1 && (
+            <div className="absolute top-3 left-3 px-2.5 py-1 rounded-full text-[11px] font-bold pointer-events-none"
+              style={{ background: "rgba(0,0,0,0.65)", backdropFilter: "blur(6px)", color: "#fff" }}>
+              {carouselIdx + 1} / {total}
+            </div>
+          )}
+
           {/* Zoom badge */}
           {zoom > 1.05 && (
-            <div className="absolute top-3 left-3 px-2.5 py-1 rounded-full text-[11px] font-bold pointer-events-none"
+            <div className="absolute top-3 right-3 px-2.5 py-1 rounded-full text-[11px] font-bold pointer-events-none"
               style={{ background: "rgba(0,0,0,0.65)", backdropFilter: "blur(6px)", color: "rgba(255,255,255,0.75)" }}>
               {Math.round(zoom * 100)}%
+            </div>
+          )}
+
+          {/* Prev arrow */}
+          {total > 1 && carouselIdx > 0 && (
+            <button
+              onClick={goPrev}
+              onPointerDown={e => e.stopPropagation()}
+              className="absolute left-3 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full flex items-center justify-center transition-opacity hover:opacity-80"
+              style={{ background: "rgba(0,0,0,0.6)", backdropFilter: "blur(6px)", border: "1px solid rgba(255,255,255,0.15)" }}
+            >
+              <span className="text-white font-bold text-lg leading-none">‹</span>
+            </button>
+          )}
+
+          {/* Next arrow */}
+          {total > 1 && carouselIdx < total - 1 && (
+            <button
+              onClick={goNext}
+              onPointerDown={e => e.stopPropagation()}
+              className="absolute right-3 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full flex items-center justify-center transition-opacity hover:opacity-80"
+              style={{ background: "rgba(0,0,0,0.6)", backdropFilter: "blur(6px)", border: "1px solid rgba(255,255,255,0.15)" }}
+            >
+              <span className="text-white font-bold text-lg leading-none">›</span>
+            </button>
+          )}
+
+          {/* Dot indicators */}
+          {total > 1 && total <= 10 && (
+            <div className="absolute bottom-12 left-0 right-0 flex justify-center gap-1.5">
+              {images.map((_, i) => (
+                <button
+                  key={i}
+                  onClick={() => goTo(i)}
+                  onPointerDown={e => e.stopPropagation()}
+                  className="rounded-full transition-all"
+                  style={{
+                    width: i === carouselIdx ? 16 : 6,
+                    height: 6,
+                    background: i === carouselIdx ? "#fff" : "rgba(255,255,255,0.4)",
+                  }}
+                />
+              ))}
             </div>
           )}
 

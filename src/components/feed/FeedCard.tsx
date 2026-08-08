@@ -38,6 +38,8 @@ export default function FeedCard({ post, dbPost, priority = false, onDelete }: F
   const [deleting, setDeleting]     = useState(false);
   const [promptOpen, setPromptOpen] = useState(false);
   const [modalPost, setModalPost]   = useState<DbPost | null>(null);
+  const [carouselIdx, setCarouselIdx] = useState(0);
+  const touchStartX = useRef<number | null>(null);
   const clickTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const isOwn = !!user && !!post.userId && post.userId === user.id;
@@ -133,23 +135,87 @@ export default function FeedCard({ post, dbPost, priority = false, onDelete }: F
         {(() => {
           const gallery = parseGallery(post.imageUrl);
           if (gallery) {
+            const total = gallery.length;
+            const idx = Math.min(carouselIdx, total - 1);
+            const prev = (e: React.MouseEvent) => {
+              e.stopPropagation();
+              setCarouselIdx(i => Math.max(0, i - 1));
+            };
+            const next = (e: React.MouseEvent) => {
+              e.stopPropagation();
+              setCarouselIdx(i => Math.min(total - 1, i + 1));
+            };
             return (
-              <div className="relative">
+              <div
+                className="relative"
+                onTouchStart={e => { touchStartX.current = e.touches[0].clientX; }}
+                onTouchEnd={e => {
+                  if (touchStartX.current === null) return;
+                  const diff = touchStartX.current - e.changedTouches[0].clientX;
+                  if (diff > 40) setCarouselIdx(i => Math.min(total - 1, i + 1));
+                  else if (diff < -40) setCarouselIdx(i => Math.max(0, i - 1));
+                  touchStartX.current = null;
+                }}
+              >
                 <Image
-                  src={gallery[0]}
+                  src={gallery[idx]}
                   alt={post.title}
                   width={post.imageWidth}
                   height={post.imageHeight}
-                  priority={priority}
-                  className="w-full object-cover transition-all duration-300 group-hover:scale-[1.03] group-hover:brightness-110"
+                  priority={priority && idx === 0}
+                  className="w-full object-cover transition-all duration-300 group-hover:brightness-105"
                   sizes="(max-width: 768px) 50vw, 33vw"
                 />
-                <span
-                  className="absolute top-2 left-2 flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold text-white"
-                  style={{ background: "rgba(0,0,0,0.55)", backdropFilter: "blur(6px)" }}
-                >
-                  ⊞ {gallery.length}
-                </span>
+
+                {/* Counter badge */}
+                {total > 1 && (
+                  <span
+                    className="absolute top-2 right-2 px-2 py-0.5 rounded-full text-[10px] font-bold text-white"
+                    style={{ background: "rgba(0,0,0,0.55)", backdropFilter: "blur(6px)" }}
+                  >
+                    {idx + 1}/{total}
+                  </span>
+                )}
+
+                {/* Prev arrow */}
+                {idx > 0 && (
+                  <button
+                    onClick={prev}
+                    className="absolute left-1.5 top-1/2 -translate-y-1/2 w-7 h-7 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                    style={{ background: "rgba(0,0,0,0.55)", backdropFilter: "blur(6px)" }}
+                  >
+                    <span className="text-white text-xs font-bold">‹</span>
+                  </button>
+                )}
+
+                {/* Next arrow */}
+                {idx < total - 1 && (
+                  <button
+                    onClick={next}
+                    className="absolute right-1.5 top-1/2 -translate-y-1/2 w-7 h-7 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                    style={{ background: "rgba(0,0,0,0.55)", backdropFilter: "blur(6px)" }}
+                  >
+                    <span className="text-white text-xs font-bold">›</span>
+                  </button>
+                )}
+
+                {/* Dot indicators */}
+                {total > 1 && total <= 10 && (
+                  <div className="absolute bottom-2 left-0 right-0 flex justify-center gap-1">
+                    {gallery.map((_, i) => (
+                      <button
+                        key={i}
+                        onClick={e => { e.stopPropagation(); setCarouselIdx(i); }}
+                        className="rounded-full transition-all"
+                        style={{
+                          width: i === idx ? 14 : 5,
+                          height: 5,
+                          background: i === idx ? "#fff" : "rgba(255,255,255,0.45)",
+                        }}
+                      />
+                    ))}
+                  </div>
+                )}
               </div>
             );
           }

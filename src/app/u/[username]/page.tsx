@@ -25,7 +25,9 @@ interface FollowUser {
 }
 
 export default function UserProfilePage({ params }: { params: Promise<{ username: string }> }) {
-  const { username } = use(params);
+  const { username: rawUsername } = use(params);
+  // Decode %40 → @ then strip leading @ so /u/@Piyush and /u/%40Piyush both resolve correctly
+  const username = decodeURIComponent(rawUsername).replace(/^@+/, "");
   const { user } = useUser();
   const router = useRouter();
 
@@ -43,10 +45,15 @@ export default function UserProfilePage({ params }: { params: Promise<{ username
   useEffect(() => {
     async function load() {
       // Fetch profile via server API (bypasses RLS)
-      const res = await fetch(`/api/profiles?username=${encodeURIComponent(username)}`);
-      const { profile: found }: { profile: Profile | null } = await res.json();
+      const res = await fetch(`/api/profiles?username=${encodeURIComponent(username)}`, { cache: "no-store" });
+      const json = await res.json();
+      const found: Profile | null = json.profile ?? null;
 
-      if (!found) { setLoading(false); return; }
+      if (!found) {
+        console.error("[profile page] not found for param:", username, "| raw response:", json);
+        setLoading(false);
+        return;
+      }
       setProfile(found);
 
       // Fetch posts
@@ -138,6 +145,7 @@ export default function UserProfilePage({ params }: { params: Promise<{ username
           <div className="flex-1 flex flex-col items-center justify-center gap-3">
             <p className="text-4xl">🎨</p>
             <p className="text-sm font-semibold" style={{ color: "var(--text-2)" }}>Artist not found</p>
+            <p className="text-[11px] font-mono px-2 py-1 rounded" style={{ color: "var(--text-5)", background: "var(--bg-subtle)" }}>{username}</p>
             <Link href="/feed" className="text-xs transition-opacity hover:opacity-70" style={{ color: "#9B7CF5" }}>
               Back to feed
             </Link>
@@ -485,7 +493,7 @@ export default function UserProfilePage({ params }: { params: Promise<{ username
                 </p>
               )}
               {!followLoading && followModal?.users.map(u => (
-                <Link key={u.clerk_id} href={`/u/${u.username ?? u.clerk_id}`}
+                <Link key={u.clerk_id} href={`/u/${(u.username || u.clerk_id).replace(/^@+/, "")}`}
                   onClick={() => setFollowModal(null)}
                   className="flex items-center gap-3 px-5 py-3 transition-colors"
                   style={{ borderBottom: "1px solid var(--border)" }}
