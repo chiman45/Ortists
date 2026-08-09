@@ -250,9 +250,19 @@ export default function LandingPage() {
               style={{ fontSize: "clamp(36px, 4.2vw, 62px)", fontWeight: 700 }}>
               Hire Artists
             </h2>
-            <p className="text-[17px] leading-[1.8] mb-10" style={{ color: MUTED, maxWidth: 380 }}>
-              Browse categories, explore portfolios, and connect with artists that match your vision.
-            </p>
+            {/* Message 1 */}
+            <div className="mb-8 pb-8" style={{ borderBottom: "1px solid rgba(255,255,255,0.07)" }}>
+              <p className="text-[15px] font-semibold leading-[1.7] mb-2" style={{ color: "#fff" }}>
+                A wall is not just a wall. It is a feeling waiting to be painted.
+              </p>
+              <p className="text-[13px] leading-[1.8] mb-3" style={{ color: MUTED }}>
+                Bring life, warmth, and emotion into your home with original handmade artwork created by talented artists from across India and beyond.
+              </p>
+              <p className="text-[10px] font-bold tracking-[0.2em] uppercase" style={{ color: GOLD }}>
+                Hire an Artist · Make Your Home Feel Like Home
+              </p>
+            </div>
+
             <Link
               href="/hiring"
               className="inline-flex items-center gap-3 text-sm font-semibold tracking-wide transition-all duration-200 hover:gap-5"
@@ -388,19 +398,29 @@ export default function LandingPage() {
           </div>
         </RevealFade>
 
-        {/* Horizontal gallery — each card links to hire page */}
+        {/* Auto-scrolling artist carousel */}
+        <style>{`
+          @keyframes scrollArtists {
+            from { transform: translateX(0); }
+            to   { transform: translateX(-50%); }
+          }
+          .artists-track { animation: scrollArtists 18s linear infinite; }
+          .artists-track:hover { animation-play-state: paused; }
+        `}</style>
+
         <div
-          className="flex gap-5 pl-8 md:pl-14 lg:pl-20 pr-8 overflow-x-auto pb-3"
-          style={{ scrollbarWidth: "none" }}
+          className="overflow-hidden"
+          style={{ maskImage: "linear-gradient(to right, transparent, black 8%, black 92%, transparent)" }}
         >
-          {FEATURED_ARTISTS.map((artist, i) => (
-            <RevealFade key={artist.id} delay={i * 0.07} style={{ minWidth: 276, flexShrink: 0 }}>
+          <div className="artists-track flex gap-5" style={{ width: "max-content" }}>
+            {[...FEATURED_ARTISTS, ...FEATURED_ARTISTS].map((artist, i) => (
               <Link
+                key={`${artist.id}-${i}`}
                 href={`/hiring?search=${encodeURIComponent(artist.category)}`}
-                className="group block"
-                style={{ background: SURF, borderRadius: 3, overflow: "hidden", border: "1px solid rgba(255,255,255,0.05)", textDecoration: "none" }}
+                className="group block shrink-0"
+                style={{ width: 276, background: SURF, borderRadius: 3, overflow: "hidden", border: "1px solid rgba(255,255,255,0.05)", textDecoration: "none" }}
               >
-                {/* Work */}
+                {/* Work image */}
                 <div className="relative overflow-hidden" style={{ height: 360 }}>
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
@@ -411,7 +431,6 @@ export default function LandingPage() {
                   <div className="absolute inset-0 pointer-events-none" style={{
                     background: "linear-gradient(to top, rgba(5,5,5,0.75) 0%, transparent 50%)",
                   }} />
-                  {/* View artists overlay on hover */}
                   <div
                     className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300"
                     style={{ background: "rgba(0,0,0,0.35)" }}
@@ -439,8 +458,8 @@ export default function LandingPage() {
                   </div>
                 </div>
               </Link>
-            </RevealFade>
-          ))}
+            ))}
+          </div>
         </div>
       </section>
 
@@ -497,21 +516,20 @@ export default function LandingPage() {
       >
         <div className="max-w-7xl mx-auto">
 
-          {/* Large editorial wordmark */}
-          <RevealFade>
-            <div className="mb-16 pb-16" style={{ borderBottom: "1px solid rgba(255,255,255,0.07)" }}>
-              <h2
-                className={`${playfair.className} font-black leading-none select-none`}
-                style={{
-                  fontSize: "clamp(56px, 11vw, 148px)",
-                  color: "rgba(255,255,255,0.045)",
-                  letterSpacing: "-0.02em",
-                }}
-              >
-                ORTISTS
-              </h2>
-            </div>
-          </RevealFade>
+          {/* Static wordmark */}
+          <div className="mb-16 pb-16" style={{ borderBottom: "1px solid rgba(255,255,255,0.07)" }}>
+            <h2
+              className={`${playfair.className} font-black leading-none select-none`}
+              style={{
+                fontSize: "clamp(66px, 16vw, 232px)",
+                color: "rgba(255,255,255,0.06)",
+                letterSpacing: "0.07em",
+                whiteSpace: "nowrap",
+              }}
+            >
+              ORTISTS
+            </h2>
+          </div>
 
           {/* Links grid */}
           <RevealFade delay={0.1}>
