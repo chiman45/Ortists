@@ -63,14 +63,14 @@ export async function POST(req: NextRequest) {
     .eq("clerk_id", followerId)
     .maybeSingle();
 
-  await adminDb.from("notifications").insert({
+  Promise.resolve(adminDb.from("notifications").insert({
     user_id:      followingId,
     actor_name:   followerProfile?.display_name ?? null,
     actor_avatar: followerProfile?.avatar_url ?? null,
     type:         "follow",
     text:         `${followerProfile?.display_name ?? "Someone"} started following you`,
     post_id:      followerId,
-  }).then(() => {}).catch(() => {}); // ignore notification errors
+  })).catch(() => {}); // ignore notification errors
 
   return NextResponse.json({ ok: true });
 }
