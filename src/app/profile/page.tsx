@@ -358,16 +358,6 @@ export default function ProfilePage() {
                     </div>
                   )}
 
-                  {/* Bio + Improve with AI */}
-                  <div className="flex items-start gap-3">
-                    <p className="text-sm leading-relaxed flex-1" style={{ color: "var(--text-3)", maxWidth: 480 }}>{bio}</p>
-                    <button
-                      onClick={() => openEdit("Basic Info")}
-                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold shrink-0 transition-opacity hover:opacity-80"
-                      style={{ background: "rgba(124,91,245,0.1)", border: "1px solid rgba(124,91,245,0.25)", color: "#9B7CF5" }}>
-                      <Zap size={11} /> Improve with AI
-                    </button>
-                  </div>
                 </div>
 
                 {/* Action buttons — top right */}

@@ -480,7 +480,7 @@ export default function GalleryPage() {
                     {realArtists.slice(0, 12).map(a => (
                       <Link
                         key={a.clerk_id}
-                        href={`/profile/${a.username ?? a.clerk_id}`}
+                        href={`/u/${(a.username ?? a.clerk_id).replace(/^@+/, "")}`}
                         className="shrink-0 flex flex-col items-center gap-2 group"
                         style={{ width: 120 }}
                       >

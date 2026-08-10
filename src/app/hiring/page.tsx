@@ -6,8 +6,8 @@ import HireModal from "@/components/hiring/HireModal";
 import type { Artist } from "@/lib/hiringData";
 import { useUser, UserButton } from "@clerk/nextjs";
 import {
-  ArrowRight, Briefcase, CheckCircle2, Clock,
-  Search, Star, X, XCircle, Zap,
+  ArrowRight, Briefcase, Clock,
+  Search, Star, X,
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -147,9 +147,6 @@ const STATUS_CONFIG: Record<ProjectStatus, { label: string; dot: string; bar: st
   cancelled: { label: "CANCELLED",        dot: "#EF4444", bar: "#EF4444", badge: "rgba(239,68,68,0.15)",   badgeText: "#F87171", displayLabel: "Cancelled" },
 };
 
-const STATUS_ORDER: ProjectStatus[] = ["active", "pending", "completed", "cancelled"];
-
-// kept for future use; individual filter state replaces this array
 
 // ── Featured card ──────────────────────────────────────────────
 
@@ -380,17 +377,6 @@ function ArtistSkeleton() {
 
 // ── Projects sub-components (unchanged) ───────────────────────
 
-function StatCard({ icon, count, label, color }: { icon: React.ReactNode; count: number; label: string; color: string }) {
-  return (
-    <div className="flex-1 flex flex-col gap-2 p-4 rounded-2xl min-w-27.5" style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}>
-      <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: `${color}1a` }}>
-        <span style={{ color }}>{icon}</span>
-      </div>
-      <p className="text-2xl font-bold" style={{ color: "var(--text-1)" }}>{count}</p>
-      <p className="text-xs leading-snug" style={{ color: "var(--text-5)" }}>{label}</p>
-    </div>
-  );
-}
 
 function DeleteConfirmModal({ onConfirm, onCancel, deleting }: { onConfirm: () => void; onCancel: () => void; deleting: boolean }) {
   return createPortal(
@@ -686,10 +672,11 @@ function IncomingCard({ req, onDecide, onDelete }: { req: IncomingRequest; onDec
 
 function MyProjectsView({ userId, onSwitchToHire }: { userId: string; onSwitchToHire: () => void }) {
   const router = useRouter();
-  const [projects, setProjects]           = useState<Project[]>([]);
-  const [incoming, setIncoming]           = useState<IncomingRequest[]>([]);
-  const [loading, setLoading]             = useState(true);
+  const [projects, setProjects]               = useState<Project[]>([]);
+  const [incoming, setIncoming]               = useState<IncomingRequest[]>([]);
+  const [loading, setLoading]                 = useState(true);
   const [loadingIncoming, setLoadingIncoming] = useState(true);
+  const [deliveredOpen, setDeliveredOpen]     = useState(false);
 
   useEffect(() => {
     if (!userId) return;
@@ -698,7 +685,6 @@ function MyProjectsView({ userId, onSwitchToHire }: { userId: string; onSwitchTo
       .then(r => r.json())
       .then(({ requests }: { requests: HireRequest[] }) => { setProjects((requests ?? []).map(mapRequest)); setLoading(false); })
       .catch(() => setLoading(false));
-
     setLoadingIncoming(true);
     fetch(`/api/hire-requests?artistClerkId=${userId}`)
       .then(r => r.json())
@@ -707,122 +693,362 @@ function MyProjectsView({ userId, onSwitchToHire }: { userId: string; onSwitchTo
   }, [userId]);
 
   async function handleDeleteProject(id: string) {
-    await fetch(`/api/hire-requests/${id}`, {
-      method: "DELETE",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ clientId: userId }),
-    });
+    await fetch(`/api/hire-requests/${id}`, { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ clientId: userId }) });
     setProjects(prev => prev.filter(p => p.id !== id));
   }
-
   async function handleDeleteIncoming(id: string) {
-    await fetch(`/api/hire-requests/${id}`, {
-      method: "DELETE",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ artistClerkId: userId }),
-    });
+    await fetch(`/api/hire-requests/${id}`, { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ artistClerkId: userId }) });
     setIncoming(prev => prev.filter(r => r.id !== id));
   }
-
   async function handleDecide(id: string, status: "accepted" | "declined") {
-    const res = await fetch(`/api/hire-requests/${id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ artistClerkId: userId, status }),
-    });
-    if (res.ok) {
-      setIncoming(prev => prev.map(r => r.id === id ? { ...r, status } : r));
-    }
+    const res = await fetch(`/api/hire-requests/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ artistClerkId: userId, status }) });
+    if (res.ok) setIncoming(prev => prev.map(r => r.id === id ? { ...r, status } : r));
   }
 
-  const counts = {
-    pending:   projects.filter(p => p.status === "pending").length,
-    active:    projects.filter(p => p.status === "active").length,
-    completed: projects.filter(p => p.status === "completed").length,
-    cancelled: projects.filter(p => p.status === "cancelled").length,
-  };
+  const activeProjects    = projects.filter(p => p.status === "active");
+  const pendingProjects   = projects.filter(p => p.status === "pending");
+  const completedProjects = projects.filter(p => p.status === "completed");
+  const totalBudget       = projects.reduce((sum, p) => sum + p.budget, 0);
+  const pendingIncoming   = incoming.filter(r => r.status === "pending");
 
-  const pendingIncoming = incoming.filter(r => r.status === "pending").length;
+  const STAGES = ["Brief", "Concept", "Revision", "Final", "Delivered"];
+  function getStageIdx(progress: number) {
+    if (progress < 20) return 0;
+    if (progress < 40) return 1;
+    if (progress < 60) return 2;
+    if (progress < 80) return 3;
+    return 4;
+  }
+  function daysUntil(dateStr: string): number | null {
+    try { const d = new Date(dateStr); if (isNaN(d.getTime())) return null; return Math.ceil((d.getTime() - Date.now()) / 86400000); } catch { return null; }
+  }
+
+  const nearestDeadline = activeProjects
+    .filter(p => p.deadline && p.deadline !== "TBD")
+    .sort((a, b) => new Date(a.deadline).getTime() - new Date(b.deadline).getTime())[0];
+
+  const heroProject = activeProjects[0] ?? null;
+
+  const tasks: { text: string; project: string; urgent: boolean }[] = [
+    ...pendingProjects.map(p => ({ text: "Upload project brief", project: p.title, urgent: true })),
+    ...activeProjects.filter(p => p.progress < 40).map(p => ({ text: "Review first concepts", project: p.title, urgent: false })),
+    ...activeProjects.filter(p => p.progress >= 40 && p.progress < 60).map(p => ({ text: "Approve revision", project: p.title, urgent: false })),
+  ].slice(0, 5);
+
+  if (loading || loadingIncoming) {
+    return (
+      <div className="flex-1 px-4 md:px-8 py-6 flex flex-col gap-4">
+        {[1,2,3].map(i => <div key={i} className="h-28 rounded-2xl animate-pulse" style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }} />)}
+      </div>
+    );
+  }
+
+  if (projects.length === 0 && incoming.length === 0) {
+    return <div className="flex-1 px-4 md:px-8 py-6"><EmptyProjects onHire={onSwitchToHire} /></div>;
+  }
 
   return (
-    <div className="flex-1 px-4 md:px-8 py-6 pb-28 lg:pb-8 flex flex-col gap-8">
+    <div className="flex-1 pb-28 lg:pb-12 relative">
 
-      {/* ── Incoming requests section (artist side) ── */}
-      <section>
-        <div className="flex items-center gap-2 mb-4">
-          <h2 className="text-lg font-bold" style={{ color: "var(--text-1)" }}>Incoming Requests</h2>
-          {pendingIncoming > 0 && (
-            <span className="text-[10px] font-bold w-5 h-5 rounded-full flex items-center justify-center" style={{ background: "#7C5BF5", color: "#fff" }}>
-              {pendingIncoming}
-            </span>
-          )}
+      {/* ── Header ── */}
+      <div className="px-4 md:px-8 pt-6 pb-5 flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold" style={{ color: "var(--text-1)" }}>Commissions</h1>
+          <p className="text-sm mt-1" style={{ color: "var(--text-5)" }}>
+            {activeProjects.length} active · {pendingProjects.length} pending · {completedProjects.length} delivered
+          </p>
         </div>
+      </div>
 
-        {loadingIncoming ? (
-          <div className="flex flex-col gap-3">
-            {[1, 2].map(i => (
-              <div key={i} className="h-24 rounded-2xl animate-pulse" style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }} />
-            ))}
+      {/* ── Stats row ── */}
+      <div
+        className="mx-4 md:mx-8 mb-8 grid grid-cols-2 lg:grid-cols-4"
+        style={{ border: "1px solid var(--border)", borderRadius: 16, overflow: "hidden" }}
+      >
+        {[
+          {
+            label: "UPCOMING DEADLINE",
+            color: "#F59E0B",
+            primary: nearestDeadline
+              ? new Date(nearestDeadline.deadline).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
+              : "—",
+            sub: nearestDeadline && daysUntil(nearestDeadline.deadline) !== null
+              ? `${daysUntil(nearestDeadline.deadline)} days`
+              : "No deadlines",
+          },
+          { label: "NEEDS REVIEW",      color: "#9B7CF5", primary: String(pendingIncoming.length), sub: "awaiting approval" },
+          { label: "ACTIVE PROJECTS",   color: "#60A5FA", primary: String(activeProjects.length),  sub: "in progress"      },
+          { label: "BUDGET COMMITTED",  color: "#10B981", primary: `$${totalBudget.toLocaleString()}`, sub: "across all projects" },
+        ].map((s, i) => (
+          <div key={i} className="p-4" style={{ background: "var(--bg-card)", borderRight: i < 3 ? "1px solid var(--border)" : "none" }}>
+            <p className="text-[9px] font-bold tracking-widest mb-2" style={{ color: s.color }}>{s.label}</p>
+            <p className="text-xl font-bold" style={{ color: i === 0 ? s.color : "var(--text-1)" }}>{s.primary}</p>
+            <p className="text-xs mt-0.5" style={{ color: "var(--text-5)" }}>{s.sub}</p>
           </div>
-        ) : incoming.length === 0 ? (
+        ))}
+      </div>
+
+      {/* ── Continue Working (hero) ── */}
+      {heroProject && (
+        <section className="px-4 md:px-8 mb-8">
+          <p className="text-[10px] font-bold tracking-widest mb-3" style={{ color: "var(--text-5)" }}>CONTINUE WORKING</p>
           <div
-            className="flex flex-col items-center justify-center py-10 rounded-2xl text-center"
-            style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}
+            className="rounded-2xl overflow-hidden flex cursor-pointer transition-all hover:scale-[1.005]"
+            style={{ background: "var(--bg-card)", border: "1px solid var(--border)", minHeight: 240 }}
+            onClick={() => router.push(`/hiring/projects/${heroProject.id}`)}
           >
-            <p className="text-2xl mb-2">📬</p>
-            <p className="text-sm font-semibold mb-1" style={{ color: "var(--text-2)" }}>No requests yet</p>
-            <p className="text-xs" style={{ color: "var(--text-5)" }}>Clients who request your work will appear here</p>
+            {/* Cover */}
+            <div className="shrink-0 relative hidden sm:block" style={{ width: "38%" }}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={`https://picsum.photos/seed/${heroProject.id}/600/400`} alt={heroProject.title} className="w-full h-full object-cover" />
+              <div className="absolute inset-0" style={{ background: "linear-gradient(to right, transparent 55%, rgba(14,8,36,0.85))" }} />
+            </div>
+            {/* Details */}
+            <div className="flex-1 p-5 flex flex-col gap-3 min-w-0">
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2 min-w-0">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={heroProject.avatar} alt={heroProject.artist} className="w-7 h-7 rounded-full object-cover shrink-0" />
+                  <span className="text-sm truncate" style={{ color: "var(--text-4)" }}>{heroProject.artist}</span>
+                </div>
+                {pendingIncoming.length > 0 && (
+                  <span className="flex items-center gap-1 text-[11px] font-bold px-2.5 py-1 rounded-full shrink-0" style={{ background: "rgba(96,165,250,0.15)", color: "#60A5FA", border: "1px solid rgba(96,165,250,0.3)" }}>
+                    💬 {pendingIncoming.length} unread
+                  </span>
+                )}
+              </div>
+              <div>
+                <h2 className="text-xl font-bold mb-0.5 truncate" style={{ color: "var(--text-1)" }}>{heroProject.title}</h2>
+                <p className="text-xs" style={{ color: "var(--text-5)" }}>Stage: {STAGES[getStageIdx(heroProject.progress)]}</p>
+              </div>
+              {/* Stepper */}
+              <div className="flex items-start">
+                {STAGES.map((s, i) => {
+                  const si = getStageIdx(heroProject.progress);
+                  return (
+                    <div key={s} className="flex items-center flex-1 min-w-0">
+                      <div className="flex flex-col items-center gap-1 min-w-0">
+                        <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{
+                          background: i <= si ? "#7C5BF5" : "rgba(255,255,255,0.2)",
+                          boxShadow: i === si ? "0 0 6px rgba(124,91,245,0.6)" : "none",
+                        }} />
+                        <span className="text-[9px] truncate w-full text-center" style={{ color: i === si ? "#9B7CF5" : "var(--text-6)", fontWeight: i === si ? 700 : 400 }}>{s}</span>
+                      </div>
+                      {i < STAGES.length - 1 && <div className="flex-1 h-px mx-1 mb-3 shrink-0" style={{ background: i < si ? "#7C5BF5" : "rgba(255,255,255,0.12)" }} />}
+                    </div>
+                  );
+                })}
+              </div>
+              {/* Progress */}
+              <div>
+                <div className="flex justify-between text-xs mb-1.5" style={{ color: "var(--text-5)" }}>
+                  <span>Progress</span>
+                  <span style={{ color: "#9B7CF5", fontWeight: 700 }}>{heroProject.progress}%</span>
+                </div>
+                <div className="h-1.5 rounded-full overflow-hidden" style={{ background: "rgba(255,255,255,0.08)" }}>
+                  <div className="h-full rounded-full" style={{ width: `${heroProject.progress}%`, background: "linear-gradient(90deg,#361E7B,#7C5BF5)" }} />
+                </div>
+              </div>
+              <p className="text-xs" style={{ color: "var(--text-5)" }}>
+                <span style={{ color: "var(--text-6)" }}>{heroProject.lastActivity} · </span>Last activity
+              </p>
+              <div className="flex items-center justify-between mt-auto">
+                <span className="text-xs" style={{ color: "var(--text-5)" }}>
+                  Next: <span style={{ color: "#9B7CF5", fontWeight: 600 }}>{STAGES[Math.min(getStageIdx(heroProject.progress) + 1, 4)]} review</span>
+                </span>
+                <button
+                  onClick={e => { e.stopPropagation(); router.push(`/hiring/projects/${heroProject.id}`); }}
+                  className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold text-white transition-all hover:opacity-85"
+                  style={{ background: "linear-gradient(135deg,#361E7B,#7C5BF5)" }}
+                >
+                  Resume project ↗
+                </button>
+              </div>
+            </div>
           </div>
-        ) : (
-          <div className="flex flex-col gap-3">
-            {incoming.map(r => (
-              <IncomingCard key={r.id} req={r} onDecide={handleDecide} onDelete={() => handleDeleteIncoming(r.id)} />
+        </section>
+      )}
+
+      {/* ── Today's Tasks ── */}
+      {tasks.length > 0 && (
+        <section className="px-4 md:px-8 mb-8">
+          <p className="text-[10px] font-bold tracking-widest mb-3" style={{ color: "var(--text-5)" }}>TODAY&apos;S TASKS</p>
+          <div className="flex flex-col gap-2">
+            {tasks.map((task, i) => (
+              <div key={i} className="flex items-center gap-3 px-4 py-3.5 rounded-2xl" style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}>
+                <div className="w-4 h-4 rounded shrink-0" style={{ border: "1.5px solid rgba(255,255,255,0.2)" }} />
+                <span className="flex-1 text-sm font-medium" style={{ color: "var(--text-2)" }}>{task.text}</span>
+                <span className="text-xs shrink-0 truncate max-w-32" style={{ color: "var(--text-5)" }}>{task.project}</span>
+                {task.urgent && (
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0" style={{ background: "rgba(245,158,11,0.18)", color: "#F59E0B" }}>urgent</span>
+                )}
+              </div>
             ))}
           </div>
-        )}
-      </section>
+        </section>
+      )}
 
-      {/* ── My commissions section (client side) ── */}
-      <section>
-        <h2 className="text-lg font-bold mb-4" style={{ color: "var(--text-1)" }}>My Commissions</h2>
-        <p className="text-sm mb-4" style={{ color: "var(--text-5)" }}>Projects you&apos;ve sent to artists</p>
-
-        {loading ? (
-          <div className="flex flex-col gap-3">
-            {[1,2,3].map(i => <div key={i} className="h-28 rounded-2xl animate-pulse" style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }} />)}
+      {/* ── Active Projects grid ── */}
+      {activeProjects.length > 0 && (
+        <section className="px-4 md:px-8 mb-8">
+          <div className="flex items-center justify-between mb-4">
+            <p className="text-[10px] font-bold tracking-widest" style={{ color: "var(--text-5)" }}>ACTIVE PROJECTS</p>
+            <span className="text-[11px]" style={{ color: "var(--text-5)" }}>{activeProjects.length} in progress</span>
           </div>
-        ) : projects.length === 0 ? (
-          <EmptyProjects onHire={onSwitchToHire} />
-        ) : (
-          <>
-            <div className="flex gap-3 overflow-x-auto mb-6" style={{ scrollbarWidth: "none" }}>
-              <StatCard icon={<Clock size={18} />}        count={counts.pending}   label="Pending Requests" color="#F59E0B" />
-              <StatCard icon={<Briefcase size={18} />}    count={counts.active}    label="Active Projects"  color="#3B82F6" />
-              <StatCard icon={<CheckCircle2 size={18} />} count={counts.completed} label="Completed"        color="#10B981" />
-              <StatCard icon={<XCircle size={18} />}      count={counts.cancelled} label="Cancelled"        color="#EF4444" />
-            </div>
-            {STATUS_ORDER.map(status => {
-              const group = projects.filter(p => p.status === status);
-              if (!group.length) return null;
-              const cfg = STATUS_CONFIG[status];
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {activeProjects.map(p => {
+              const si   = getStageIdx(p.progress);
+              const days = daysUntil(p.deadline);
+              const dueSoon = days !== null && days <= 5;
               return (
-                <section key={status} className="mb-5">
-                  <div className="flex items-center gap-2 mb-3">
-                    <span className="w-2 h-2 rounded-full shrink-0" style={{ background: cfg.dot }} />
-                    <span className="text-xs font-bold tracking-wider" style={{ color: "var(--text-5)" }}>{cfg.label}</span>
-                    <span className="text-[10px] font-bold w-5 h-5 rounded-full flex items-center justify-center" style={{ background: "var(--bg-subtle)", color: "var(--text-4)" }}>
-                      {group.length}
-                    </span>
+                <div
+                  key={p.id}
+                  onClick={() => router.push(`/hiring/projects/${p.id}`)}
+                  className="rounded-2xl overflow-hidden cursor-pointer transition-all hover:scale-[1.02]"
+                  style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}
+                  onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = "rgba(124,91,245,0.35)"; }}
+                  onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = "var(--border)"; }}
+                >
+                  <div className="relative" style={{ height: 180 }}>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={`https://picsum.photos/seed/${p.id}/600/300`} alt={p.title} className="w-full h-full object-cover" />
+                    <div className="absolute inset-0" style={{ background: "linear-gradient(to top, rgba(0,0,0,0.75) 0%, transparent 55%)" }} />
+                    {dueSoon && (
+                      <span className="absolute top-3 left-3 text-[10px] font-bold px-2.5 py-1 rounded-full" style={{ background: "rgba(239,68,68,0.85)", color: "#fff" }}>
+                        Due soon
+                      </span>
+                    )}
+                    <div className="absolute bottom-3 left-3">
+                      <p className="text-[9px] font-bold tracking-widest mb-0.5" style={{ color: "rgba(255,255,255,0.5)" }}>CURRENT STAGE</p>
+                      <p className="text-sm font-bold text-white">{STAGES[si]}</p>
+                    </div>
                   </div>
-                  <div className="flex flex-col gap-3">
-                    {group.map(p => <ProjectCard key={p.id} project={p} onClick={() => router.push(`/hiring/projects/${p.id}`)} onDelete={() => handleDeleteProject(p.id)} />)}
+                  <div className="p-4 flex flex-col gap-2.5">
+                    <div className="flex items-start justify-between gap-2">
+                      <p className="text-sm font-bold leading-snug truncate" style={{ color: "var(--text-1)" }}>{p.title}</p>
+                      <span className="text-sm font-bold shrink-0" style={{ color: "#9B7CF5" }}>${p.budget.toLocaleString()}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={p.avatar} alt={p.artist} className="w-5 h-5 rounded-full object-cover shrink-0" />
+                      <span className="text-xs truncate" style={{ color: "var(--text-5)" }}>{p.artist}</span>
+                    </div>
+                    {/* Stepper */}
+                    <div className="flex items-start">
+                      {STAGES.map((s, i) => (
+                        <div key={s} className="flex items-center flex-1 min-w-0">
+                          <div className="flex flex-col items-center gap-0.5 min-w-0">
+                            <div className="w-2 h-2 rounded-full shrink-0" style={{ background: i <= si ? "#7C5BF5" : "rgba(255,255,255,0.18)" }} />
+                            <span className="text-[8px] w-full text-center truncate" style={{ color: i === si ? "#9B7CF5" : "var(--text-6)", fontWeight: i === si ? 700 : 400 }}>{s}</span>
+                          </div>
+                          {i < STAGES.length - 1 && <div className="flex-1 h-px mx-0.5 mb-3 shrink-0" style={{ background: i < si ? "#7C5BF5" : "rgba(255,255,255,0.1)" }} />}
+                        </div>
+                      ))}
+                    </div>
+                    {/* Progress */}
+                    <div>
+                      <div className="flex justify-between text-[10px] mb-1" style={{ color: "var(--text-6)" }}>
+                        <span>Progress</span><span>{p.progress}%</span>
+                      </div>
+                      <div className="h-1 rounded-full overflow-hidden" style={{ background: "rgba(255,255,255,0.08)" }}>
+                        <div className="h-full rounded-full" style={{ width: `${p.progress}%`, background: "linear-gradient(90deg,#361E7B,#7C5BF5)" }} />
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between pt-0.5">
+                      <span className="text-xs" style={{ color: days !== null && days <= 3 ? "#EF4444" : "var(--text-5)" }}>
+                        {days !== null ? `${days} days left` : p.deadline}
+                      </span>
+                      <button
+                        onClick={e => { e.stopPropagation(); router.push(`/hiring/projects/${p.id}`); }}
+                        className="flex items-center gap-1 px-4 py-1.5 rounded-xl text-xs font-bold text-white transition-all hover:opacity-85"
+                        style={{ background: "linear-gradient(135deg,#361E7B,#7C5BF5)" }}
+                      >
+                        Open ↗
+                      </button>
+                    </div>
                   </div>
-                </section>
+                </div>
               );
             })}
-          </>
-        )}
-      </section>
+          </div>
+        </section>
+      )}
+
+      {/* ── Needs Your Approval (incoming pending) ── */}
+      {pendingIncoming.length > 0 && (
+        <section className="px-4 md:px-8 mb-8">
+          <p className="text-[10px] font-bold tracking-widest mb-3" style={{ color: "var(--text-5)" }}>NEEDS YOUR APPROVAL</p>
+          <div className="flex flex-col gap-2">
+            {pendingIncoming.map(r => (
+              <div key={r.id} className="flex items-center gap-3 p-4 rounded-2xl" style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={r.client_avatar ?? `https://i.pravatar.cc/48?u=${r.client_id}`} alt={r.client_name ?? "Client"} className="w-10 h-10 rounded-full object-cover shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-bold truncate" style={{ color: "var(--text-1)" }}>{r.project_title}</p>
+                  <p className="text-xs" style={{ color: "var(--text-5)" }}>Awaiting brief · {r.client_name ?? "Client"}</p>
+                </div>
+                <div className="flex gap-2 shrink-0">
+                  <button
+                    onClick={() => handleDecide(r.id, "accepted")}
+                    className="px-3 py-1.5 rounded-xl text-xs font-bold text-white transition-all hover:opacity-85"
+                    style={{ background: "linear-gradient(135deg,#361E7B,#7C5BF5)" }}
+                  >
+                    Accept
+                  </button>
+                  <button
+                    onClick={() => handleDecide(r.id, "declined")}
+                    className="px-3 py-1.5 rounded-xl text-xs font-bold transition-all hover:opacity-75"
+                    style={{ background: "rgba(239,68,68,0.1)", color: "#F87171", border: "1px solid rgba(239,68,68,0.3)" }}
+                  >
+                    Decline
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* ── Pending commissions ── */}
+      {pendingProjects.length > 0 && (
+        <section className="px-4 md:px-8 mb-8">
+          <p className="text-[10px] font-bold tracking-widest mb-3" style={{ color: "var(--text-5)" }}>PENDING REQUESTS</p>
+          <div className="flex flex-col gap-3">
+            {pendingProjects.map(p => (
+              <ProjectCard key={p.id} project={p} onClick={() => router.push(`/hiring/projects/${p.id}`)} onDelete={() => handleDeleteProject(p.id)} />
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* ── Delivered (collapsible) ── */}
+      {completedProjects.length > 0 && (
+        <section className="px-4 md:px-8 mb-8">
+          <button onClick={() => setDeliveredOpen(v => !v)} className="flex items-center gap-2 mb-3">
+            <p className="text-[10px] font-bold tracking-widest" style={{ color: "var(--text-5)" }}>DELIVERED {completedProjects.length}</p>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"
+              style={{ color: "var(--text-5)", transform: deliveredOpen ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 0.2s" }}>
+              <polyline points="6 9 12 15 18 9" />
+            </svg>
+          </button>
+          {deliveredOpen && (
+            <div className="flex flex-col gap-3">
+              {completedProjects.map(p => (
+                <ProjectCard key={p.id} project={p} onClick={() => router.push(`/hiring/projects/${p.id}`)} onDelete={() => handleDeleteProject(p.id)} />
+              ))}
+            </div>
+          )}
+        </section>
+      )}
+
+      {/* ── Floating new commission button ── */}
+      <button
+        onClick={onSwitchToHire}
+        className="fixed bottom-20 lg:bottom-8 right-6 flex items-center gap-2 px-5 py-3 rounded-full text-sm font-bold text-white z-20 transition-all hover:scale-105"
+        style={{ background: "linear-gradient(135deg,#361E7B,#7C5BF5)", boxShadow: "0 8px 32px rgba(124,91,245,0.45)" }}
+      >
+        + New commission
+      </button>
     </div>
   );
 }

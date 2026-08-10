@@ -4,7 +4,7 @@ import Sidebar from "@/components/layout/Sidebar";
 import BottomNav from "@/components/layout/BottomNav";
 import { useUser } from "@clerk/nextjs";
 import {
-  ArrowLeft, CheckCircle2, ChevronRight, FileText,
+  CheckCircle2, ChevronRight, FileText,
   Flag, GitBranch, Paperclip, Plus, Star, Upload, UserPlus, Users,
 } from "lucide-react";
 import { useRouter, useParams } from "next/navigation";
@@ -550,10 +550,10 @@ function ConversationPanel({ project, userId, userName, userAvatar }: {
   });
 
   return (
-    <div className="flex flex-col h-full min-h-0">
+    <div className="flex-1 flex flex-col overflow-hidden">
 
       {/* Messages scroll area */}
-      <div className="flex-1 overflow-y-auto px-1 py-2 flex flex-col gap-4 min-h-0" style={{ scrollbarWidth: "none" }}>
+      <div className="flex-1 overflow-y-auto px-1 py-2 flex flex-col gap-4" style={{ scrollbarWidth: "none", minHeight: 0 }}>
         {messages.length === 0 && (
           <div className="flex flex-col items-center justify-center h-full text-center py-10">
             <div className="w-12 h-12 rounded-2xl flex items-center justify-center mb-3" style={{ background: "var(--bg-subtle)" }}>
@@ -738,10 +738,10 @@ export default function ProjectDetailPage() {
   const isActive = project.status === "accepted";
 
   return (
-    <div className="flex min-h-screen" style={{ background: "var(--bg)" }}>
+    <div className="flex h-screen overflow-hidden" style={{ background: "var(--bg)" }}>
       <Sidebar />
 
-      <div className="flex-1 flex flex-col lg:ml-17 min-h-screen min-w-0">
+      <div className="flex-1 flex flex-col lg:ml-17 min-w-0 overflow-hidden">
 
         {/* Top header bar */}
         <header
@@ -749,11 +749,12 @@ export default function ProjectDetailPage() {
           style={{ background: "var(--bg-header)", backdropFilter: "blur(20px)", borderBottom: "1px solid var(--border)" }}
         >
           <button
-            onClick={() => router.push("/hiring")}
-            className="flex items-center gap-1.5 text-xs font-medium shrink-0 transition-opacity hover:opacity-70"
-            style={{ color: "var(--text-4)" }}
+            onClick={() => router.push("/hiring?tab=projects")}
+            className="shrink-0 transition-opacity hover:opacity-70"
+            aria-label="Back to projects"
           >
-            <ArrowLeft size={14} /> Back
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/login-image/ortists logo1.png" alt="Ortist" style={{ height: 26, objectFit: "contain" }} />
           </button>
 
           <div className="flex-1 min-w-0">
@@ -830,7 +831,7 @@ export default function ProjectDetailPage() {
             </div>
 
             {/* Tab content */}
-            <div className="flex-1 min-h-0 px-4 md:px-6 py-4 overflow-hidden flex flex-col">
+            <div className="flex-1 min-h-0 px-4 md:px-6 py-4 flex flex-col">
               {activeTab === "conversation" && (
                 <ConversationPanel
                   project={project}
