@@ -1045,7 +1045,7 @@ function MyProjectsView({ userId, onSwitchToHire }: { userId: string; onSwitchTo
       <button
         onClick={onSwitchToHire}
         className="fixed bottom-20 lg:bottom-8 right-6 flex items-center gap-2 px-5 py-3 rounded-full text-sm font-bold text-white z-20 transition-all hover:scale-105"
-        style={{ background: "linear-gradient(135deg,#361E7B,#7C5BF5)", boxShadow: "0 8px 32px rgba(124,91,245,0.45)" }}
+        style={{ background: "linear-gradient(135deg,#361E7B,#7C5BF5)" }}
       >
         + New commission
       </button>

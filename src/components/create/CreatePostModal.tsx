@@ -25,6 +25,87 @@ const PRESET_TAGS = [
 
 interface Props { onClose: () => void }
 
+// ── Location autocomplete (Nominatim / OpenStreetMap, no API key) ──
+interface NominatimResult { display_name: string; }
+
+function LocationField({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const [query, setQuery]       = useState(value);
+  const [results, setResults]   = useState<string[]>([]);
+  const [open, setOpen]         = useState(false);
+  const [loading, setLoading]   = useState(false);
+  const timerRef                = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  function search(q: string) {
+    setQuery(q);
+    onChange(q);
+    if (timerRef.current) clearTimeout(timerRef.current);
+    if (!q.trim()) { setResults([]); setOpen(false); return; }
+    timerRef.current = setTimeout(async () => {
+      setLoading(true);
+      try {
+        const res = await fetch(
+          `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&format=json&limit=6&addressdetails=0`,
+          { headers: { "Accept-Language": "en" } }
+        );
+        const data: NominatimResult[] = await res.json();
+        const labels = data.map(d => {
+          const parts = d.display_name.split(",").map(s => s.trim());
+          return parts.slice(0, 3).join(", ");
+        });
+        setResults([...new Set(labels)]);
+        setOpen(true);
+      } catch { setResults([]); }
+      setLoading(false);
+    }, 400);
+  }
+
+  function pick(label: string) {
+    setQuery(label);
+    onChange(label);
+    setResults([]);
+    setOpen(false);
+  }
+
+  return (
+    <div className="relative">
+      <label className="flex items-center gap-1.5 text-xs font-medium mb-1.5" style={{ color: "var(--text-4)" }}>
+        📍 Location (optional)
+      </label>
+      <input
+        value={query}
+        onChange={e => search(e.target.value)}
+        onFocus={() => results.length > 0 && setOpen(true)}
+        onBlur={() => setTimeout(() => setOpen(false), 150)}
+        placeholder="e.g. New York, NY"
+        className="w-full px-3 py-2.5 rounded-xl text-sm outline-none"
+        style={{ background: "var(--bg-card)", border: "1px solid var(--border)", color: "var(--text-1)" }}
+      />
+      {loading && (
+        <div className="absolute right-3 top-9.5">
+          <div className="w-3.5 h-3.5 rounded-full border-2 animate-spin" style={{ borderColor: "rgba(124,91,245,0.3)", borderTopColor: "#7C5BF5" }} />
+        </div>
+      )}
+      {open && results.length > 0 && (
+        <div
+          className="absolute left-0 right-0 top-full mt-1 rounded-xl overflow-hidden z-50"
+          style={{ background: "var(--bg-card)", border: "1px solid var(--border)", boxShadow: "0 8px 24px rgba(0,0,0,0.3)" }}
+        >
+          {results.map((r, i) => (
+            <button
+              key={i}
+              onMouseDown={() => pick(r)}
+              className="w-full text-left px-3 py-2 text-xs transition-all hover:opacity-80"
+              style={{ color: "var(--text-2)", borderBottom: i < results.length - 1 ? "1px solid var(--border)" : "none" }}
+            >
+              {r}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function CreatePostModal({ onClose }: Props) {
   const { user } = useUser();
   const [step, setStep]               = useState(0);
@@ -320,38 +401,14 @@ export default function CreatePostModal({ onClose }: Props) {
           {step === 2 && (
             <div className="flex flex-col gap-3">
               <h3 className="text-base font-bold text-center mb-1" style={{ color: "var(--text-1)" }}>Add Details</h3>
-              {[
-                { label: "Title", value: title, set: setTitle, placeholder: "Give your work a title...", multi: false },
-              ].map(({ label, value, set, placeholder }) => (
-                <div key={label}>
-                  <label className="text-xs font-medium mb-1.5 block" style={{ color: "var(--text-4)" }}>{label}</label>
-                  <input
-                    value={value}
-                    onChange={e => set(e.target.value)}
-                    placeholder={placeholder}
-                    className="w-full px-3 py-2.5 rounded-xl text-sm outline-none"
-                    style={{ background: "var(--bg-card)", border: "1px solid var(--border)", color: "var(--text-1)" }}
-                  />
-                </div>
-              ))}
               <div>
-                <label className="text-xs font-medium mb-1.5 block" style={{ color: "var(--text-4)" }}>Description</label>
+                <label className="text-xs font-medium mb-1.5 block" style={{ color: "var(--text-4)" }}>Caption</label>
                 <textarea
                   value={desc}
-                  onChange={e => setDesc(e.target.value)}
-                  placeholder="Describe your creative work..."
-                  rows={3}
+                  onChange={e => { setDesc(e.target.value); setTitle(e.target.value.slice(0, 80)); }}
+                  placeholder="Write a caption for your work..."
+                  rows={4}
                   className="w-full px-3 py-2.5 rounded-xl text-sm outline-none resize-none"
-                  style={{ background: "var(--bg-card)", border: "1px solid var(--border)", color: "var(--text-1)" }}
-                />
-              </div>
-              <div>
-                <label className="text-xs font-medium mb-1.5 block" style={{ color: "var(--text-4)" }}>Category</label>
-                <input
-                  value={category}
-                  onChange={e => setCategory(e.target.value)}
-                  placeholder="e.g. Illustration"
-                  className="w-full px-3 py-2.5 rounded-xl text-sm outline-none"
                   style={{ background: "var(--bg-card)", border: "1px solid var(--border)", color: "var(--text-1)" }}
                 />
               </div>
@@ -374,35 +431,50 @@ export default function CreatePostModal({ onClose }: Props) {
                   ))}
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-3">
-                {[
-                  { label: "Medium", value: medium, set: setMedium, placeholder: "e.g. digital" },
-                  { label: "Style",  value: style,  set: setStyle,  placeholder: "e.g. realistic" },
-                ].map(({ label, value, set, placeholder }) => (
-                  <div key={label}>
-                    <label className="text-xs font-medium mb-1.5 block" style={{ color: "var(--text-4)" }}>{label}</label>
-                    <input
-                      value={value}
-                      onChange={e => set(e.target.value)}
-                      placeholder={placeholder}
-                      className="w-full px-3 py-2.5 rounded-xl text-sm outline-none"
-                      style={{ background: "var(--bg-card)", border: "1px solid var(--border)", color: "var(--text-1)" }}
-                    />
-                  </div>
-                ))}
-              </div>
+              {/* Medium — Physical / Digital toggle */}
               <div>
-                <label className="flex items-center gap-1.5 text-xs font-medium mb-1.5" style={{ color: "var(--text-4)" }}>
-                  <MapPin size={11} /> Location (optional)
-                </label>
-                <input
-                  value={location}
-                  onChange={e => setLocation(e.target.value)}
-                  placeholder="e.g. New York, NY"
-                  className="w-full px-3 py-2.5 rounded-xl text-sm outline-none"
-                  style={{ background: "var(--bg-card)", border: "1px solid var(--border)", color: "var(--text-1)" }}
-                />
+                <label className="text-xs font-medium mb-2 block" style={{ color: "var(--text-4)" }}>Medium</label>
+                <div className="flex gap-2">
+                  {["Physical", "Digital"].map(m => (
+                    <button
+                      key={m}
+                      onClick={() => setMedium(medium === m ? "" : m)}
+                      className="flex-1 py-2 rounded-xl text-xs font-semibold transition-all"
+                      style={{
+                        background: medium === m ? "#7C5BF5" : "var(--bg-card)",
+                        color: medium === m ? "#fff" : "var(--text-4)",
+                        border: medium === m ? "1px solid #7C5BF5" : "1px solid var(--border)",
+                      }}
+                    >
+                      {m}
+                    </button>
+                  ))}
+                </div>
               </div>
+
+              {/* Style — wait for user list; placeholder for now */}
+              <div>
+                <label className="text-xs font-medium mb-2 block" style={{ color: "var(--text-4)" }}>Style</label>
+                <div className="flex flex-wrap gap-2">
+                  {["Realistic", "Abstract", "Impressionist", "Minimalist", "Surrealist", "Expressionist", "Geometric", "Cartoon", "Anime", "Vintage", "Modern", "Classical"].map(s => (
+                    <button
+                      key={s}
+                      onClick={() => setStyle(style === s ? "" : s)}
+                      className="px-3 py-1 rounded-full text-xs font-medium transition-all"
+                      style={{
+                        background: style === s ? "#7C5BF5" : "var(--bg-card)",
+                        color: style === s ? "#fff" : "var(--text-4)",
+                        border: style === s ? "1px solid #7C5BF5" : "1px solid var(--border)",
+                      }}
+                    >
+                      {s}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Location — autocomplete via Nominatim */}
+              <LocationField value={location} onChange={setLocation} />
 
               {/* Price — gallery posts only */}
               {type === "gallery" && (
