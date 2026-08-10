@@ -149,9 +149,12 @@ html.ocean {
   --ring-bg:     #071419;
 }
 
-html, body {
-  overflow-x: hidden;
+html {
   max-width: 100vw;
+}
+
+body {
+  overflow-x: hidden;
 }
 
 body {

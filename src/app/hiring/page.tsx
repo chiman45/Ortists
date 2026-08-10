@@ -7,7 +7,7 @@ import type { Artist } from "@/lib/hiringData";
 import { useUser, UserButton } from "@clerk/nextjs";
 import {
   ArrowRight, Briefcase, CheckCircle2, Clock,
-  Search, Star, XCircle, Zap,
+  Search, Star, X, XCircle, Zap,
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -169,7 +169,7 @@ function ArtistCard({ a, price, onHire }: { a: ArtistProfile; price: number; onH
       href={profileUrl}
       className="shrink-0 rounded-2xl overflow-hidden transition-all hover:scale-[1.02] active:scale-[0.99] flex flex-col"
       style={{
-        width: 205,
+        width: 172,
         background: "#0e0824",
         border: "1px solid rgba(255,255,255,0.08)",
         boxShadow: "0 4px 20px rgba(0,0,0,0.35)",
@@ -179,7 +179,7 @@ function ArtistCard({ a, price, onHire }: { a: ArtistProfile; price: number; onH
       onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = "rgba(255,255,255,0.08)"; }}
     >
       {/* Portfolio image */}
-      <div className="relative" style={{ height: 220 }}>
+      <div className="relative" style={{ height: 185 }}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src={img} alt={name} className="w-full h-full object-cover" draggable={false} />
         <div className="absolute inset-0" style={{ background: "linear-gradient(to top, rgba(0,0,0,0.5) 0%, transparent 45%)" }} />
@@ -238,8 +238,8 @@ function ViewAllCard({ category, onViewAll }: { category: string; onViewAll: () 
       onClick={onViewAll}
       className="shrink-0 rounded-2xl flex flex-col items-center justify-center gap-3 transition-all hover:scale-[1.02] active:scale-[0.99]"
       style={{
-        width: 160,
-        height: 295,
+        width: 134,
+        height: 252,
         background: "rgba(124,91,245,0.06)",
         border: "1px solid rgba(124,91,245,0.18)",
       }}
@@ -955,50 +955,6 @@ export default function HiringPage() {
             </div>
           </div>
 
-          {/* Search + filters + categories + trending — Hire tab only */}
-          {tab === "hire" && (
-            <div className="pb-3 flex flex-col gap-2.5">
-              {/* Search + Filters */}
-              <div className="px-4 md:px-8 flex gap-2">
-                <div
-                  className="flex-1 flex items-center gap-3 px-4 py-2.5 rounded-2xl"
-                  style={{ background: "var(--bg-subtle)", border: "1px solid var(--border)" }}
-                >
-                  <Search size={15} style={{ color: "var(--text-5)", flexShrink: 0 }} />
-                  <input
-                    value={search}
-                    onChange={e => setSearch(e.target.value)}
-                    placeholder="Search artists, styles, mediums or locations..."
-                    className="flex-1 bg-transparent text-sm outline-none min-w-0"
-                    style={{ color: "var(--text-1)" }}
-                  />
-                </div>
-              </div>
-
-              {/* Category pills */}
-              <div className="px-4 md:px-8 flex gap-2 overflow-x-auto" style={{ scrollbarWidth: "none" }}>
-                {categories.map(cat => {
-                  const isActive = activeCategory === cat;
-                  return (
-                    <button
-                      key={cat}
-                      onClick={() => setActiveCategory(cat)}
-                      className="shrink-0 px-4 py-1.5 rounded-full text-sm font-medium transition-all"
-                      style={{
-                        background: isActive ? "linear-gradient(135deg,#361E7B,#7C5BF5)" : "var(--bg-card)",
-                        color: isActive ? "#fff" : "var(--text-4)",
-                        border: isActive ? "1px solid transparent" : "1px solid var(--border)",
-                        boxShadow: isActive ? "0 0 12px rgba(124,91,245,0.35)" : "none",
-                      }}
-                    >
-                      {cat}
-                    </button>
-                  );
-                })}
-              </div>
-
-            </div>
-          )}
         </div>
 
         {/* My Projects tab — requires auth */}
@@ -1010,41 +966,56 @@ export default function HiringPage() {
         {tab === "hire" && (
           <main className="flex-1 pb-24 lg:pb-8">
 
-            {/* ── Hero section — shown when browsing (no active search/filter) ── */}
-            {!search && activeCategory === "All" && (
+            {/* ── Hero section ── */}
+            <div
+              className="px-4 md:px-8 flex flex-col items-center text-center"
+              style={{
+                paddingTop: search || activeCategory !== "All" ? "24px" : "48px",
+                paddingBottom: search || activeCategory !== "All" ? "16px" : "32px",
+                background: "radial-gradient(ellipse 60% 60% at 50% 0%, rgba(124,91,245,0.12) 0%, transparent 70%)",
+              }}
+            >
+              {/* Headline — hidden while searching */}
+              {!search && activeCategory === "All" && (
+                <>
+                  <h1 className="text-3xl md:text-4xl font-bold mb-3 leading-tight">
+                    <span style={{ color: "var(--text-1)" }}>Find your next </span>
+                    <span style={{ background: "linear-gradient(90deg,#9B7CF5,#7C5BF5)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
+                      creative collaborator
+                    </span>
+                  </h1>
+                  <p className="text-sm mb-7 max-w-md" style={{ color: "#9B7CF5" }}>
+                    Discover artists across every medium and commission work that moves people.
+                  </p>
+                </>
+              )}
+
+              {/* Search bar — always visible */}
               <div
-                className="px-4 md:px-8 pt-12 pb-8 flex flex-col items-center text-center"
-                style={{
-                  background: "radial-gradient(ellipse 60% 60% at 50% 0%, rgba(124,91,245,0.12) 0%, transparent 70%)",
-                }}
+                className="w-full max-w-2xl flex items-center gap-3 px-4 py-3 rounded-2xl mb-4"
+                style={{ background: "var(--bg-subtle)", border: "1px solid var(--border)", boxShadow: "0 4px 24px rgba(0,0,0,0.2)" }}
               >
-                {/* Headline */}
-                <h1 className="text-3xl md:text-4xl font-bold mb-3 leading-tight">
-                  <span style={{ color: "var(--text-1)" }}>Find your next </span>
-                  <span style={{ background: "linear-gradient(90deg,#9B7CF5,#7C5BF5)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
-                    creative collaborator
-                  </span>
-                </h1>
-                <p className="text-sm mb-7 max-w-md" style={{ color: "#9B7CF5" }}>
-                  Discover artists across every medium and commission work that moves people.
-                </p>
+                <Search size={16} style={{ color: "var(--text-5)", flexShrink: 0 }} />
+                <input
+                  value={search}
+                  onChange={e => setSearch(e.target.value)}
+                  placeholder="Search artists, styles, mediums or locations..."
+                  className="flex-1 bg-transparent text-sm outline-none"
+                  style={{ color: "var(--text-1)" }}
+                />
+                {search && (
+                  <button
+                    onClick={() => setSearch("")}
+                    className="shrink-0 transition-opacity hover:opacity-70"
+                    style={{ color: "var(--text-5)" }}
+                  >
+                    <X size={14} />
+                  </button>
+                )}
+              </div>
 
-                {/* Search bar */}
-                <div
-                  className="w-full max-w-2xl flex items-center gap-3 px-4 py-3 rounded-2xl mb-4"
-                  style={{ background: "var(--bg-subtle)", border: "1px solid var(--border)", boxShadow: "0 4px 24px rgba(0,0,0,0.2)" }}
-                >
-                  <Search size={16} style={{ color: "var(--text-5)", flexShrink: 0 }} />
-                  <input
-                    value={search}
-                    onChange={e => setSearch(e.target.value)}
-                    placeholder="Search artists, styles, mediums or locations..."
-                    className="flex-1 bg-transparent text-sm outline-none"
-                    style={{ color: "var(--text-1)" }}
-                  />
-                </div>
-
-                {/* Category chips */}
+              {/* Category chips — hidden while searching */}
+              {!search && activeCategory === "All" && (
                 <div className="flex flex-wrap justify-center gap-2 mb-3">
                   {["Portrait", "Illustration", "Painting", "Photography", "Digital Art", "Sculpture", "Concept Art"].map(cat => (
                     <button
@@ -1061,9 +1032,8 @@ export default function HiringPage() {
                     </button>
                   ))}
                 </div>
-
-              </div>
-            )}
+              )}
+            </div>
 
 
             {/* ── Skeletons while loading ── */}

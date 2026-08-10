@@ -130,7 +130,7 @@ export default function FeedPage() {
 
   return (
     <div
-      className="flex min-h-screen overflow-x-hidden"
+      className="flex min-h-screen"
       style={{
         background:
           "radial-gradient(ellipse 60% 50% at 8% 50%, rgba(54,30,123,0.16) 0%, transparent 55%)," +
