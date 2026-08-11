@@ -20,11 +20,12 @@ interface Props {
   post: DbPost;
   isOwner: boolean;
   ownerId?: string;
+  currentUserId?: string;
   onClose: () => void;
   onUpdate?: (updated: DbPost) => void;
 }
 
-export default function PostModal({ post: initialPost, isOwner, ownerId, onClose, onUpdate }: Props) {
+export default function PostModal({ post: initialPost, isOwner, ownerId, currentUserId, onClose, onUpdate }: Props) {
   const [post, setPost] = useState(initialPost);
   const [zoom, setZoom] = useState(1);
   const [panX, setPanX] = useState(0);
@@ -35,6 +36,9 @@ export default function PostModal({ post: initialPost, isOwner, ownerId, onClose
   const [editCategory, setEditCategory] = useState(initialPost.category ?? "");
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [liked, setLiked] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [actionPending, setActionPending] = useState(false);
 
   const [carouselIdx, setCarouselIdx] = useState(0);
   const images = parseImages(post.image_url);
@@ -59,6 +63,56 @@ export default function PostModal({ post: initialPost, isOwner, ownerId, onClose
     return () => document.removeEventListener("keydown", handler);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [onClose, carouselIdx, total]);
+
+  // Fetch initial liked/saved state for this viewer
+  useEffect(() => {
+    if (!currentUserId) return;
+    fetch(`/api/posts/${initialPost.id}?userId=${currentUserId}`)
+      .then(r => r.json())
+      .then(d => { setLiked(d.liked ?? false); setSaved(d.saved ?? false); })
+      .catch(() => {});
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialPost.id, currentUserId]);
+
+  async function toggleLike() {
+    if (!currentUserId || actionPending) return;
+    const wasLiked = liked;
+    setLiked(!wasLiked);
+    setPost(p => ({ ...p, likes_count: p.likes_count + (wasLiked ? -1 : 1) }));
+    setActionPending(true);
+    try {
+      await fetch(`/api/posts/${post.id}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: wasLiked ? "unlike" : "like", userId: currentUserId }),
+      });
+    } catch {
+      setLiked(wasLiked);
+      setPost(p => ({ ...p, likes_count: p.likes_count + (wasLiked ? 1 : -1) }));
+    } finally {
+      setActionPending(false);
+    }
+  }
+
+  async function toggleSave() {
+    if (!currentUserId || actionPending) return;
+    const wasSaved = saved;
+    setSaved(!wasSaved);
+    setPost(p => ({ ...p, saves_count: p.saves_count + (wasSaved ? -1 : 1) }));
+    setActionPending(true);
+    try {
+      await fetch(`/api/posts/${post.id}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: wasSaved ? "unsave" : "save", userId: currentUserId }),
+      });
+    } catch {
+      setSaved(wasSaved);
+      setPost(p => ({ ...p, saves_count: p.saves_count + (wasSaved ? 1 : -1) }));
+    } finally {
+      setActionPending(false);
+    }
+  }
 
   const resetZoom = () => { setZoom(1); setPanX(0); setPanY(0); };
 
@@ -342,15 +396,33 @@ export default function PostModal({ post: initialPost, isOwner, ownerId, onClose
             {saveError && <p className="text-xs" style={{ color: "#EF4444" }}>{saveError}</p>}
 
             {/* Stats */}
-            <div className="flex items-center gap-4 py-3" style={{ borderTop: "1px solid var(--border)" }}>
-              <span className="flex items-center gap-1.5 text-sm">
-                <Heart size={14} style={{ color: "var(--text-4)" }} />
-                <span className="font-semibold" style={{ color: "var(--text-2)" }}>{post.likes_count}</span>
-              </span>
-              <span className="flex items-center gap-1.5 text-sm">
-                <Bookmark size={14} style={{ color: "var(--text-4)" }} />
-                <span className="font-semibold" style={{ color: "var(--text-2)" }}>{post.saves_count}</span>
-              </span>
+            <div className="flex items-center gap-3 py-3" style={{ borderTop: "1px solid var(--border)" }}>
+              <button
+                onClick={toggleLike}
+                disabled={!currentUserId}
+                className="flex items-center gap-1.5 text-sm transition-all hover:scale-110 active:scale-95 disabled:cursor-default"
+                title={currentUserId ? (liked ? "Unlike" : "Like") : "Sign in to like"}
+              >
+                <Heart
+                  size={16}
+                  fill={liked ? "#EF4444" : "none"}
+                  style={{ color: liked ? "#EF4444" : "var(--text-4)", transition: "color 0.15s, fill 0.15s" }}
+                />
+                <span className="font-semibold" style={{ color: liked ? "#EF4444" : "var(--text-2)" }}>{post.likes_count}</span>
+              </button>
+              <button
+                onClick={toggleSave}
+                disabled={!currentUserId}
+                className="flex items-center gap-1.5 text-sm transition-all hover:scale-110 active:scale-95 disabled:cursor-default"
+                title={currentUserId ? (saved ? "Unsave" : "Save") : "Sign in to save"}
+              >
+                <Bookmark
+                  size={16}
+                  fill={saved ? "#9B7CF5" : "none"}
+                  style={{ color: saved ? "#9B7CF5" : "var(--text-4)", transition: "color 0.15s, fill 0.15s" }}
+                />
+                <span className="font-semibold" style={{ color: saved ? "#9B7CF5" : "var(--text-2)" }}>{post.saves_count}</span>
+              </button>
               <span className="text-[11px] ml-auto" style={{ color: "var(--text-5)" }}>
                 {new Date(post.created_at).toLocaleDateString("en-US", { day: "numeric", month: "short", year: "numeric" })}
               </span>

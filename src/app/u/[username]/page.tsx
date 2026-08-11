@@ -309,23 +309,23 @@ export default function UserProfilePage({ params }: { params: Promise<{ username
 
             {activeTab === "Portfolio" && (
               posts.length > 0 ? (
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                <div className="columns-2 sm:columns-3 gap-3">
                   {posts.map(p => {
                     const src = firstImage(p.image_url);
                     const isVid = isVideoUrl(src);
                     return (
                       <button key={p.id} onClick={() => setOpenPostModal(p)}
-                        className="rounded-xl overflow-hidden group cursor-pointer relative w-full text-left"
-                        style={{ aspectRatio: "1", background: "var(--bg-subtle)" }}>
+                        className="block break-inside-avoid mb-3 rounded-xl overflow-hidden group cursor-pointer relative w-full text-left"
+                        style={{ background: "var(--bg-subtle)" }}>
                         {isVid ? (
-                          <video src={src} className="w-full h-full object-cover"
+                          <video src={src} className="w-full object-cover"
                             muted playsInline preload="metadata"
                             onMouseEnter={e => (e.currentTarget as HTMLVideoElement).play()}
                             onMouseLeave={e => { const v = e.currentTarget as HTMLVideoElement; v.pause(); v.currentTime = 0; }} />
                         ) : (
                           // eslint-disable-next-line @next/next/no-img-element
                           <img src={src} alt={p.title}
-                            className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-[1.04]" />
+                            className="w-full h-auto transition-transform duration-300 group-hover:scale-[1.04]" />
                         )}
                         <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-all duration-200 flex flex-col items-start justify-end p-2.5">
                           <p className="opacity-0 group-hover:opacity-100 transition-opacity text-[11px] font-semibold text-white truncate w-full mb-1">{p.title}</p>
@@ -441,6 +441,7 @@ export default function UserProfilePage({ params }: { params: Promise<{ username
         <PostModal
           post={openPostModal}
           isOwner={false}
+          currentUserId={user?.id}
           onClose={() => setOpenPostModal(null)}
         />
       )}

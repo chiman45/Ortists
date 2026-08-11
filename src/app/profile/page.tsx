@@ -429,23 +429,23 @@ export default function ProfilePage() {
             {/* Portfolio */}
             {activeTab === "Portfolio" && (
               dbPosts.length > 0 ? (
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                <div className="columns-2 sm:columns-3 gap-3">
                   {dbPosts.map(post => {
                     const src = firstImage(post.image_url);
                     const isVid = isVideoUrl(src);
                     return (
                       <button key={post.id} onClick={() => setOpenPostModal(post)}
-                        className="rounded-xl overflow-hidden group cursor-pointer relative block text-left w-full"
-                        style={{ aspectRatio: "1", background: "var(--bg-subtle)" }}>
+                        className="block break-inside-avoid mb-3 rounded-xl overflow-hidden group cursor-pointer relative w-full text-left"
+                        style={{ background: "var(--bg-subtle)" }}>
                         {isVid ? (
-                          <video src={src} className="w-full h-full object-cover"
+                          <video src={src} className="w-full object-cover"
                             muted playsInline preload="metadata"
                             onMouseEnter={e => (e.currentTarget as HTMLVideoElement).play()}
                             onMouseLeave={e => { const v = e.currentTarget as HTMLVideoElement; v.pause(); v.currentTime = 0; }} />
                         ) : (
                           // eslint-disable-next-line @next/next/no-img-element
                           <img src={src} alt={post.title}
-                            className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-[1.04]" />
+                            className="w-full h-auto transition-transform duration-300 group-hover:scale-[1.04]" />
                         )}
                         <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-all duration-200 flex flex-col items-start justify-end p-2.5">
                           <p className="opacity-0 group-hover:opacity-100 transition-opacity text-[11px] font-semibold text-white truncate w-full mb-1">{post.title}</p>
@@ -475,23 +475,23 @@ export default function ProfilePage() {
             {/* Saved */}
             {activeTab === "Saved" && (
               savedPosts.length > 0 ? (
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                <div className="columns-2 sm:columns-3 gap-3">
                   {savedPosts.map(post => {
                     const src = firstImage(post.image_url);
                     const isVid = isVideoUrl(src);
                     return (
                       <button key={post.id} onClick={() => setOpenPostModal(post)}
-                        className="rounded-xl overflow-hidden group cursor-pointer relative w-full text-left"
-                        style={{ aspectRatio: "1", background: "var(--bg-subtle)" }}>
+                        className="block break-inside-avoid mb-3 rounded-xl overflow-hidden group cursor-pointer relative w-full text-left"
+                        style={{ background: "var(--bg-subtle)" }}>
                         {isVid ? (
-                          <video src={src} className="w-full h-full object-cover"
+                          <video src={src} className="w-full object-cover"
                             muted playsInline preload="metadata"
                             onMouseEnter={e => (e.currentTarget as HTMLVideoElement).play()}
                             onMouseLeave={e => { const v = e.currentTarget as HTMLVideoElement; v.pause(); v.currentTime = 0; }} />
                         ) : (
                           // eslint-disable-next-line @next/next/no-img-element
                           <img src={src} alt={post.title}
-                            className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-[1.04]" />
+                            className="w-full h-auto transition-transform duration-300 group-hover:scale-[1.04]" />
                         )}
                         <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-all duration-200 flex flex-col items-start justify-end p-2.5">
                           <p className="opacity-0 group-hover:opacity-100 transition-opacity text-[11px] font-semibold text-white truncate w-full mb-1">{post.title}</p>
@@ -1184,6 +1184,7 @@ export default function ProfilePage() {
           post={openPostModal}
           isOwner={true}
           ownerId={user?.id}
+          currentUserId={user?.id}
           onClose={() => setOpenPostModal(null)}
           onUpdate={updated => setDbPosts(posts => posts.map(p => p.id === updated.id ? updated : p))}
         />

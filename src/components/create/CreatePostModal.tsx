@@ -14,13 +14,24 @@ const CONTENT_TYPES = [
   { id: "gallery",   Icon: Grid2X2,    title: "Gallery Post",   desc: "Share a single artwork to the gallery with a price tag." },
 ] as const;
 
-const PRESET_TAGS = [
-  "Painting", "Drawing", "Sketching", "Illustration", "Watercolor",
-  "Oil Painting", "Acrylic Painting", "Gouache", "Ink Art", "Pastel Art",
-  "Charcoal Art", "Portrait Art", "Landscape Art", "Abstract Art",
-  "Contemporary Art", "Realism", "Hyperrealism", "Surrealism",
-  "Expressionism", "Figurative Art", "Miniature Art", "Religious Art",
-  "Conceptual Art", "Mixed Media Art", "Mural Art", "Fresco Art",
+const ARTWORK_TYPES = [
+  "Portrait", "Landscape", "Still Life", "Character Art", "Concept Art",
+  "Illustration", "Fine Art", "Abstract Art", "Decorative Art", "Mural", "Mixed Media",
+];
+
+const PHYSICAL_TECHNIQUES = [
+  "Oil", "Acrylic", "Watercolor", "Charcoal", "Ink", "Pencil",
+  "Pastel", "Gouache", "Mixed Media", "Sculpture",
+];
+
+const DIGITAL_TECHNIQUES = [
+  "Digital Painting", "Digital Illustration", "3D", "Vector", "Pixel Art", "Digital Collage",
+];
+
+const STYLES = [
+  "Realistic", "Photorealistic", "Semi-Realistic", "Stylized", "Abstract",
+  "Impressionistic", "Expressionistic", "Minimalist", "Surreal", "Conceptual",
+  "Cartoon", "Contemporary", "Pop Art", "Geometric", "Line Art", "Folk / Naïve",
 ];
 
 interface Props { onClose: () => void }
@@ -33,7 +44,15 @@ function LocationField({ value, onChange }: { value: string; onChange: (v: strin
   const [results, setResults]   = useState<string[]>([]);
   const [open, setOpen]         = useState(false);
   const [loading, setLoading]   = useState(false);
-  const timerRef                = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [dropdownRect, setDropdownRect] = useState<{ top: number; left: number; width: number } | null>(null);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  function updateRect() {
+    if (!inputRef.current) return;
+    const r = inputRef.current.getBoundingClientRect();
+    setDropdownRect({ top: r.bottom + 4, left: r.left, width: r.width });
+  }
 
   function search(q: string) {
     setQuery(q);
@@ -53,6 +72,7 @@ function LocationField({ value, onChange }: { value: string; onChange: (v: strin
           return parts.slice(0, 3).join(", ");
         });
         setResults([...new Set(labels)]);
+        updateRect();
         setOpen(true);
       } catch { setResults([]); }
       setLoading(false);
@@ -72,9 +92,10 @@ function LocationField({ value, onChange }: { value: string; onChange: (v: strin
         📍 Location (optional)
       </label>
       <input
+        ref={inputRef}
         value={query}
         onChange={e => search(e.target.value)}
-        onFocus={() => results.length > 0 && setOpen(true)}
+        onFocus={() => { if (results.length > 0) { updateRect(); setOpen(true); } }}
         onBlur={() => setTimeout(() => setOpen(false), 150)}
         placeholder="e.g. New York, NY"
         className="w-full px-3 py-2.5 rounded-xl text-sm outline-none"
@@ -85,10 +106,19 @@ function LocationField({ value, onChange }: { value: string; onChange: (v: strin
           <div className="w-3.5 h-3.5 rounded-full border-2 animate-spin" style={{ borderColor: "rgba(124,91,245,0.3)", borderTopColor: "#7C5BF5" }} />
         </div>
       )}
-      {open && results.length > 0 && (
+      {open && results.length > 0 && dropdownRect && (
         <div
-          className="absolute left-0 right-0 top-full mt-1 rounded-xl overflow-hidden z-50"
-          style={{ background: "var(--bg-card)", border: "1px solid var(--border)", boxShadow: "0 8px 24px rgba(0,0,0,0.3)" }}
+          className="rounded-xl overflow-hidden"
+          style={{
+            position: "fixed",
+            top: dropdownRect.top,
+            left: dropdownRect.left,
+            width: dropdownRect.width,
+            zIndex: 9999,
+            background: "var(--bg-card)",
+            border: "1px solid var(--border)",
+            boxShadow: "0 8px 24px rgba(0,0,0,0.45)",
+          }}
         >
           {results.map((r, i) => (
             <button
@@ -120,9 +150,10 @@ export default function CreatePostModal({ onClose }: Props) {
   const [title, setTitle]           = useState("");
   const [desc, setDesc]             = useState("");
   const [category, setCategory]     = useState("");
-  const [tags, setTags]             = useState<string[]>([]);
+  const [artworkType, setArtworkType] = useState<string[]>([]);
   const [medium, setMedium]         = useState("");
-  const [style, setStyle]           = useState("");
+  const [technique, setTechnique]   = useState("");
+  const [styles, setStyles]         = useState<string[]>([]);
   const [location, setLocation]     = useState("");
   const [price, setPrice]           = useState("");
   const [currency, setCurrency]     = useState("£");
@@ -164,8 +195,18 @@ export default function CreatePostModal({ onClose }: Props) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [type]);
 
-  function toggleTag(t: string) {
-    setTags(prev => prev.includes(t) ? prev.filter(x => x !== t) : [...prev, t]);
+  function toggleArtworkType(t: string) {
+    setArtworkType(prev =>
+      prev.includes(t) ? prev.filter(x => x !== t)
+        : prev.length < 3 ? [...prev, t] : prev
+    );
+  }
+
+  function toggleStyle(s: string) {
+    setStyles(prev =>
+      prev.includes(s) ? prev.filter(x => x !== s)
+        : prev.length < 2 ? [...prev, s] : prev
+    );
   }
 
   const canContinue = [
@@ -399,46 +440,62 @@ export default function CreatePostModal({ onClose }: Props) {
 
           {/* Step 3: Details */}
           {step === 2 && (
-            <div className="flex flex-col gap-3">
+            <div className="flex flex-col gap-4">
               <h3 className="text-base font-bold text-center mb-1" style={{ color: "var(--text-1)" }}>Add Details</h3>
+
+              {/* Caption */}
               <div>
                 <label className="text-xs font-medium mb-1.5 block" style={{ color: "var(--text-4)" }}>Caption</label>
                 <textarea
                   value={desc}
                   onChange={e => { setDesc(e.target.value); setTitle(e.target.value.slice(0, 80)); }}
-                  placeholder="Write a caption for your work..."
+                  placeholder="Tell the story behind your work..."
                   rows={4}
                   className="w-full px-3 py-2.5 rounded-xl text-sm outline-none resize-none"
                   style={{ background: "var(--bg-card)", border: "1px solid var(--border)", color: "var(--text-1)" }}
                 />
               </div>
+
+              {/* Artwork Type */}
               <div>
-                <label className="text-xs font-medium mb-2 block" style={{ color: "var(--text-4)" }}>Creative Tags</label>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="text-xs font-medium" style={{ color: "var(--text-4)" }}>Artwork Type</label>
+                  <span className="text-[10px]" style={{ color: artworkType.length === 3 ? "#9B7CF5" : "var(--text-5)" }}>
+                    {artworkType.length}/3 selected
+                  </span>
+                </div>
                 <div className="flex flex-wrap gap-2">
-                  {PRESET_TAGS.map(t => (
-                    <button
-                      key={t}
-                      onClick={() => toggleTag(t)}
-                      className="px-3 py-1 rounded-full text-xs font-medium transition-all"
-                      style={{
-                        background: tags.includes(t) ? "#7C5BF5" : "var(--bg-card)",
-                        color: tags.includes(t) ? "#fff" : "var(--text-4)",
-                        border: tags.includes(t) ? "1px solid #7C5BF5" : "1px solid var(--border)",
-                      }}
-                    >
-                      {t}
-                    </button>
-                  ))}
+                  {ARTWORK_TYPES.map(t => {
+                    const selected = artworkType.includes(t);
+                    const maxed = !selected && artworkType.length >= 3;
+                    return (
+                      <button
+                        key={t}
+                        onClick={() => toggleArtworkType(t)}
+                        disabled={maxed}
+                        className="px-3 py-1 rounded-full text-xs font-medium transition-all"
+                        style={{
+                          background: selected ? "#7C5BF5" : "var(--bg-card)",
+                          color: selected ? "#fff" : maxed ? "var(--text-5)" : "var(--text-4)",
+                          border: selected ? "1px solid #7C5BF5" : "1px solid var(--border)",
+                          opacity: maxed ? 0.45 : 1,
+                        }}
+                      >
+                        {t}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
-              {/* Medium — Physical / Digital toggle */}
+
+              {/* Medium */}
               <div>
                 <label className="text-xs font-medium mb-2 block" style={{ color: "var(--text-4)" }}>Medium</label>
-                <div className="flex gap-2">
+                <div className="flex gap-2 mb-2">
                   {["Physical", "Digital"].map(m => (
                     <button
                       key={m}
-                      onClick={() => setMedium(medium === m ? "" : m)}
+                      onClick={() => { setMedium(medium === m ? "" : m); setTechnique(""); }}
                       className="flex-1 py-2 rounded-xl text-xs font-semibold transition-all"
                       style={{
                         background: medium === m ? "#7C5BF5" : "var(--bg-card)",
@@ -450,26 +507,58 @@ export default function CreatePostModal({ onClose }: Props) {
                     </button>
                   ))}
                 </div>
+                {medium && (
+                  <div>
+                    <label className="text-xs mb-1.5 block" style={{ color: "var(--text-5)" }}>Technique</label>
+                    <div className="flex flex-wrap gap-2">
+                      {(medium === "Physical" ? PHYSICAL_TECHNIQUES : DIGITAL_TECHNIQUES).map(tech => (
+                        <button
+                          key={tech}
+                          onClick={() => setTechnique(technique === tech ? "" : tech)}
+                          className="px-3 py-1 rounded-full text-xs font-medium transition-all"
+                          style={{
+                            background: technique === tech ? "rgba(124,91,245,0.2)" : "var(--bg-card)",
+                            color: technique === tech ? "#9B7CF5" : "var(--text-4)",
+                            border: technique === tech ? "1px solid rgba(124,91,245,0.5)" : "1px solid var(--border)",
+                          }}
+                        >
+                          {tech}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
 
-              {/* Style — wait for user list; placeholder for now */}
+              {/* Style */}
               <div>
-                <label className="text-xs font-medium mb-2 block" style={{ color: "var(--text-4)" }}>Style</label>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="text-xs font-medium" style={{ color: "var(--text-4)" }}>Style</label>
+                  <span className="text-[10px]" style={{ color: styles.length === 2 ? "#9B7CF5" : "var(--text-5)" }}>
+                    up to 2
+                  </span>
+                </div>
                 <div className="flex flex-wrap gap-2">
-                  {["Realistic", "Abstract", "Impressionist", "Minimalist", "Surrealist", "Expressionist", "Geometric", "Cartoon", "Anime", "Vintage", "Modern", "Classical"].map(s => (
-                    <button
-                      key={s}
-                      onClick={() => setStyle(style === s ? "" : s)}
-                      className="px-3 py-1 rounded-full text-xs font-medium transition-all"
-                      style={{
-                        background: style === s ? "#7C5BF5" : "var(--bg-card)",
-                        color: style === s ? "#fff" : "var(--text-4)",
-                        border: style === s ? "1px solid #7C5BF5" : "1px solid var(--border)",
-                      }}
-                    >
-                      {s}
-                    </button>
-                  ))}
+                  {STYLES.map(s => {
+                    const selected = styles.includes(s);
+                    const maxed = !selected && styles.length >= 2;
+                    return (
+                      <button
+                        key={s}
+                        onClick={() => toggleStyle(s)}
+                        disabled={maxed}
+                        className="px-3 py-1 rounded-full text-xs font-medium transition-all"
+                        style={{
+                          background: selected ? "#7C5BF5" : "var(--bg-card)",
+                          color: selected ? "#fff" : maxed ? "var(--text-5)" : "var(--text-4)",
+                          border: selected ? "1px solid #7C5BF5" : "1px solid var(--border)",
+                          opacity: maxed ? 0.45 : 1,
+                        }}
+                      >
+                        {s}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
 
@@ -590,7 +679,7 @@ export default function CreatePostModal({ onClose }: Props) {
                   <p className="text-sm font-bold mb-0.5" style={{ color: "var(--text-1)" }}>{title || "Your post title"}</p>
                   {desc && <p className="text-xs mb-2" style={{ color: "var(--text-4)" }}>{desc}</p>}
                   <div className="flex flex-wrap gap-1 mb-3">
-                    {(tags.length ? tags : ["Digital Art"]).map(t => (
+                    {(artworkType.length ? artworkType : ["Artwork"]).map(t => (
                       <span key={t} className="text-[10px] px-2 py-0.5 rounded-full" style={{ background: "rgba(124,91,245,0.15)", color: "#9B7CF5" }}>
                         {t}
                       </span>
@@ -679,9 +768,9 @@ export default function CreatePostModal({ onClose }: Props) {
                         description: descriptionPayload,
                         image_url: finalImageUrl,
                         category: isGallery ? `gallery:${category || "General"}` : (category || "General"),
-                        tags,
-                        medium: medium || undefined,
-                        style: style || undefined,
+                        tags: artworkType,
+                        medium: technique ? `${medium} · ${technique}` : (medium || undefined),
+                        style: styles.join(", ") || undefined,
                         location: location || undefined,
                         visibility,
                         allow_comments: comments,
