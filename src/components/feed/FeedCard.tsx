@@ -333,6 +333,7 @@ export default function FeedCard({ post, dbPost, priority = false, onDelete }: F
         post={modalPost}
         isOwner={isOwn}
         ownerId={user?.id}
+        currentUserId={user?.id}
         onClose={() => setModalPost(null)}
         onUpdate={updated => setModalPost(updated)}
       />
