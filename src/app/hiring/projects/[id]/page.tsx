@@ -23,7 +23,10 @@ interface Milestone {
 interface HireRequest {
   id: string;
   client_id: string;
+  client_name: string | null;
+  client_avatar: string | null;
   artist_id: number;
+  artist_clerk_id: string | null;
   artist_name: string;
   artist_avatar: string | null;
   artist_location: string | null;
@@ -81,39 +84,40 @@ function fmtDate(ts: string) {
 
 // ── Right Sidebar ─────────────────────────────────────────────
 
-function RightSidebar({ project }: { project: HireRequest }) {
+function RightSidebar({ project, isArtist }: { project: HireRequest; isArtist: boolean }) {
+  const otherName   = isArtist ? (project.client_name ?? "Client")   : project.artist_name;
+  const otherAvatar = isArtist ? (project.client_avatar ?? null)      : project.artist_avatar;
+  const otherLabel  = isArtist ? "CLIENT" : "ARTIST";
+  const otherRole   = isArtist ? "Client" : "Lead Artist";
 
   return (
     <aside
       className="hidden xl:flex flex-col gap-4 overflow-y-auto shrink-0"
       style={{ width: 220, scrollbarWidth: "none" }}
     >
-      {/* Artist card */}
+      {/* Other party card */}
       <div className="rounded-2xl p-4" style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}>
-        <p className="text-[10px] font-bold tracking-widest mb-3" style={{ color: "var(--text-6)" }}>ARTIST</p>
+        <p className="text-[10px] font-bold tracking-widest mb-3" style={{ color: "var(--text-6)" }}>{otherLabel}</p>
         <div className="flex flex-col items-center text-center gap-2">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            src={project.artist_avatar ?? `https://i.pravatar.cc/80?img=${project.artist_id}`}
-            alt={project.artist_name}
+            src={otherAvatar ?? `https://i.pravatar.cc/80?img=${project.artist_id}`}
+            alt={otherName}
             className="w-12 h-12 rounded-full object-cover"
             style={{ border: "2px solid rgba(124,91,245,0.4)" }}
           />
           <div>
-            <p className="text-sm font-bold" style={{ color: "var(--text-1)" }}>{project.artist_name}</p>
+            <p className="text-sm font-bold" style={{ color: "var(--text-1)" }}>{otherName}</p>
             <p className="text-[11px]" style={{ color: "var(--text-5)" }}>
-              Visual Artist{project.artist_location ? ` · ${project.artist_location}` : ""}
+              {isArtist ? "Your client" : `Visual Artist${project.artist_location ? ` · ${project.artist_location}` : ""}`}
             </p>
           </div>
-          <div className="flex items-center gap-1 text-xs" style={{ color: "#FBBF24" }}>
-            <Star size={12} fill="currentColor" />
-            <span className="font-semibold">{project.artist_rating ?? 5.0}</span>
-          </div>
-          <div className="flex gap-3 text-[11px]" style={{ color: "var(--text-5)" }}>
-            <span><span className="font-semibold" style={{ color: "var(--text-2)" }}>47</span> Projects</span>
-            <span><span className="font-semibold" style={{ color: "var(--text-2)" }}>214</span> Reviews</span>
-            <span><span className="font-semibold" style={{ color: "var(--text-2)" }}>89%</span> Repeat</span>
-          </div>
+          {!isArtist && (
+            <div className="flex items-center gap-1 text-xs" style={{ color: "#FBBF24" }}>
+              <Star size={12} fill="currentColor" />
+              <span className="font-semibold">{project.artist_rating ?? 5.0}</span>
+            </div>
+          )}
         </div>
       </div>
 
@@ -121,8 +125,8 @@ function RightSidebar({ project }: { project: HireRequest }) {
       <div className="rounded-2xl p-4" style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}>
         <p className="text-[10px] font-bold tracking-widest mb-3" style={{ color: "var(--text-6)" }}>MEMBERS</p>
         {[
-          { name: "You",             role: "Client",      img: null        },
-          { name: project.artist_name, role: "Lead Artist", img: project.artist_avatar },
+          { name: "You",      role: isArtist ? "Lead Artist" : "Client",     img: null         },
+          { name: otherName,  role: otherRole,                                img: otherAvatar  },
         ].map(m => (
           <div key={m.name} className="flex items-center gap-2.5 mb-2 last:mb-0">
             <div
@@ -416,11 +420,12 @@ function ActionMenu({ btnRef, onClose, onUpload }: {
 
 // ── Conversation ─────────────────────────────────────────────
 
-function ConversationPanel({ project, userId, userName, userAvatar }: {
+function ConversationPanel({ project, userId, userName, userAvatar, isArtist }: {
   project: HireRequest;
   userId: string;
   userName: string;
   userAvatar: string;
+  isArtist: boolean;
 }) {
   const [messages, setMessages]   = useState<Message[]>([]);
   const [text, setText]           = useState("");
@@ -561,7 +566,11 @@ function ConversationPanel({ project, userId, userName, userAvatar }: {
             </div>
             <p className="text-sm font-semibold mb-1" style={{ color: "var(--text-3)" }}>No messages yet</p>
             <p className="text-xs" style={{ color: "var(--text-5)" }}>
-              {canChat ? "Start the conversation about your project" : "Messaging opens once the artist accepts your request"}
+              {canChat
+                ? "Start the conversation about your project"
+                : isArtist
+                  ? "Accept this request to start messaging"
+                  : "Messaging opens once the artist accepts your request"}
             </p>
           </div>
         )}
@@ -667,7 +676,7 @@ function ConversationPanel({ project, userId, userName, userAvatar }: {
             style={{ background: "rgba(245,158,11,0.07)", border: "1px solid rgba(245,158,11,0.2)", color: "rgba(252,211,77,0.8)" }}
           >
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-            Messaging is available once the artist accepts your request
+            {isArtist ? "Accept this request to start messaging" : "Messaging is available once the artist accepts your request"}
           </div>
         )}
       </div>
@@ -696,13 +705,18 @@ export default function ProjectDetailPage() {
       .catch(() => { setNotFound(true); setLoading(false); });
   }, [params.id]);
 
+  const isArtist = !!project && !!user && project.artist_clerk_id === user.id;
+
   async function completeProject() {
     if (!project || !user || completing) return;
     setCompleting(true);
+    const body = isArtist
+      ? { artistClerkId: user.id, status: "completed" }
+      : { clientId: user.id, status: "completed", progress: 100 };
     const res = await fetch(`/api/hire-requests/${project.id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ clientId: user.id, status: "completed", progress: 100 }),
+      body: JSON.stringify(body),
     });
     if (res.ok) {
       const { request } = await res.json();
@@ -838,6 +852,7 @@ export default function ProjectDetailPage() {
                   userId={user?.id ?? ""}
                   userName={user?.fullName ?? user?.username ?? "You"}
                   userAvatar={user?.imageUrl || `https://i.pravatar.cc/80?u=${user?.id}`}
+                  isArtist={isArtist}
                 />
               )}
               {activeTab === "deliverables" && (
@@ -863,7 +878,7 @@ export default function ProjectDetailPage() {
 
           {/* Right sidebar */}
           <div className="hidden xl:block p-4 overflow-y-auto" style={{ width: 236, scrollbarWidth: "none", borderLeft: "1px solid var(--border)" }}>
-            <RightSidebar project={project} />
+            <RightSidebar project={project} isArtist={isArtist} />
           </div>
         </div>
       </div>

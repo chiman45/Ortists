@@ -118,21 +118,38 @@ function mapStatus(s: string): ProjectStatus {
   return "pending";
 }
 
-function mapRequest(r: HireRequest): Project {
-  const ts   = r.updated_at ?? r.created_at;
+function timeAgo(ts: string): string {
   const diff = Date.now() - new Date(ts).getTime();
   const mins = Math.floor(diff / 60000);
   const hrs  = Math.floor(mins / 60);
   const days = Math.floor(hrs / 24);
-  const ago  = days > 1 ? `${days} days ago` : days === 1 ? "Yesterday" : hrs > 0 ? `${hrs} hours ago` : "Just now";
+  return days > 1 ? `${days} days ago` : days === 1 ? "Yesterday" : hrs > 0 ? `${hrs} hours ago` : "Just now";
+}
+
+function mapRequest(r: HireRequest): Project {
   return {
     id:           r.id,
     title:        r.project_title,
     artist:       r.artist_name,
     avatar:       r.artist_avatar ?? `https://i.pravatar.cc/80?img=${r.artist_id}`,
     budget:       Number(r.budget ?? 0),
-    deadline:     r.deadline ?? "TBD",
-    lastActivity: ago,
+    deadline:     r.deadline ?? "",
+    lastActivity: timeAgo(r.updated_at ?? r.created_at),
+    progress:     r.progress ?? 0,
+    status:       mapStatus(r.status),
+  };
+}
+
+function mapIncomingToProject(r: IncomingRequest): Project {
+  const ts = r.updated_at ?? r.accepted_at ?? r.created_at;
+  return {
+    id:           r.id,
+    title:        r.project_title,
+    artist:       r.client_name ?? "Client",
+    avatar:       r.client_avatar ?? `https://i.pravatar.cc/80?u=${r.client_id}`,
+    budget:       Number(r.budget ?? 0),
+    deadline:     r.deadline ?? "",
+    lastActivity: timeAgo(ts),
     progress:     r.progress ?? 0,
     status:       mapStatus(r.status),
   };
@@ -569,7 +586,14 @@ interface IncomingRequest {
   deadline: string | null;
   priority: string;
   status: string;
+  progress: number;
+  phase: string | null;
+  currency: string | null;
+  revision_count: number;
   created_at: string;
+  updated_at: string | null;
+  accepted_at: string | null;
+  completed_at: string | null;
 }
 
 function IncomingCard({ req, onDecide, onDelete }: { req: IncomingRequest; onDecide: (id: string, status: "accepted" | "declined") => Promise<void>; onDelete: () => Promise<void> }) {
@@ -681,15 +705,19 @@ function MyProjectsView({ userId, onSwitchToHire }: { userId: string; onSwitchTo
   useEffect(() => {
     if (!userId) return;
     setLoading(true);
-    fetch(`/api/hire-requests?clientId=${userId}`)
-      .then(r => r.json())
-      .then(({ requests }: { requests: HireRequest[] }) => { setProjects((requests ?? []).map(mapRequest)); setLoading(false); })
-      .catch(() => setLoading(false));
     setLoadingIncoming(true);
-    fetch(`/api/hire-requests?artistClerkId=${userId}`)
-      .then(r => r.json())
-      .then(({ requests }: { requests: IncomingRequest[] }) => { setIncoming(requests ?? []); setLoadingIncoming(false); })
-      .catch(() => setLoadingIncoming(false));
+    Promise.all([
+      fetch(`/api/hire-requests?clientId=${userId}`).then(r => r.json()),
+      fetch(`/api/hire-requests?artistClerkId=${userId}`).then(r => r.json()),
+    ]).then(([clientData, artistData]) => {
+      const clientProjects: Project[]        = (clientData.requests ?? []).map(mapRequest);
+      const incomingReqs: IncomingRequest[]  = artistData.requests ?? [];
+      const acceptedAsArtist: Project[]      = incomingReqs.filter(r => r.status === "accepted").map(mapIncomingToProject);
+      setProjects([...clientProjects, ...acceptedAsArtist]);
+      setIncoming(incomingReqs);
+      setLoading(false);
+      setLoadingIncoming(false);
+    }).catch(() => { setLoading(false); setLoadingIncoming(false); });
   }, [userId]);
 
   async function handleDeleteProject(id: string) {
@@ -702,7 +730,13 @@ function MyProjectsView({ userId, onSwitchToHire }: { userId: string; onSwitchTo
   }
   async function handleDecide(id: string, status: "accepted" | "declined") {
     const res = await fetch(`/api/hire-requests/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ artistClerkId: userId, status }) });
-    if (res.ok) setIncoming(prev => prev.map(r => r.id === id ? { ...r, status } : r));
+    if (res.ok) {
+      setIncoming(prev => prev.map(r => r.id === id ? { ...r, status } : r));
+      if (status === "accepted") {
+        const req = incoming.find(r => r.id === id);
+        if (req) setProjects(prev => [...prev, mapIncomingToProject({ ...req, status: "accepted" })]);
+      }
+    }
   }
 
   const activeProjects    = projects.filter(p => p.status === "active");
@@ -724,7 +758,7 @@ function MyProjectsView({ userId, onSwitchToHire }: { userId: string; onSwitchTo
   }
 
   const nearestDeadline = activeProjects
-    .filter(p => p.deadline && p.deadline !== "TBD")
+    .filter(p => !!p.deadline)
     .sort((a, b) => new Date(a.deadline).getTime() - new Date(b.deadline).getTime())[0];
 
   const heroProject = activeProjects[0] ?? null;
@@ -956,7 +990,11 @@ function MyProjectsView({ userId, onSwitchToHire }: { userId: string; onSwitchTo
                     </div>
                     <div className="flex items-center justify-between pt-0.5">
                       <span className="text-xs" style={{ color: days !== null && days <= 3 ? "#EF4444" : "var(--text-5)" }}>
-                        {days !== null ? `${days} days left` : p.deadline}
+                        {days !== null
+                          ? `${days}d left`
+                          : p.deadline
+                            ? new Date(p.deadline).toLocaleDateString("en-US", { month: "short", day: "numeric" })
+                            : "No deadline"}
                       </span>
                       <button
                         onClick={e => { e.stopPropagation(); router.push(`/hiring/projects/${p.id}`); }}

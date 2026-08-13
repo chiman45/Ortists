@@ -43,7 +43,8 @@ export async function POST(req: NextRequest) {
   const body = await req.json();
 
   // Create a dedicated conversation for this project
-  const artistParticipantId = `artist:${body.artist_id}`;
+  // Prefer real Clerk ID; fall back to placeholder if not yet known
+  const artistParticipantId = body.artist_clerk_id ?? `artist:${body.artist_id}`;
   const { data: conv } = await adminDb
     .from("conversations")
     .insert({ participant_ids: [body.client_id, artistParticipantId] })

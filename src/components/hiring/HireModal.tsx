@@ -26,6 +26,7 @@ export default function HireModal({ artist, artistClerkId, onClose }: Props) {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!user) return;
+    if (!deadline) { setError("Please set a project deadline."); return; }
     setLoading(true);
     setError("");
     try {
@@ -125,13 +126,21 @@ export default function HireModal({ artist, artistClerkId, onClose }: Props) {
               />
             </div>
             <div>
-              <label className="text-xs font-medium mb-1.5 block" style={{ color: "var(--text-4)" }}>Deadline</label>
+              <label className="text-xs font-medium mb-1.5 block" style={{ color: "var(--text-4)" }}>
+                Deadline <span style={{ color: "#EF4444" }}>*</span>
+              </label>
               <input
                 type="date"
                 value={deadline}
+                min={new Date().toISOString().split("T")[0]}
                 onChange={e => setDeadline(e.target.value)}
+                required
                 className="w-full px-3 py-2.5 rounded-xl text-sm outline-none"
-                style={{ background: "var(--bg-card)", border: "1px solid var(--border)", color: "var(--text-1)" }}
+                style={{
+                  background: "var(--bg-card)",
+                  border: `1px solid ${!deadline && error ? "#EF4444" : "var(--border)"}`,
+                  color: "var(--text-1)",
+                }}
               />
             </div>
           </div>
