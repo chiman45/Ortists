@@ -94,6 +94,43 @@ const CATEGORY_DESC: Record<string, string> = {
   "Sculpture":     "3D, ceramics & mixed media sculpture",
 };
 
+const SUBCATEGORIES: Record<string, string[]> = {
+  "Illustration": [
+    "Character Illustration", "Editorial Illustration", "Children's Book",
+    "Book Cover", "Storyboard", "Comics & Manga", "Fantasy Illustration",
+    "Scientific Illustration", "Fashion Illustration", "Botanical Art",
+  ],
+  "Photography": [
+    "Portrait Photography", "Landscape Photography", "Street Photography",
+    "Product Photography", "Event Photography", "Fine Art Photography",
+    "Documentary", "Wildlife Photography", "Architecture Photography",
+  ],
+  "Digital Art": [
+    "Digital Painting", "Digital Illustration", "Matte Painting",
+    "AI Art", "NFT Art", "Pixel Art", "3D Art", "Motion Graphics",
+    "UI / UX Design", "Game Art",
+  ],
+  "Painting": [
+    "Oil Painting", "Watercolor", "Acrylic", "Gouache", "Ink Wash",
+    "Madhubani", "Pattachitra", "Gond Art", "Warli Art", "Tanjore Painting",
+    "Miniature Painting", "Folk Painting", "Encaustic",
+  ],
+  "Portrait": [
+    "Realistic Portrait", "Stylized Portrait", "Caricature",
+    "Pet Portrait", "Family Portrait", "Figure Drawing", "Self Portrait",
+  ],
+  "Concept Art": [
+    "Character Design", "Environment Design", "Creature Design",
+    "Vehicle Design", "Prop Design", "Film Concept Art", "Storyboard",
+    "World Building",
+  ],
+  "Sculpture": [
+    "Clay Sculpture", "Bronze Casting", "Wood Sculpture", "Stone Carving",
+    "Ceramic", "Glasswork", "Metal Art", "Mixed Media Sculpture",
+    "Printmaking", "Screen Printing", "Etching", "Lithography",
+  ],
+};
+
 
 function toArtist(a: ArtistProfile): Artist {
   return {
@@ -710,10 +747,9 @@ function MyProjectsView({ userId, onSwitchToHire }: { userId: string; onSwitchTo
       fetch(`/api/hire-requests?clientId=${userId}`).then(r => r.json()),
       fetch(`/api/hire-requests?artistClerkId=${userId}`).then(r => r.json()),
     ]).then(([clientData, artistData]) => {
-      const clientProjects: Project[]        = (clientData.requests ?? []).map(mapRequest);
-      const incomingReqs: IncomingRequest[]  = artistData.requests ?? [];
-      const acceptedAsArtist: Project[]      = incomingReqs.filter(r => r.status === "accepted").map(mapIncomingToProject);
-      setProjects([...clientProjects, ...acceptedAsArtist]);
+      const clientProjects: Project[]       = (clientData.requests ?? []).map(mapRequest);
+      const incomingReqs: IncomingRequest[] = artistData.requests ?? [];
+      setProjects(clientProjects);
       setIncoming(incomingReqs);
       setLoading(false);
       setLoadingIncoming(false);
@@ -732,18 +768,15 @@ function MyProjectsView({ userId, onSwitchToHire }: { userId: string; onSwitchTo
     const res = await fetch(`/api/hire-requests/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ artistClerkId: userId, status }) });
     if (res.ok) {
       setIncoming(prev => prev.map(r => r.id === id ? { ...r, status } : r));
-      if (status === "accepted") {
-        const req = incoming.find(r => r.id === id);
-        if (req) setProjects(prev => [...prev, mapIncomingToProject({ ...req, status: "accepted" })]);
-      }
     }
   }
 
-  const activeProjects    = projects.filter(p => p.status === "active");
-  const pendingProjects   = projects.filter(p => p.status === "pending");
-  const completedProjects = projects.filter(p => p.status === "completed");
-  const totalBudget       = projects.reduce((sum, p) => sum + p.budget, 0);
-  const pendingIncoming   = incoming.filter(r => r.status === "pending");
+  const activeProjects       = projects.filter(p => p.status === "active");
+  const pendingProjects      = projects.filter(p => p.status === "pending");
+  const completedProjects    = projects.filter(p => p.status === "completed");
+  const pendingIncoming      = incoming.filter(r => r.status === "pending");
+  const acceptedCommissions  = incoming.filter(r => r.status === "accepted");
+  const totalBudget          = projects.reduce((sum, p) => sum + p.budget, 0);
 
   const STAGES = ["Brief", "Concept", "Revision", "Final", "Delivered"];
   function getStageIdx(progress: number) {
@@ -757,17 +790,16 @@ function MyProjectsView({ userId, onSwitchToHire }: { userId: string; onSwitchTo
     try { const d = new Date(dateStr); if (isNaN(d.getTime())) return null; return Math.ceil((d.getTime() - Date.now()) / 86400000); } catch { return null; }
   }
 
-  const nearestDeadline = activeProjects
-    .filter(p => !!p.deadline)
-    .sort((a, b) => new Date(a.deadline).getTime() - new Date(b.deadline).getTime())[0];
+  // Collect deadlines from both client-commissioned projects and accepted commissions
+  const allDeadlineEntries: { deadline: string; title: string }[] = [
+    ...activeProjects.filter(p => !!p.deadline).map(p => ({ deadline: p.deadline, title: p.title })),
+    ...acceptedCommissions.filter(r => !!r.deadline).map(r => ({ deadline: r.deadline!, title: r.project_title })),
+  ].sort((a, b) => new Date(a.deadline).getTime() - new Date(b.deadline).getTime());
+
+  const nearestDeadline = allDeadlineEntries[0] ?? null;
 
   const heroProject = activeProjects[0] ?? null;
 
-  const tasks: { text: string; project: string; urgent: boolean }[] = [
-    ...pendingProjects.map(p => ({ text: "Upload project brief", project: p.title, urgent: true })),
-    ...activeProjects.filter(p => p.progress < 40).map(p => ({ text: "Review first concepts", project: p.title, urgent: false })),
-    ...activeProjects.filter(p => p.progress >= 40 && p.progress < 60).map(p => ({ text: "Approve revision", project: p.title, urgent: false })),
-  ].slice(0, 5);
 
   if (loading || loadingIncoming) {
     return (
@@ -780,6 +812,7 @@ function MyProjectsView({ userId, onSwitchToHire }: { userId: string; onSwitchTo
   if (projects.length === 0 && incoming.length === 0) {
     return <div className="flex-1 px-4 md:px-8 py-6"><EmptyProjects onHire={onSwitchToHire} /></div>;
   }
+  const totalActive = activeProjects.length + acceptedCommissions.length;
 
   return (
     <div className="flex-1 pb-28 lg:pb-12 relative">
@@ -789,7 +822,7 @@ function MyProjectsView({ userId, onSwitchToHire }: { userId: string; onSwitchTo
         <div>
           <h1 className="text-3xl font-bold" style={{ color: "var(--text-1)" }}>Commissions</h1>
           <p className="text-sm mt-1" style={{ color: "var(--text-5)" }}>
-            {activeProjects.length} active · {pendingProjects.length} pending · {completedProjects.length} delivered
+            {totalActive} active · {pendingProjects.length} pending · {completedProjects.length} delivered
           </p>
         </div>
       </div>
@@ -806,12 +839,17 @@ function MyProjectsView({ userId, onSwitchToHire }: { userId: string; onSwitchTo
             primary: nearestDeadline
               ? new Date(nearestDeadline.deadline).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
               : "—",
-            sub: nearestDeadline && daysUntil(nearestDeadline.deadline) !== null
-              ? `${daysUntil(nearestDeadline.deadline)} days`
-              : "No deadlines",
+            sub: nearestDeadline
+              ? (() => {
+                  const d = daysUntil(nearestDeadline.deadline);
+                  return d !== null
+                    ? `${d > 0 ? `${d} days left` : d === 0 ? "Due today" : "Overdue"}`
+                    : nearestDeadline.title;
+                })()
+              : "No upcoming deadlines",
           },
           { label: "NEEDS REVIEW",      color: "#9B7CF5", primary: String(pendingIncoming.length), sub: "awaiting approval" },
-          { label: "ACTIVE PROJECTS",   color: "#60A5FA", primary: String(activeProjects.length),  sub: "in progress"      },
+          { label: "ACTIVE PROJECTS",   color: "#60A5FA", primary: String(totalActive),  sub: "in progress"      },
           { label: "BUDGET COMMITTED",  color: "#10B981", primary: `$${totalBudget.toLocaleString()}`, sub: "across all projects" },
         ].map((s, i) => (
           <div key={i} className="p-4" style={{ background: "var(--bg-card)", borderRight: i < 3 ? "1px solid var(--border)" : "none" }}>
@@ -903,25 +941,7 @@ function MyProjectsView({ userId, onSwitchToHire }: { userId: string; onSwitchTo
         </section>
       )}
 
-      {/* ── Today's Tasks ── */}
-      {tasks.length > 0 && (
-        <section className="px-4 md:px-8 mb-8">
-          <p className="text-[10px] font-bold tracking-widest mb-3" style={{ color: "var(--text-5)" }}>TODAY&apos;S TASKS</p>
-          <div className="flex flex-col gap-2">
-            {tasks.map((task, i) => (
-              <div key={i} className="flex items-center gap-3 px-4 py-3.5 rounded-2xl" style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}>
-                <div className="w-4 h-4 rounded shrink-0" style={{ border: "1.5px solid rgba(255,255,255,0.2)" }} />
-                <span className="flex-1 text-sm font-medium" style={{ color: "var(--text-2)" }}>{task.text}</span>
-                <span className="text-xs shrink-0 truncate max-w-32" style={{ color: "var(--text-5)" }}>{task.project}</span>
-                {task.urgent && (
-                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0" style={{ background: "rgba(245,158,11,0.18)", color: "#F59E0B" }}>urgent</span>
-                )}
-              </div>
-            ))}
-          </div>
-        </section>
-      )}
-
+      {/* Today's Tasks removed */}
       {/* ── Active Projects grid ── */}
       {activeProjects.length > 0 && (
         <section className="px-4 md:px-8 mb-8">
@@ -1008,6 +1028,51 @@ function MyProjectsView({ userId, onSwitchToHire }: { userId: string; onSwitchTo
                 </div>
               );
             })}
+          </div>
+        </section>
+      )}
+
+      {/* ── Commissions You've Accepted (artist side) ── */}
+      {acceptedCommissions.length > 0 && (
+        <section className="px-4 md:px-8 mb-8">
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-[10px] font-bold tracking-widest" style={{ color: "var(--text-5)" }}>COMMISSIONS ACCEPTED</p>
+            <span className="text-[11px] font-semibold px-2.5 py-1 rounded-full" style={{ background: "rgba(16,185,129,0.12)", color: "#34D399" }}>
+              {acceptedCommissions.length} active
+            </span>
+          </div>
+          <div className="flex flex-col gap-3">
+            {acceptedCommissions.map(r => (
+              <div
+                key={r.id}
+                onClick={() => router.push(`/hiring/projects/${r.id}`)}
+                className="p-4 rounded-2xl flex items-center gap-3 cursor-pointer transition-all hover:scale-[1.01]"
+                style={{ background: "var(--bg-card)", border: "1px solid rgba(16,185,129,0.25)" }}
+                onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = "rgba(16,185,129,0.5)"; }}
+                onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = "rgba(16,185,129,0.25)"; }}
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={r.client_avatar ?? `https://i.pravatar.cc/48?u=${r.client_id}`}
+                  alt={r.client_name ?? "Client"}
+                  className="w-10 h-10 rounded-full object-cover shrink-0"
+                />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-bold truncate" style={{ color: "var(--text-1)" }}>{r.project_title}</p>
+                  <p className="text-xs" style={{ color: "var(--text-5)" }}>
+                    from {r.client_name ?? "a client"}{r.deadline ? ` · Due ${new Date(r.deadline).toLocaleDateString("en-US", { month: "short", day: "numeric" })}` : ""}
+                  </p>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <span className="text-[11px] font-semibold px-2.5 py-1 rounded-full" style={{ background: "rgba(16,185,129,0.15)", color: "#34D399" }}>
+                    In progress
+                  </span>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color: "var(--text-5)" }}>
+                    <polyline points="9 18 15 12 9 6" />
+                  </svg>
+                </div>
+              </div>
+            ))}
           </div>
         </section>
       )}
@@ -1120,9 +1185,16 @@ export default function HiringPage() {
   const [search, setSearch]                 = useState("");
   const [artists, setArtists]               = useState<ArtistProfile[]>([]);
   const [loadingArtists, setLoadingArtists] = useState(true);
-  const [activeCategory, setActiveCategory] = useState("All");
-  const [hireTarget, setHireTarget]         = useState<ArtistProfile | null>(null);
-  const [browsePage, setBrowsePage]         = useState(0);
+  const [activeCategory, setActiveCategory]       = useState("All");
+  const [activeSubcategory, setActiveSubcategory] = useState("");
+  const [hireTarget, setHireTarget]               = useState<ArtistProfile | null>(null);
+  const [browsePage, setBrowsePage]               = useState(0);
+
+  function selectCategory(cat: string) {
+    setActiveCategory(cat);
+    setActiveSubcategory("");
+    setBrowsePage(0);
+  }
 
   useEffect(() => {
     setLoadingArtists(true);
@@ -1138,14 +1210,35 @@ export default function HiringPage() {
     const term        = search.toLowerCase();
     const displayName = (a.display_name ?? "").toLowerCase();
     const username    = (a.username ?? "").toLowerCase();
-    const tag         = (a.tag ?? "").toLowerCase();
+    const tags        = (a.tag ?? "").split(",").map(t => t.trim().toLowerCase());
+    const tagFull     = tags.join(" ");
+    const bio         = (a.bio ?? "").toLowerCase();
+
     if (search &&
       !displayName.includes(term) &&
       !username.includes(term) &&
-      !tag.includes(term) &&
+      !tagFull.includes(term) &&
+      !bio.includes(term) &&
       !(a.location ?? "").toLowerCase().includes(term)
     ) return false;
-    if (activeCategory !== "All" && !tag.includes(activeCategory.toLowerCase())) return false;
+
+    if (activeCategory !== "All") {
+      const catLower = activeCategory.toLowerCase();
+      const subLowers = (SUBCATEGORIES[activeCategory] ?? []).map(s => s.toLowerCase());
+      // match direct tag, OR any subcategory keyword, OR category includes the tag
+      const matchesCat = tags.some(t =>
+        t.includes(catLower) ||
+        catLower.includes(t) ||
+        subLowers.some(s => t.includes(s) || s.includes(t))
+      );
+      if (!matchesCat) return false;
+    }
+
+    if (activeSubcategory) {
+      const subLower = activeSubcategory.toLowerCase();
+      if (!tagFull.includes(subLower) && !bio.includes(subLower)) return false;
+    }
+
     return true;
   });
 
@@ -1226,8 +1319,19 @@ export default function HiringPage() {
           <MyProjectsView userId={user.id} onSwitchToHire={() => switchTab("hire")} />
         )}
 
-        {/* Hire Artists tab */}
-        {tab === "hire" && (
+        {/* Hire Artists tab — commission split view */}
+        {tab === "hire" && hireTarget && (
+          <div className="flex-1 flex" style={{ minHeight: 0, height: "calc(100vh - 57px)", overflow: "hidden" }}>
+            <HireModal
+              artist={toArtist(hireTarget)}
+              artistClerkId={hireTarget.clerk_id}
+              onClose={() => setHireTarget(null)}
+            />
+          </div>
+        )}
+
+        {/* Hire Artists tab — browse grid */}
+        {tab === "hire" && !hireTarget && (
           <main className="flex-1 pb-24 lg:pb-8">
 
             {/* ── Hero section ── */}
@@ -1278,13 +1382,13 @@ export default function HiringPage() {
                 )}
               </div>
 
-              {/* Category chips — hidden while searching */}
+              {/* Category chips — shown on home screen */}
               {!search && activeCategory === "All" && (
                 <div className="flex flex-wrap justify-center gap-2 mb-3">
                   {["Portrait", "Illustration", "Painting", "Photography", "Digital Art", "Sculpture", "Concept Art"].map(cat => (
                     <button
                       key={cat}
-                      onClick={() => setActiveCategory(cat)}
+                      onClick={() => selectCategory(cat)}
                       className="px-4 py-1.5 rounded-full text-xs font-medium transition-all hover:opacity-80"
                       style={{
                         background: "var(--bg-subtle)",
@@ -1295,6 +1399,59 @@ export default function HiringPage() {
                       {cat}
                     </button>
                   ))}
+                </div>
+              )}
+
+              {/* Active category + subcategory chips */}
+              {activeCategory !== "All" && (
+                <div className="w-full max-w-2xl flex flex-col gap-2.5 mb-3">
+                  {/* Active category pill + clear */}
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <button
+                      onClick={() => selectCategory("All")}
+                      className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-bold text-white transition-all hover:opacity-85"
+                      style={{ background: "linear-gradient(135deg,#361E7B,#7C5BF5)" }}
+                    >
+                      {activeCategory}
+                      <X size={11} />
+                    </button>
+                    {activeSubcategory && (
+                      <>
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ color: "var(--text-6)" }}><polyline points="9 18 15 12 9 6"/></svg>
+                        <button
+                          onClick={() => setActiveSubcategory("")}
+                          className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all hover:opacity-85"
+                          style={{ background: "rgba(124,91,245,0.15)", color: "#9B7CF5", border: "1px solid rgba(124,91,245,0.4)" }}
+                        >
+                          {activeSubcategory}
+                          <X size={11} />
+                        </button>
+                      </>
+                    )}
+                  </div>
+
+                  {/* Subcategory chips row */}
+                  {SUBCATEGORIES[activeCategory] && (
+                    <div className="flex gap-2 overflow-x-auto pb-1" style={{ scrollbarWidth: "none" }}>
+                      {SUBCATEGORIES[activeCategory].map(sub => {
+                        const isActive = activeSubcategory === sub;
+                        return (
+                          <button
+                            key={sub}
+                            onClick={() => setActiveSubcategory(isActive ? "" : sub)}
+                            className="shrink-0 px-3.5 py-1.5 rounded-full text-xs font-medium transition-all hover:opacity-85"
+                            style={{
+                              background: isActive ? "rgba(124,91,245,0.18)" : "var(--bg-subtle)",
+                              border: `1px solid ${isActive ? "rgba(124,91,245,0.5)" : "var(--border)"}`,
+                              color: isActive ? "#9B7CF5" : "var(--text-4)",
+                            }}
+                          >
+                            {sub}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -1354,7 +1511,7 @@ export default function HiringPage() {
                         <ArtistCard key={a.clerk_id} a={a} price={estimatePrice(a)} onHire={() => requireAuth(() => setHireTarget(a))} />
                       ))}
                       {catArtists.length >= 5 && (
-                        <ViewAllCard category={category} onViewAll={() => setActiveCategory(category)} />
+                        <ViewAllCard category={category} onViewAll={() => selectCategory(category)} />
                       )}
                     </div>
                   </section>
@@ -1441,7 +1598,11 @@ export default function HiringPage() {
               <section className="px-4 md:px-8 pt-6 pb-10">
                 <div className="flex items-baseline gap-2 mb-5">
                   <h3 className="text-base font-bold" style={{ color: "var(--text-1)" }}>
-                    {activeCategory === "All" ? "Search Results" : `${activeCategory} Artists`}
+                    {search
+                      ? "Search Results"
+                      : activeSubcategory
+                        ? `${activeSubcategory} Artists`
+                        : `${activeCategory} Artists`}
                   </h3>
                   <span className="text-xs font-semibold px-2 py-0.5 rounded-full" style={{ background: "rgba(124,91,245,0.12)", color: "#9B7CF5" }}>
                     {filtered.length}
@@ -1469,15 +1630,6 @@ export default function HiringPage() {
       </div>
 
       <BottomNav />
-
-      {/* Hire modal */}
-      {hireTarget && (
-        <HireModal
-          artist={toArtist(hireTarget)}
-          artistClerkId={hireTarget.clerk_id}
-          onClose={() => setHireTarget(null)}
-        />
-      )}
     </div>
   );
 }
