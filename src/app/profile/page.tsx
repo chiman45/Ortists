@@ -10,7 +10,7 @@ import PostModal from "@/components/ui/PostModal";
 import ShareModal from "@/components/ui/ShareModal";
 import { useUser } from "@clerk/nextjs";
 import {
-  Star, Heart, Bookmark, Users, TrendingUp, LayoutGrid,
+  Star, Heart, Bookmark, Users, LayoutGrid,
   Store, Briefcase, UserCircle, Eye, MapPin, Pencil, Zap,
   CheckCircle2, SlidersHorizontal, Plus, Pause, Copy, Trash2,
   Clock, X, Check, Share2, Camera, Loader2,
@@ -723,7 +723,7 @@ export default function ProfilePage() {
 
           {/* ── Right sidebar ── */}
           <div className="hidden xl:flex flex-col gap-4 w-72 shrink-0 px-4 py-6"
-            style={{ borderLeft: "1px solid var(--border)" }}>
+            style={{ borderLeft: "1px solid var(--border)", position: "sticky", top: 72, alignSelf: "flex-start", maxHeight: "calc(100vh - 88px)", overflowY: "auto", scrollbarWidth: "none" }}>
 
             {/* Availability */}
             <div className="rounded-2xl p-4" style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}>
@@ -744,53 +744,6 @@ export default function ProfilePage() {
                   <span className="font-semibold" style={{ color: "var(--text-2)" }}>{value}</span>
                 </div>
               ))}
-            </div>
-
-            {/* Featured Work */}
-            <div className="rounded-2xl p-4" style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}>
-              <div className="flex items-center gap-2 mb-3">
-                <TrendingUp size={14} style={{ color: "#9B7CF5" }} />
-                <p className="text-sm font-semibold" style={{ color: "var(--text-1)" }}>Featured Work</p>
-              </div>
-              {dbPosts.length === 0 ? (
-                <p className="text-xs" style={{ color: "var(--text-5)" }}>No posts yet — create your first!</p>
-              ) : (
-                <div className="flex flex-col gap-1">
-                  {dbPosts.slice(0, 3).map(p => (
-                    <Link key={p.id} href={`/feed/${p.id}`}
-                      className="flex items-center justify-between py-2 rounded-lg px-2 transition-colors"
-                      style={{ borderBottom: "1px solid var(--border)" }}
-                      onMouseEnter={e => ((e.currentTarget as HTMLElement).style.background = "var(--bg-hover)")}
-                      onMouseLeave={e => ((e.currentTarget as HTMLElement).style.background = "transparent")}>
-                      <span className="text-xs font-medium truncate flex-1" style={{ color: "var(--text-2)" }}>{p.title}</span>
-                      <span className="text-[10px] shrink-0 ml-2" style={{ color: "var(--text-5)" }}>♥ {p.likes_count}</span>
-                    </Link>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* Recent Activity */}
-            <div className="rounded-2xl p-4" style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}>
-              <div className="flex items-center gap-2 mb-3">
-                <Clock size={14} style={{ color: "#9B7CF5" }} />
-                <p className="text-sm font-semibold" style={{ color: "var(--text-1)" }}>Recent Activity</p>
-              </div>
-              {recentActivity.length === 0 ? (
-                <p className="text-xs" style={{ color: "var(--text-5)" }}>No activity yet</p>
-              ) : (
-                <div className="flex flex-col gap-3">
-                  {recentActivity.map(({ text, time, color }, i) => (
-                    <div key={i} className="flex items-start gap-2">
-                      <span className="w-1.5 h-1.5 rounded-full mt-1.5 shrink-0" style={{ background: color }} />
-                      <div>
-                        <p className="text-xs" style={{ color: "var(--text-3)" }}>{text}</p>
-                        <p className="text-[10px]" style={{ color: "var(--text-5)" }}>{time}</p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
             </div>
 
             {/* Recommended Artists */}

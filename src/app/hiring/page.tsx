@@ -7,7 +7,7 @@ import type { Artist } from "@/lib/hiringData";
 import { useUser, UserButton } from "@clerk/nextjs";
 import {
   ArrowRight, Briefcase, Clock,
-  Search, Star, X,
+  Search, SlidersHorizontal, Star, X,
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -80,56 +80,70 @@ function getDeliveryCategory(a: ArtistProfile): "5-7" | "7+" {
 }
 
 
-const ORDERED_CATEGORIES = [
-  "Illustration", "Photography", "Digital Art", "Painting",
-  "Portrait", "Concept Art", "Sculpture",
+const MAIN_CATEGORIES = [
+  "Fine Arts", "Digital Arts", "Sculpture", "Tribal & Indigenous Arts",
+  "Wood Arts", "Printmaking", "Resin Arts", "Print Art",
 ];
+
 const CATEGORY_DESC: Record<string, string> = {
-  "Illustration":  "Characters, concepts & visual storytelling",
-  "Photography":   "Editorial, portrait & fine art photography",
-  "Digital Art":   "Concept art, matte painting & digital design",
-  "Painting":      "Oil, watercolor & acrylic fine art",
-  "Portrait":      "Portrait & figurative art commission",
-  "Concept Art":   "Game, film & fantasy concept creation",
-  "Sculpture":     "3D, ceramics & mixed media sculpture",
+  "Fine Arts":                "Painting, drawing, illustration & traditional media",
+  "Digital Arts":             "Concept art, matte painting & digital design",
+  "Sculpture":                "3D, ceramics, metal & mixed media sculpture",
+  "Tribal & Indigenous Arts": "Folk traditions, tribal patterns & indigenous craft",
+  "Wood Arts":                "Carving, burning, marquetry & wood craft",
+  "Printmaking":              "Screen printing, etching, linocut & relief",
+  "Resin Arts":               "Epoxy pours, resin casting & geode art",
+  "Print Art":                "Fine art prints, photography & archival editions",
 };
 
 const SUBCATEGORIES: Record<string, string[]> = {
-  "Illustration": [
-    "Character Illustration", "Editorial Illustration", "Children's Book",
-    "Book Cover", "Storyboard", "Comics & Manga", "Fantasy Illustration",
-    "Scientific Illustration", "Fashion Illustration", "Botanical Art",
+  "Fine Arts": [
+    "Painting", "Drawing", "Sketching", "Illustration", "Watercolor",
+    "Oil Painting", "Acrylic Painting", "Gouache", "Ink Art", "Pastel Art",
+    "Charcoal Art", "Portrait Art", "Landscape Art", "Abstract Art",
+    "Contemporary Art", "Realism", "Hyperrealism", "Surrealism",
+    "Expressionism", "Figurative Art", "Miniature Art", "Religious Art",
+    "Conceptual Art", "Mixed Media Art", "Mural Art", "Fresco Art",
+    "Encaustic", "Botanical Art", "Fashion Illustration",
   ],
-  "Photography": [
-    "Portrait Photography", "Landscape Photography", "Street Photography",
-    "Product Photography", "Event Photography", "Fine Art Photography",
-    "Documentary", "Wildlife Photography", "Architecture Photography",
-  ],
-  "Digital Art": [
+  "Digital Arts": [
     "Digital Painting", "Digital Illustration", "Matte Painting",
     "AI Art", "NFT Art", "Pixel Art", "3D Art", "Motion Graphics",
-    "UI / UX Design", "Game Art",
-  ],
-  "Painting": [
-    "Oil Painting", "Watercolor", "Acrylic", "Gouache", "Ink Wash",
-    "Madhubani", "Pattachitra", "Gond Art", "Warli Art", "Tanjore Painting",
-    "Miniature Painting", "Folk Painting", "Encaustic",
-  ],
-  "Portrait": [
-    "Realistic Portrait", "Stylized Portrait", "Caricature",
-    "Pet Portrait", "Family Portrait", "Figure Drawing", "Self Portrait",
-  ],
-  "Concept Art": [
-    "Character Design", "Environment Design", "Creature Design",
-    "Vehicle Design", "Prop Design", "Film Concept Art", "Storyboard",
-    "World Building",
+    "UI / UX Design", "Game Art", "Concept Art", "Character Design",
+    "Environment Design", "Creature Design", "Storyboard",
   ],
   "Sculpture": [
-    "Clay Sculpture", "Bronze Casting", "Wood Sculpture", "Stone Carving",
+    "Clay Sculpture", "Bronze Casting", "Stone Carving",
     "Ceramic", "Glasswork", "Metal Art", "Mixed Media Sculpture",
-    "Printmaking", "Screen Printing", "Etching", "Lithography",
+    "Installation Art", "Paper Sculpture", "Wire Art",
+  ],
+  "Tribal & Indigenous Arts": [
+    "Madhubani", "Pattachitra", "Gond Art", "Warli Art", "Tanjore Painting",
+    "Folk Painting", "Tribal Textile", "Indigenous Weaving", "Kalamkari",
+    "Phad Painting", "Dokra", "Cave Art Style",
+  ],
+  "Wood Arts": [
+    "Wood Carving", "Wood Burning", "Marquetry", "Wood Sculpture",
+    "Woodblock Print", "Intarsia", "Relief Carving", "Whittling",
+  ],
+  "Printmaking": [
+    "Screen Printing", "Etching", "Lithography", "Linocut",
+    "Woodblock", "Relief Printing", "Monoprint", "Risograph",
+    "Drypoint", "Aquatint",
+  ],
+  "Resin Arts": [
+    "Resin Pouring", "Epoxy Art", "Resin Jewelry", "3D Resin Casting",
+    "Resin Geode", "Ocean Pour", "Resin Coasters", "UV Resin",
+  ],
+  "Print Art": [
+    "Fine Art Print", "Photography Print", "Digital Print",
+    "Archival Print", "Limited Edition Print", "Poster Art",
+    "Giclée", "Cyanotype",
   ],
 };
+
+// Backward-compatible alias used in categoryGroups
+const ORDERED_CATEGORIES = MAIN_CATEGORIES;
 
 
 function toArtist(a: ArtistProfile): Artist {
@@ -1225,10 +1239,8 @@ export default function HiringPage() {
     if (activeCategory !== "All") {
       const catLower = activeCategory.toLowerCase();
       const subLowers = (SUBCATEGORIES[activeCategory] ?? []).map(s => s.toLowerCase());
-      // match direct tag, OR any subcategory keyword, OR category includes the tag
       const matchesCat = tags.some(t =>
-        t.includes(catLower) ||
-        catLower.includes(t) ||
+        t.includes(catLower) || catLower.includes(t) ||
         subLowers.some(s => t.includes(s) || s.includes(t))
       );
       if (!matchesCat) return false;
@@ -1236,7 +1248,7 @@ export default function HiringPage() {
 
     if (activeSubcategory) {
       const subLower = activeSubcategory.toLowerCase();
-      if (!tagFull.includes(subLower) && !bio.includes(subLower)) return false;
+      if (!tags.some(t => t.includes(subLower) || subLower.includes(t)) && !bio.includes(subLower)) return false;
     }
 
     return true;
@@ -1248,7 +1260,12 @@ export default function HiringPage() {
   for (const cat of ORDERED_CATEGORIES) {
     const catArtists = filtered.filter(a => {
       const tags = (a.tag ?? "").split(",").map(t => t.trim().toLowerCase());
-      return tags.some(t => t.includes(cat.toLowerCase()) || cat.toLowerCase().includes(t));
+      const catLower = cat.toLowerCase();
+      const subLowers = (SUBCATEGORIES[cat] ?? []).map(s => s.toLowerCase());
+      return tags.some(t =>
+        t.includes(catLower) || catLower.includes(t) ||
+        subLowers.some(s => t.includes(s) || s.includes(t))
+      );
     });
     if (catArtists.length > 0) {
       catArtists.forEach(a => _usedIds.add(a.clerk_id));
@@ -1338,36 +1355,32 @@ export default function HiringPage() {
             <div
               className="px-4 md:px-8 flex flex-col items-center text-center"
               style={{
-                paddingTop: search || activeCategory !== "All" ? "24px" : "48px",
-                paddingBottom: search || activeCategory !== "All" ? "16px" : "32px",
+                paddingTop: "48px",
+                paddingBottom: "28px",
                 background: "radial-gradient(ellipse 60% 60% at 50% 0%, rgba(124,91,245,0.12) 0%, transparent 70%)",
               }}
             >
-              {/* Headline — hidden while searching */}
-              {!search && activeCategory === "All" && (
-                <>
-                  <h1 className="text-3xl md:text-4xl font-bold mb-3 leading-tight">
-                    <span style={{ color: "var(--text-1)" }}>Find your next </span>
-                    <span style={{ background: "linear-gradient(90deg,#9B7CF5,#7C5BF5)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
-                      creative collaborator
-                    </span>
-                  </h1>
-                  <p className="text-sm mb-7 max-w-md" style={{ color: "#9B7CF5" }}>
-                    Discover artists across every medium and commission work that moves people.
-                  </p>
-                </>
-              )}
+              {/* Headline */}
+              <h1 className="text-3xl md:text-4xl font-bold mb-2 leading-tight">
+                <span style={{ color: "var(--text-1)" }}>Find your next </span>
+                <span style={{ background: "linear-gradient(90deg,#9B7CF5,#7C5BF5)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
+                  creative collaborator
+                </span>
+              </h1>
+              <p className="text-sm mb-6 max-w-md" style={{ color: "var(--text-5)" }}>
+                Commission artists across every tradition, medium and discipline.
+              </p>
 
-              {/* Search bar — always visible */}
+              {/* Search bar with Filters button */}
               <div
-                className="w-full max-w-2xl flex items-center gap-3 px-4 py-3 rounded-2xl mb-4"
+                className="w-full max-w-2xl flex items-center gap-3 px-4 py-3 rounded-2xl mb-5"
                 style={{ background: "var(--bg-subtle)", border: "1px solid var(--border)", boxShadow: "0 4px 24px rgba(0,0,0,0.2)" }}
               >
                 <Search size={16} style={{ color: "var(--text-5)", flexShrink: 0 }} />
                 <input
                   value={search}
                   onChange={e => setSearch(e.target.value)}
-                  placeholder="Search artists, styles, mediums or locations..."
+                  placeholder="Search artists, styles, traditions or locations..."
                   className="flex-1 bg-transparent text-sm outline-none"
                   style={{ color: "var(--text-1)" }}
                 />
@@ -1380,79 +1393,92 @@ export default function HiringPage() {
                     <X size={14} />
                   </button>
                 )}
+                <div style={{ width: 1, height: 18, background: "var(--border)", flexShrink: 0 }} />
+                <button
+                  className="flex items-center gap-1.5 text-xs font-semibold shrink-0 transition-opacity hover:opacity-70"
+                  style={{ color: "var(--text-4)" }}
+                >
+                  <SlidersHorizontal size={14} />
+                  Filters
+                </button>
               </div>
 
-              {/* Category chips — shown on home screen */}
-              {!search && activeCategory === "All" && (
-                <div className="flex flex-wrap justify-center gap-2 mb-3">
-                  {["Portrait", "Illustration", "Painting", "Photography", "Digital Art", "Sculpture", "Concept Art"].map(cat => (
+              {/* Category pill row — always visible */}
+              <div className="w-full max-w-3xl flex gap-2 overflow-x-auto pb-1 mb-3" style={{ scrollbarWidth: "none" }}>
+                {MAIN_CATEGORIES.map(cat => {
+                  const isActive = activeCategory === cat;
+                  return (
                     <button
                       key={cat}
-                      onClick={() => selectCategory(cat)}
-                      className="px-4 py-1.5 rounded-full text-xs font-medium transition-all hover:opacity-80"
+                      onClick={() => selectCategory(isActive ? "All" : cat)}
+                      className="shrink-0 px-4 py-2 rounded-full text-xs font-semibold transition-all hover:opacity-85"
                       style={{
-                        background: "var(--bg-subtle)",
-                        border: "1px solid var(--border)",
-                        color: "var(--text-3)",
+                        background: isActive ? "linear-gradient(135deg,#361E7B,#7C5BF5)" : "var(--bg-subtle)",
+                        border: `1px solid ${isActive ? "transparent" : "var(--border)"}`,
+                        color: isActive ? "#fff" : "var(--text-3)",
+                        boxShadow: isActive ? "0 2px 12px rgba(124,91,245,0.35)" : "none",
                       }}
                     >
                       {cat}
                     </button>
-                  ))}
+                  );
+                })}
+              </div>
+
+              {/* Subcategory pill row — shown when category is active */}
+              {activeCategory !== "All" && SUBCATEGORIES[activeCategory] && (
+                <div className="w-full max-w-3xl flex gap-2 overflow-x-auto pb-1 mb-2" style={{ scrollbarWidth: "none" }}>
+                  <button
+                    onClick={() => selectCategory("All")}
+                    className="shrink-0 flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-bold transition-all hover:opacity-80"
+                    style={{ background: "var(--bg-subtle)", border: "1px solid var(--border)", color: "var(--text-3)" }}
+                  >
+                    <X size={11} /> Clear
+                  </button>
+                  {SUBCATEGORIES[activeCategory].map(sub => {
+                    const isActive = activeSubcategory === sub;
+                    return (
+                      <button
+                        key={sub}
+                        onClick={() => setActiveSubcategory(isActive ? "" : sub)}
+                        className="shrink-0 px-3.5 py-1.5 rounded-full text-xs font-medium transition-all hover:opacity-85"
+                        style={{
+                          background: isActive ? "rgba(124,91,245,0.18)" : "var(--bg-subtle)",
+                          border: `1px solid ${isActive ? "rgba(124,91,245,0.5)" : "var(--border)"}`,
+                          color: isActive ? "#9B7CF5" : "var(--text-4)",
+                        }}
+                      >
+                        {sub}
+                      </button>
+                    );
+                  })}
                 </div>
               )}
 
-              {/* Active category + subcategory chips */}
+              {/* Breadcrumb */}
               {activeCategory !== "All" && (
-                <div className="w-full max-w-2xl flex flex-col gap-2.5 mb-3">
-                  {/* Active category pill + clear */}
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <button
-                      onClick={() => selectCategory("All")}
-                      className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-bold text-white transition-all hover:opacity-85"
-                      style={{ background: "linear-gradient(135deg,#361E7B,#7C5BF5)" }}
-                    >
-                      {activeCategory}
-                      <X size={11} />
-                    </button>
-                    {activeSubcategory && (
-                      <>
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ color: "var(--text-6)" }}><polyline points="9 18 15 12 9 6"/></svg>
-                        <button
-                          onClick={() => setActiveSubcategory("")}
-                          className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all hover:opacity-85"
-                          style={{ background: "rgba(124,91,245,0.15)", color: "#9B7CF5", border: "1px solid rgba(124,91,245,0.4)" }}
-                        >
-                          {activeSubcategory}
-                          <X size={11} />
-                        </button>
-                      </>
-                    )}
-                  </div>
+                <p className="text-sm font-semibold mb-1" style={{ color: "#9B7CF5" }}>
+                  {activeCategory}{activeSubcategory ? ` · ${activeSubcategory}` : ""}
+                </p>
+              )}
 
-                  {/* Subcategory chips row */}
-                  {SUBCATEGORIES[activeCategory] && (
-                    <div className="flex gap-2 overflow-x-auto pb-1" style={{ scrollbarWidth: "none" }}>
-                      {SUBCATEGORIES[activeCategory].map(sub => {
-                        const isActive = activeSubcategory === sub;
-                        return (
-                          <button
-                            key={sub}
-                            onClick={() => setActiveSubcategory(isActive ? "" : sub)}
-                            className="shrink-0 px-3.5 py-1.5 rounded-full text-xs font-medium transition-all hover:opacity-85"
-                            style={{
-                              background: isActive ? "rgba(124,91,245,0.18)" : "var(--bg-subtle)",
-                              border: `1px solid ${isActive ? "rgba(124,91,245,0.5)" : "var(--border)"}`,
-                              color: isActive ? "#9B7CF5" : "var(--text-4)",
-                            }}
-                          >
-                            {sub}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
+              {/* Trending */}
+              {!search && activeCategory === "All" && (
+                <p className="text-xs mt-1" style={{ color: "var(--text-5)" }}>
+                  Trending:{" "}
+                  {["Madhubani", "Linocut prints", "Kinetic sculpture", "Concept art"].map((t, i, arr) => (
+                    <span key={t}>
+                      <button
+                        onClick={() => setSearch(t)}
+                        className="transition-opacity hover:opacity-70"
+                        style={{ color: "#9B7CF5" }}
+                      >
+                        {t}
+                      </button>
+                      {i < arr.length - 1 && <span style={{ color: "var(--text-6)" }}> · </span>}
+                    </span>
+                  ))}
+                </p>
               )}
             </div>
 
