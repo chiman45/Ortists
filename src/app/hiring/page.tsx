@@ -1297,19 +1297,11 @@ export default function HiringPage() {
             borderBottom: "1px solid var(--border)",
           }}
         >
-          {/* Top row: Logo left | Tabs centered */}
-          <div className="relative flex items-center px-4 md:px-8 py-3">
-            {/* Ortist logo — left anchor */}
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src="/login-image/ortists logo1.png"
-              alt="Ortist"
-              style={{ height: 30, objectFit: "contain", flexShrink: 0 }}
-            />
-
-            {/* Tab pills — absolutely centered */}
+          {/* Top row: Tabs centered */}
+          <div className="flex items-center justify-center px-4 md:px-8 py-3">
+            {/* Tab pills */}
             <div
-              className="absolute left-1/2 -translate-x-1/2 flex p-1 rounded-full"
+              className="flex p-1 rounded-full"
               style={{ background: "var(--bg-subtle)", border: "1px solid var(--border)" }}
             >
               {(["hire", "projects"] as const).map(t => (

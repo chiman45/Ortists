@@ -184,17 +184,7 @@ export default function MainHeader({ children }: { children?: React.ReactNode })
     >
       {children && <div className="flex-1 min-w-0">{children}</div>}
 
-      <div className={`flex items-center gap-2 ${children ? "" : "ml-auto"}`}>
-        {/* Ortist logo — top-right on every page */}
-        <Link href="/feed" className="flex items-center mr-1" aria-label="Home">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src="/login-image/ortists logo1.png"
-            alt="Ortist"
-            style={{ height: 28, objectFit: "contain" }}
-          />
-        </Link>
-
+      <div className="flex items-center gap-2 ml-auto">
         <Link
           href="/settings"
           className="p-2 rounded-xl transition-opacity hover:opacity-70 flex"

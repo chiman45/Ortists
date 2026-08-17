@@ -80,26 +80,42 @@ export default function Sidebar() {
         borderRight: "1px solid var(--border)",
       }}
     >
-      {/* Toggle row */}
-      <div
-        className="flex items-center px-4 py-5 shrink-0"
-        style={{ justifyContent: expanded ? "space-between" : "center" }}
-      >
-        {expanded && (
-          <span className="text-[16px] font-bold tracking-tight" style={{ color: "var(--text-1)" }}>
-            Ortist
-          </span>
-        )}
-        <button
-          onClick={() => setExpanded(v => !v)}
-          className="flex flex-col gap-1.5 p-1.5 rounded-lg transition-opacity hover:opacity-60 shrink-0"
-          aria-label={expanded ? "Collapse sidebar" : "Expand sidebar"}
-        >
-          <span className="block w-5 h-0.5 rounded-full" style={{ background: "var(--text-4)" }} />
-          <span className="block w-5 h-0.5 rounded-full" style={{ background: "var(--text-4)" }} />
-          <span className="block w-5 h-0.5 rounded-full" style={{ background: "var(--text-4)" }} />
-        </button>
-      </div>
+      {/* Logo + toggle */}
+      {expanded ? (
+        <div className="flex items-center justify-between px-3 py-4 shrink-0">
+          <Link href="/feed" className="flex items-center gap-2.5" aria-label="Home">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/logo.jpeg"
+              alt="Ortist"
+              style={{ height: 42, width: 42, objectFit: "cover", borderRadius: 11 }}
+            />
+            <span className="text-[16px] font-bold tracking-tight" style={{ color: "var(--text-1)" }}>
+              Ortist
+            </span>
+          </Link>
+          <button
+            onClick={() => setExpanded(v => !v)}
+            className="flex flex-col gap-1.5 p-1.5 rounded-lg transition-opacity hover:opacity-60 shrink-0"
+            aria-label="Collapse sidebar"
+          >
+            <span className="block w-5 h-0.5 rounded-full" style={{ background: "var(--text-4)" }} />
+            <span className="block w-5 h-0.5 rounded-full" style={{ background: "var(--text-4)" }} />
+            <span className="block w-5 h-0.5 rounded-full" style={{ background: "var(--text-4)" }} />
+          </button>
+        </div>
+      ) : (
+        <div className="flex flex-col items-center py-4 shrink-0">
+          <Link href="/feed" aria-label="Home">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/logo.jpeg"
+              alt="Ortist"
+              style={{ height: 44, width: 44, objectFit: "cover", borderRadius: 12 }}
+            />
+          </Link>
+        </div>
+      )}
 
       {/* Create button */}
       <div className="px-2 pb-2 shrink-0">
