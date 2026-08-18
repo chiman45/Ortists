@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Eye, Heart, Loader2, MessageCircle, Send, Trash2, X } from "lucide-react";
+import { Eye, Heart, Loader2, MessageCircle, Pause, Play, Send, Trash2, X } from "lucide-react";
 
 interface StoryFrame { image: string; duration: number }
 export interface StoryItem {
@@ -51,8 +51,9 @@ export default function StoryViewer({ stories, startIndex, onClose, currentUserI
   const [storyIdx, setStoryIdx]     = useState(startIndex);
   const [frameIdx, setFrameIdx]     = useState(0);
   const [progress, setProgress]     = useState(0);
-  const [confirming, setConfirming] = useState(false);
-  const [deleting, setDeleting]     = useState(false);
+  const [confirming, setConfirming]   = useState(false);
+  const [deleting, setDeleting]       = useState(false);
+  const [userPaused, setUserPaused]   = useState(false);
 
   // Viewer sheet
   const [viewerSheet, setViewerSheet]         = useState(false);
@@ -84,7 +85,7 @@ export default function StoryViewer({ stories, startIndex, onClose, currentUserI
   const total          = story?.frames.length ?? 0;
   const isOwn          = !!currentUserId && story?.id === currentUserId;
   const currentStoryId = story?.storyIds?.[frameIdx];
-  const paused         = confirming || viewerSheet || commentSheet || composing;
+  const paused         = confirming || viewerSheet || commentSheet || composing || userPaused;
 
   // Close viewer when story disappears
   useEffect(() => {
@@ -200,6 +201,7 @@ export default function StoryViewer({ stories, startIndex, onClose, currentUserI
   }
 
   function advance() {
+    setUserPaused(false);
     if (frameIdx < total - 1) {
       setFrameIdx(f => f + 1); setProgress(0);
     } else if (storyIdx < stories.length - 1) {
@@ -210,6 +212,7 @@ export default function StoryViewer({ stories, startIndex, onClose, currentUserI
   }
 
   function goBack() {
+    setUserPaused(false);
     if (frameIdx > 0) {
       setFrameIdx(f => f - 1); setProgress(0);
     } else if (storyIdx > 0) {
@@ -272,6 +275,7 @@ export default function StoryViewer({ stories, startIndex, onClose, currentUserI
       }
       if (e.key === "ArrowRight") advance();
       if (e.key === "ArrowLeft")  goBack();
+      if (e.key === " ") { e.preventDefault(); setUserPaused(v => !v); }
       if (e.key === "Escape")     onClose();
     }
     window.addEventListener("keydown", onKey);
@@ -340,6 +344,18 @@ export default function StoryViewer({ stories, startIndex, onClose, currentUserI
               <Trash2 size={15} color="#fca5a5" />
             </button>
           )}
+
+          {/* Pause / Play */}
+          <button
+            onClick={e => { e.stopPropagation(); setUserPaused(v => !v); }}
+            className="w-9 h-9 rounded-full flex items-center justify-center shrink-0 transition-opacity hover:opacity-80"
+            style={{ background: "rgba(255,255,255,0.2)", backdropFilter: "blur(8px)" }}
+            title={userPaused ? "Play (Space)" : "Pause (Space)"}
+          >
+            {userPaused
+              ? <Play  size={15} color="#fff" fill="#fff" />
+              : <Pause size={15} color="#fff" fill="#fff" />}
+          </button>
 
           <button
             onClick={onClose}
