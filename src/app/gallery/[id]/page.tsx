@@ -6,20 +6,53 @@ import Sidebar from "@/components/layout/Sidebar";
 import ArtworkCard from "@/components/gallery/ArtworkCard";
 import { GalleryListings } from "@/lib/galleryData";
 import type { GalleryListing } from "@/lib/types";
-import { ArrowLeft, Bookmark, Clock, Heart, MessageCircle, Package, Share2, X } from "lucide-react";
+import { ArrowLeft, Bookmark, Clock, Heart, Loader2, MessageCircle, Package, Share2, X } from "lucide-react";
 import Link from "next/link";
 import { use, useState } from "react";
+
+// Razorpay browser SDK type (loaded dynamically from CDN)
+declare global {
+  interface Window {
+    Razorpay: new (options: RazorpayOptions) => { open(): void };
+  }
+}
+interface RazorpayOptions {
+  key:          string;
+  amount:       number;
+  currency:     string;
+  order_id:     string;
+  name:         string;
+  description:  string;
+  image?:       string;
+  prefill?:     { email?: string; name?: string };
+  theme?:       { color?: string };
+  handler(response: { razorpay_payment_id: string; razorpay_order_id: string; razorpay_signature: string }): void;
+  modal?:       { ondismiss?(): void };
+}
+
+async function loadRazorpayScript(): Promise<boolean> {
+  if (window.Razorpay) return true;
+  return new Promise(resolve => {
+    const s   = document.createElement("script");
+    s.src     = "https://checkout.razorpay.com/v1/checkout.js";
+    s.onload  = () => resolve(true);
+    s.onerror = () => resolve(false);
+    document.body.appendChild(s);
+  });
+}
 
 // ── Purchase modal ─────────────────────────────────────────────
 
 function PurchaseModal({ item, onClose }: { item: GalleryListing; onClose: () => void }) {
-  const [step, setStep] = useState<1 | 2>(1);
+  const [step, setStep]       = useState<1 | 2>(1);
   const [email, setEmail]     = useState("");
   const [address, setAddress] = useState("");
   const [city, setCity]       = useState("");
   const [zip, setZip]         = useState("");
   const [country, setCountry] = useState("");
   const [done, setDone]       = useState(false);
+  const [paying, setPaying]   = useState(false);
+  const [payError, setPayError] = useState("");
 
   const sym      = item.currency === "GBP" ? "£" : item.currency === "EUR" ? "€" : "$";
   const artwork  = item.price;
@@ -216,20 +249,90 @@ function PurchaseModal({ item, onClose }: { item: GalleryListing; onClose: () =>
                 </div>
               </div>
 
+              {payError && (
+                <p className="text-xs text-center px-3 py-2 rounded-xl" style={{ background: "rgba(239,68,68,0.1)", color: "#EF4444", border: "1px solid rgba(239,68,68,0.25)" }}>
+                  {payError}
+                </p>
+              )}
+
               <div className="flex gap-3">
                 <button
                   onClick={() => setStep(1)}
-                  className="px-5 py-4 rounded-xl text-sm font-semibold transition-opacity hover:opacity-70"
+                  disabled={paying}
+                  className="px-5 py-4 rounded-xl text-sm font-semibold transition-opacity hover:opacity-70 disabled:opacity-40"
                   style={{ background: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.6)", border: "1px solid rgba(255,255,255,0.1)" }}
                 >
                   ← Back
                 </button>
                 <button
-                  onClick={() => setDone(true)}
-                  className="flex-1 py-4 rounded-xl font-bold text-white text-sm transition-opacity hover:opacity-85"
+                  disabled={paying}
+                  onClick={async () => {
+                    setPayError("");
+                    setPaying(true);
+                    try {
+                      // 1. Load Razorpay SDK
+                      const loaded = await loadRazorpayScript();
+                      if (!loaded) throw new Error("Could not load payment gateway. Check your connection.");
+
+                      // 2. Create order on server (amount in paise)
+                      const amountPaise = Math.round(total * 100);
+                      const orderRes = await fetch("/api/create-order", {
+                        method:  "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body:    JSON.stringify({ amount: amountPaise, currency: "INR", receipt: `gallery_${item.id}` }),
+                      });
+                      if (!orderRes.ok) {
+                        const { error } = await orderRes.json();
+                        throw new Error(error ?? "Order creation failed");
+                      }
+                      const { order_id, amount: orderAmount, currency } = await orderRes.json();
+
+                      // 3. Open Razorpay checkout modal
+                      await new Promise<void>((resolve, reject) => {
+                        const rzp = new window.Razorpay({
+                          key:         process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID!,
+                          amount:      orderAmount as number,
+                          currency,
+                          order_id,
+                          name:        "Ortisit",
+                          description: item.title,
+                          image:       "/logo.jpeg",
+                          prefill:     { email, name: "" },
+                          theme:       { color: "#7C5BF5" },
+                          handler: async (response) => {
+                            // 4. Verify signature on server
+                            const verifyRes = await fetch("/api/verify-payment", {
+                              method:  "POST",
+                              headers: { "Content-Type": "application/json" },
+                              body:    JSON.stringify(response),
+                            });
+                            if (!verifyRes.ok) {
+                              const { error } = await verifyRes.json();
+                              reject(new Error(error ?? "Payment verification failed"));
+                            } else {
+                              resolve();
+                            }
+                          },
+                          modal: {
+                            ondismiss: () => reject(new Error("__dismissed__")),
+                          },
+                        });
+                        rzp.open();
+                      });
+
+                      setDone(true);
+                    } catch (err: unknown) {
+                      const msg = err instanceof Error ? err.message : "Payment failed";
+                      if (msg !== "__dismissed__") setPayError(msg);
+                    } finally {
+                      setPaying(false);
+                    }
+                  }}
+                  className="flex-1 py-4 rounded-xl font-bold text-white text-sm transition-opacity hover:opacity-85 disabled:opacity-60 flex items-center justify-center gap-2"
                   style={{ background: "linear-gradient(135deg,#361E7B,#7C5BF5)" }}
                 >
-                  Place Order →
+                  {paying && <Loader2 size={15} className="animate-spin" />}
+                  {paying ? "Processing…" : "Pay Now →"}
                 </button>
               </div>
             </>

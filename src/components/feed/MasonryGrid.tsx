@@ -92,7 +92,6 @@ export default function MasonryGrid({ posts: initial, category, loadFromDb = tru
             post={toGridPost(p)}
             dbPost={p}
             priority={i < 6}
-            onDelete={id => setVisible(v => v.filter(x => x.id !== id))}
           />
         ))}
       </div>

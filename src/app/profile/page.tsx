@@ -13,7 +13,7 @@ import {
   Star, Heart, Bookmark, Users, LayoutGrid,
   Store, Briefcase, UserCircle, Eye, MapPin, Pencil, Zap,
   CheckCircle2, SlidersHorizontal, Plus, Pause, Copy, Trash2,
-  Clock, X, Check, Share2, Camera, Loader2,
+  Clock, X, Check, Share2, Camera, Loader2, MoreVertical,
 } from "lucide-react";
 import { firstImage } from "@/lib/imageUrl";
 const isVideoUrl = (u: string) => /\.(mp4|webm|mov|avi|mkv|ogv)(\?|$)/i.test(u);
@@ -82,6 +82,9 @@ export default function ProfilePage() {
     tag: "Artist", available: true, response_time: "Within 24 hours",
   });
   const [openPostModal, setOpenPostModal] = useState<DbPost | null>(null);
+  const [postMenu, setPostMenu]           = useState<string | null>(null);
+  const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
+  const [deleting, setDeleting]           = useState(false);
 
   useEffect(() => {
     if (!isLoaded || !user) return;
@@ -269,6 +272,16 @@ export default function ProfilePage() {
     }
   }
 
+  async function handleDeletePost(id: string) {
+    if (!user) return;
+    setDeleting(true);
+    await fetch(`/api/posts/${id}?userId=${user.id}`, { method: "DELETE" }).catch(() => {});
+    setDbPosts(posts => posts.filter(p => p.id !== id));
+    setDeleteConfirm(null);
+    setDeleting(false);
+    setPostMenu(null);
+  }
+
   const name         = profile?.display_name ?? user?.fullName ?? "Your Name";
   const username     = `@${profile?.username ?? user?.username ?? "yourhandle"}`;
   const location     = profile?.location ?? "";
@@ -433,10 +446,12 @@ export default function ProfilePage() {
                   {dbPosts.map(post => {
                     const src = firstImage(post.image_url);
                     const isVid = isVideoUrl(src);
+                    const menuOpen = postMenu === post.id;
                     return (
-                      <button key={post.id} onClick={() => setOpenPostModal(post)}
-                        className="block break-inside-avoid mb-3 rounded-xl overflow-hidden group cursor-pointer relative w-full text-left"
-                        style={{ background: "var(--bg-subtle)" }}>
+                      <div key={post.id}
+                        className="block break-inside-avoid mb-3 rounded-xl overflow-hidden group cursor-pointer relative"
+                        style={{ background: "var(--bg-subtle)" }}
+                        onClick={() => { if (!menuOpen) setOpenPostModal(post); }}>
                         {isVid ? (
                           <video src={src} className="w-full object-cover"
                             muted playsInline preload="metadata"
@@ -447,7 +462,7 @@ export default function ProfilePage() {
                           <img src={src} alt={post.title}
                             className="w-full h-auto transition-transform duration-300 group-hover:scale-[1.04]" />
                         )}
-                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-all duration-200 flex flex-col items-start justify-end p-2.5">
+                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-all duration-200 flex flex-col items-start justify-end p-2.5 pointer-events-none">
                           <p className="opacity-0 group-hover:opacity-100 transition-opacity text-[11px] font-semibold text-white truncate w-full mb-1">{post.title}</p>
                           <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-2">
                             <span className="flex items-center gap-1 text-[11px] text-white"><Heart size={11} /> {post.likes_count}</span>
@@ -455,10 +470,33 @@ export default function ProfilePage() {
                           </div>
                         </div>
                         {isVid && (
-                          <span className="absolute top-2 left-2 px-2 py-0.5 rounded-full text-[10px] font-bold text-white"
+                          <span className="absolute top-2 left-2 px-2 py-0.5 rounded-full text-[10px] font-bold text-white pointer-events-none"
                             style={{ background: "rgba(0,0,0,0.55)", backdropFilter: "blur(6px)" }}>▶</span>
                         )}
-                      </button>
+                        {/* Three-dot menu */}
+                        <button
+                          onClick={e => { e.stopPropagation(); setPostMenu(menuOpen ? null : post.id); }}
+                          className="absolute top-2 right-2 w-7 h-7 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity z-10"
+                          style={{ background: "rgba(0,0,0,0.65)", backdropFilter: "blur(8px)" }}
+                        >
+                          <MoreVertical size={13} color="#fff" />
+                        </button>
+                        {menuOpen && (
+                          <div
+                            className="absolute top-10 right-2 z-20 rounded-xl overflow-hidden shadow-2xl"
+                            style={{ background: "var(--bg-card)", border: "1px solid var(--border)", minWidth: 130 }}
+                            onClick={e => e.stopPropagation()}
+                          >
+                            <button
+                              onClick={() => { setPostMenu(null); setDeleteConfirm(post.id); }}
+                              className="flex items-center gap-2 w-full px-4 py-2.5 text-sm font-medium transition-colors text-left hover:bg-red-500/10"
+                              style={{ color: "#EF4444" }}
+                            >
+                              <Trash2 size={14} /> Delete post
+                            </button>
+                          </div>
+                        )}
+                      </div>
                     );
                   })}
                 </div>
@@ -687,12 +725,78 @@ export default function ProfilePage() {
               </div>
             )}
 
-            {activeTab === "Gallery" && (
-              <div className="flex flex-col items-center py-20 gap-3">
-                <p className="text-3xl">🖼️</p>
-                <p className="text-sm" style={{ color: "var(--text-5)" }}>Gallery coming soon</p>
-              </div>
-            )}
+            {activeTab === "Gallery" && (() => {
+              const galleryPosts = dbPosts.filter(p => {
+                if (!p.description) return false;
+                try { const j = JSON.parse(p.description); return j._price !== undefined; }
+                catch { return false; }
+              });
+              return galleryPosts.length > 0 ? (
+                <div className="columns-2 sm:columns-3 gap-3">
+                  {galleryPosts.map(post => {
+                    let price: string | null = null;
+                    try { price = JSON.parse(post.description ?? "")._price ?? null; } catch { /* */ }
+                    const src = firstImage(post.image_url);
+                    const isVid = isVideoUrl(src);
+                    const menuOpen = postMenu === post.id;
+                    return (
+                      <div key={post.id}
+                        className="block break-inside-avoid mb-3 rounded-xl overflow-hidden group cursor-pointer relative"
+                        style={{ background: "var(--bg-subtle)" }}
+                        onClick={() => { if (!menuOpen) setOpenPostModal(post); }}>
+                        {isVid ? (
+                          <video src={src} className="w-full object-cover" muted playsInline preload="metadata" />
+                        ) : (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={src} alt={post.title} className="w-full h-auto transition-transform duration-300 group-hover:scale-[1.04]" />
+                        )}
+                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/50 transition-all duration-200 flex flex-col items-start justify-end p-2.5 pointer-events-none">
+                          <p className="opacity-0 group-hover:opacity-100 transition-opacity text-[11px] font-semibold text-white truncate w-full mb-0.5">{post.title}</p>
+                          {price && (
+                            <span className="opacity-0 group-hover:opacity-100 transition-opacity text-[11px] font-bold" style={{ color: "#9B7CF5" }}>{price}</span>
+                          )}
+                        </div>
+                        {price && (
+                          <span className="absolute top-2 left-2 px-2 py-0.5 rounded-full text-[10px] font-bold pointer-events-none"
+                            style={{ background: "rgba(124,91,245,0.85)", color: "#fff", backdropFilter: "blur(6px)" }}>
+                            {price}
+                          </span>
+                        )}
+                        {/* Three-dot menu */}
+                        <button
+                          onClick={e => { e.stopPropagation(); setPostMenu(menuOpen ? null : post.id); }}
+                          className="absolute top-2 right-2 w-7 h-7 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity z-10"
+                          style={{ background: "rgba(0,0,0,0.65)", backdropFilter: "blur(8px)" }}
+                        >
+                          <MoreVertical size={13} color="#fff" />
+                        </button>
+                        {menuOpen && (
+                          <div
+                            className="absolute top-10 right-2 z-20 rounded-xl overflow-hidden shadow-2xl"
+                            style={{ background: "var(--bg-card)", border: "1px solid var(--border)", minWidth: 130 }}
+                            onClick={e => e.stopPropagation()}
+                          >
+                            <button
+                              onClick={() => { setPostMenu(null); setDeleteConfirm(post.id); }}
+                              className="flex items-center gap-2 w-full px-4 py-2.5 text-sm font-medium transition-colors text-left hover:bg-red-500/10"
+                              style={{ color: "#EF4444" }}
+                            >
+                              <Trash2 size={14} /> Delete post
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="flex flex-col items-center py-20 gap-3">
+                  <p className="text-4xl">🖼️</p>
+                  <p className="text-sm font-semibold" style={{ color: "var(--text-2)" }}>No gallery posts yet</p>
+                  <p className="text-xs" style={{ color: "var(--text-5)" }}>Posts with a price appear here automatically</p>
+                </div>
+              );
+            })()}
 
             {activeTab === "About" && (
               <div className="rounded-2xl p-5 flex flex-col gap-4"
@@ -1148,6 +1252,54 @@ export default function ProfilePage() {
           title={`${profile?.display_name ?? profile?.username ?? "Artist"} on Ortist`}
           onClose={() => setShareOpen(false)}
         />
+      )}
+
+      {/* Click-outside to close post menu */}
+      {postMenu && (
+        <div className="fixed inset-0 z-10" onClick={() => setPostMenu(null)} />
+      )}
+
+      {/* Delete confirmation modal */}
+      {deleteConfirm && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          style={{ background: "rgba(0,0,0,0.65)", backdropFilter: "blur(6px)" }}
+          onClick={e => e.target === e.currentTarget && setDeleteConfirm(null)}
+        >
+          <div
+            className="w-full max-w-sm rounded-2xl p-6 flex flex-col gap-4"
+            style={{ background: "var(--bg-card)", border: "1px solid var(--border)", boxShadow: "0 24px 60px rgba(0,0,0,0.5)" }}
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full flex items-center justify-center shrink-0"
+                style={{ background: "rgba(239,68,68,0.15)", border: "1px solid rgba(239,68,68,0.3)" }}>
+                <Trash2 size={18} style={{ color: "#EF4444" }} />
+              </div>
+              <div>
+                <p className="font-bold text-sm" style={{ color: "var(--text-1)" }}>Delete post?</p>
+                <p className="text-xs mt-0.5" style={{ color: "var(--text-5)" }}>This action cannot be undone.</p>
+              </div>
+            </div>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setDeleteConfirm(null)}
+                disabled={deleting}
+                className="flex-1 py-2.5 rounded-xl text-sm font-semibold transition-opacity hover:opacity-70 disabled:opacity-50"
+                style={{ background: "var(--bg-subtle)", border: "1px solid var(--border)", color: "var(--text-3)" }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => handleDeletePost(deleteConfirm)}
+                disabled={deleting}
+                className="flex-1 py-2.5 rounded-xl text-sm font-bold flex items-center justify-center gap-2 transition-opacity hover:opacity-90 disabled:opacity-50"
+                style={{ background: "#EF4444", color: "#fff" }}
+              >
+                {deleting ? <><Loader2 size={14} className="animate-spin" /> Deleting…</> : "Delete"}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
