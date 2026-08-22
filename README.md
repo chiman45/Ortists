@@ -1,25 +1,32 @@
 # Ortist
 
-A design platform where artists display their masterpieces and buyers discover and purchase works that resonate with them.
+A creative marketplace where artists display their work and buyers discover and purchase pieces that resonate with them.
+
+**Live:** [ortists-chimans-projects-881b2a45.vercel.app](https://ortists-chimans-projects-881b2a45.vercel.app)
 
 ---
 
 ## Overview
 
-Ortist is a full-featured creative marketplace UI built with Next.js 16, React 19, TypeScript, and Tailwind CSS v4. It features a Pinterest/Instagram-style feed, artist analytics dashboard, real-time-style messaging, and a polished dark/light theme system — all fully responsive across mobile and desktop.
+Ortist is a full-stack art marketplace built on Next.js (App Router), with a separate Express API server, Supabase as the database, Clerk for authentication, and Razorpay for payments. The UI follows a Pinterest/Instagram pattern — masonry feed, stories, profiles, gallery, and a hiring board — across a fully responsive dark/light/themed design system.
 
 ---
 
 ## Features
 
-- **Landing page** — Animated card fan hero, floating glassmorphism navbar, entrance animations
-- **Feed** — Masonry grid with infinite scroll, stories row, like/comment interactions
-- **Dashboard** — Analytics with engagement chart, traffic sources, category bubbles, recent commissions
-- **Messages** — WhatsApp-style responsive chat: conversation list on mobile navigates to full-screen chat view
-- **Upload** — Artwork upload flow with preview
-- **Onboarding** — Interest selection for new users
-- **Dark / Light theme** — Full CSS variable token system, toggled from the sidebar, persisted to localStorage
-- **Responsive layout** — Sidebar on desktop, glassmorphism bottom nav on mobile
+| Area | What's built |
+|---|---|
+| **Feed** | Masonry grid, infinite scroll, stories with pause/play, like / save / comment, post detail page |
+| **Gallery** | Artwork listings with price, Buy Now via Razorpay checkout, Pinterest recommendation grid |
+| **Profile** | Portfolio grid, Gallery tab (priced posts), Services, Saved, About — three-dot delete on own posts |
+| **Hiring** | Artist discovery board with commission request flow |
+| **Upload** | Multi-image drag-and-drop, video support, Supabase Storage |
+| **Auth** | Clerk sign-in/sign-up, protected routes, onboarding flow |
+| **Payments** | Razorpay Standard Checkout (live mode), server-side HMAC signature verification, webhook endpoint |
+| **Settings** | Privacy, notifications, preferences — persisted to Supabase; 6-theme picker with CSS view transitions |
+| **Messaging** | WhatsApp-style two-panel chat, mobile full-screen view |
+| **Themes** | Dark, Light, Midnight, Forest, Rose, Ocean — CSS variable token system, view transition animations |
+| **Responsive** | Sidebar on desktop, glassmorphism bottom nav on mobile |
 
 ---
 
@@ -27,158 +34,275 @@ Ortist is a full-featured creative marketplace UI built with Next.js 16, React 1
 
 | Layer | Technology |
 |---|---|
-| Framework | Next.js 16.2 (App Router) |
-| UI Library | React 19 |
+| Frontend framework | Next.js 15 (App Router) |
+| UI library | React 19 |
 | Language | TypeScript 5 |
-| Styling | Tailwind CSS v4 |
+| Styling | Tailwind CSS v4 + CSS custom properties |
 | Icons | Lucide React |
+| Auth | Clerk |
+| Database | Supabase (PostgreSQL) |
+| File storage | Supabase Storage |
+| Payments | Razorpay Standard Checkout |
+| Backend API | Express 4 + TypeScript (port 4000) |
+| Deployment | Vercel (frontend) |
 
 ---
 
 ## Project Structure
 
 ```
-src/
-├── app/
-│   ├── page.tsx              # Landing page
-│   ├── feed/page.tsx         # Main feed
-│   ├── dashboard/page.tsx    # Artist analytics
-│   ├── messages/page.tsx     # Messaging
-│   ├── upload/page.tsx       # Artwork upload
-│   ├── onboarding/page.tsx   # New user onboarding
-│   ├── layout.tsx            # Root layout with ThemeProvider
-│   └── globals.css           # CSS custom properties + animations
+.
+├── src/
+│   ├── app/
+│   │   ├── page.tsx                  # Landing page
+│   │   ├── feed/
+│   │   │   ├── page.tsx              # Main feed
+│   │   │   └── [id]/page.tsx         # Post detail (gallery-style layout)
+│   │   ├── gallery/
+│   │   │   ├── page.tsx              # Gallery listings
+│   │   │   └── [id]/page.tsx         # Artwork detail + Razorpay checkout
+│   │   ├── profile/page.tsx          # Own profile (Portfolio / Gallery / Services / Saved)
+│   │   ├── u/[username]/page.tsx     # Public artist profile
+│   │   ├── hiring/page.tsx           # Artist hiring board
+│   │   ├── upload/page.tsx           # Artwork upload
+│   │   ├── settings/page.tsx         # Account settings
+│   │   ├── dashboard/page.tsx        # Analytics dashboard
+│   │   ├── messages/page.tsx         # Messaging
+│   │   ├── notifications/page.tsx    # Notifications
+│   │   ├── onboarding/page.tsx       # New user onboarding
+│   │   └── api/
+│   │       ├── posts/[id]/route.ts   # Post CRUD + like/save
+│   │       ├── comments/route.ts     # Comments
+│   │       ├── follows/route.ts      # Follow/unfollow
+│   │       ├── stories/route.ts      # Stories
+│   │       ├── upload/route.ts       # File upload → Supabase Storage
+│   │       ├── settings/route.ts     # User settings (GET/PATCH/DELETE)
+│   │       ├── create-order/route.ts # Razorpay order creation
+│   │       ├── verify-payment/route.ts # HMAC payment verification
+│   │       └── webhook/route.ts      # Razorpay webhook receiver
+│   │
+│   ├── components/
+│   │   ├── layout/
+│   │   │   ├── Sidebar.tsx           # Desktop nav + logo + theme toggle
+│   │   │   ├── BottomNav.tsx         # Mobile bottom nav
+│   │   │   └── MainHeader.tsx        # Top header bar
+│   │   ├── feed/
+│   │   │   ├── MasonryGrid.tsx       # Infinite-scroll masonry
+│   │   │   ├── FeedCard.tsx          # Post card (like / comment / open)
+│   │   │   ├── StoriesRow.tsx        # Stories strip
+│   │   │   └── StoryViewer.tsx       # Full-screen story viewer with pause/play
+│   │   ├── gallery/
+│   │   │   └── ArtworkCard.tsx
+│   │   └── ui/
+│   │       ├── PostModal.tsx         # Single-click post preview modal
+│   │       ├── ArtworkViewer.tsx     # Full-screen image zoom
+│   │       └── ShareModal.tsx
+│   │
+│   ├── contexts/
+│   │   └── ThemeContext.tsx          # 6-theme system with view transitions
+│   │
+│   └── lib/
+│       ├── db/                       # Supabase query helpers
+│       ├── types.ts                  # Shared TypeScript types
+│       ├── galleryData.ts            # Gallery listings seed data
+│       └── imageUrl.ts               # Image URL helpers
 │
-├── components/
-│   ├── layout/
-│   │   ├── Sidebar.tsx       # Desktop nav with theme toggle
-│   │   ├── BottomNav.tsx     # Mobile glassmorphism bottom nav
-│   │   ├── MainHeader.tsx    # Top search/header bar
-│   │   └── Navbar.tsx
-│   ├── feed/
-│   │   ├── MasonryGrid.tsx   # Infinite-scroll masonry layout
-│   │   ├── FeedCard.tsx      # Post card with like/comment
-│   │   ├── StoriesRow.tsx    # Horizontal stories strip
-│   │   └── StoryCircle.tsx   # Individual story avatar
-│   ├── dashboard/
-│   │   ├── StatCard.tsx
-│   │   ├── EngagementChart.tsx
-│   │   ├── TrafficSources.tsx
-│   │   ├── CategoryBubbles.tsx
-│   │   ├── RecentCommissions.tsx
-│   │   └── SparkLine.tsx
-│   ├── upload/
-│   │   └── UploadFlow.tsx
-│   ├── search/
-│   │   ├── SearchOverlay.tsx
-│   │   └── CategoryChip.tsx
-│   ├── onboarding/
-│   │   └── InterestCard.tsx
-│   └── ui/
-│       └── Avatar.tsx        # Generated gradient avatar
+├── backend/                          # Express API server (port 4000)
+│   └── src/
+│       ├── index.ts                  # App entry, middleware, route registration
+│       ├── routes/
+│       │   ├── payment.ts            # Razorpay create-order / verify / webhook
+│       │   ├── posts.ts
+│       │   ├── profiles.ts
+│       │   ├── profileSync.ts
+│       │   ├── follows.ts
+│       │   ├── comments.ts
+│       │   ├── stories.ts
+│       │   ├── messages.ts
+│       │   └── upload.ts
+│       ├── middleware/
+│       │   ├── auth.ts               # Clerk middleware
+│       │   └── errorHandler.ts
+│       └── lib/
+│           └── supabase.ts
 │
-├── contexts/
-│   └── ThemeContext.tsx       # Dark/light theme state + toggle
-│
-└── lib/
-    ├── mockData.ts            # Seed data for posts, designers
-    └── types.ts               # Shared TypeScript types
+└── supabase/
+    └── migrations/                   # SQL migration files
 ```
 
 ---
 
 ## Getting Started
 
-**Prerequisites:** Node.js 18+
+### Prerequisites
+
+- Node.js 18+
+- A [Clerk](https://clerk.com) account
+- A [Supabase](https://supabase.com) project
+- A [Razorpay](https://razorpay.com) account
+
+### Frontend setup
 
 ```bash
-# Install dependencies
 npm install
-
-# Start development server
-npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000).
+Create `.env.local` in the project root:
+
+```env
+# Clerk
+NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_...
+CLERK_SECRET_KEY=sk_...
+NEXT_PUBLIC_CLERK_SIGN_IN_URL=/login
+NEXT_PUBLIC_CLERK_SIGN_UP_URL=/login
+NEXT_PUBLIC_CLERK_AFTER_SIGN_IN_URL=/feed
+NEXT_PUBLIC_CLERK_AFTER_SIGN_UP_URL=/onboarding
+
+# Supabase
+NEXT_PUBLIC_SUPABASE_URL=https://xxxx.supabase.co
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_...
+SUPABASE_SERVICE_ROLE_KEY=sb_secret_...
+
+# Razorpay (secret stays server-side only)
+RAZORPAY_KEY_ID=rzp_live_...
+RAZORPAY_KEY_SECRET=...
+NEXT_PUBLIC_RAZORPAY_KEY_ID=rzp_live_...
+RAZORPAY_WEBHOOK_SECRET=...
+```
 
 ```bash
-# Build for production
+npm run dev        # http://localhost:3000
 npm run build
-
-# Start production server
 npm start
+```
+
+### Backend setup
+
+```bash
+cd backend
+npm install
+```
+
+Create `backend/.env`:
+
+```env
+PORT=4000
+CLERK_SECRET_KEY=sk_...
+NEXT_PUBLIC_SUPABASE_URL=https://xxxx.supabase.co
+SUPABASE_SERVICE_ROLE_KEY=sb_secret_...
+FRONTEND_URL=http://localhost:3000
+RAZORPAY_KEY_ID=rzp_live_...
+RAZORPAY_KEY_SECRET=...
+RAZORPAY_WEBHOOK_SECRET=...
+```
+
+```bash
+npm run dev        # http://localhost:4000
+npm run build
+npm start
+```
+
+---
+
+## Payments (Razorpay)
+
+The checkout flow:
+
+```
+Browser → POST /api/create-order (Next.js)
+       → POST /api/payment/create-order (Express, creates Razorpay order)
+       ← { order_id, amount, currency }
+
+Browser opens Razorpay checkout modal (uses NEXT_PUBLIC_RAZORPAY_KEY_ID)
+
+User pays → Razorpay calls handler() in browser
+          → POST /api/verify-payment (Next.js)
+          → POST /api/payment/verify (Express, HMAC-SHA256 check)
+          ← { ok: true }
+
+Razorpay also POSTs to webhook:
+  https://your-domain/api/webhook  (Next.js route, verified with RAZORPAY_WEBHOOK_SECRET)
+```
+
+### Razorpay webhook setup
+
+1. [Razorpay Dashboard](https://dashboard.razorpay.com) → Settings → Webhooks → Add New
+2. **URL:** `https://your-vercel-url.vercel.app/api/webhook`
+3. **Events:** `payment.captured`, `payment.failed`, `refund.created`
+4. Copy the generated secret → add to Vercel env vars and `backend/.env` as `RAZORPAY_WEBHOOK_SECRET`
+
+---
+
+## Deployment (Vercel)
+
+Add these environment variables in Vercel Dashboard → Settings → Environment Variables:
+
+```
+NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY
+CLERK_SECRET_KEY
+NEXT_PUBLIC_SUPABASE_URL
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
+SUPABASE_SERVICE_ROLE_KEY
+RAZORPAY_KEY_ID
+RAZORPAY_KEY_SECRET
+NEXT_PUBLIC_RAZORPAY_KEY_ID
+RAZORPAY_WEBHOOK_SECRET
 ```
 
 ---
 
 ## Design System
 
-All theme-sensitive colors are CSS custom properties defined in `globals.css`. The dark theme is the default (`:root`); light mode is activated by adding the `light` class to `<html>`.
+All theme colours are CSS custom properties defined in `globals.css`.
 
-### Color Tokens
+### Themes
 
-| Token | Dark | Light |
+| ID | Name | Base |
 |---|---|---|
-| `--bg` | `#151515` | `#EEE9FB` |
-| `--bg-card` | `rgba(255,255,255,0.04)` | `rgba(54,30,123,0.05)` |
-| `--text-1` | `#ffffff` | `#0f0f0f` |
-| `--border` | `rgba(255,255,255,0.07)` | `rgba(0,0,0,0.09)` |
-| `--shadow` | `rgba(0,0,0,0.25)` | `rgba(54,30,123,0.12)` |
+| `dark` | Dark | `#151515` |
+| `light` | Light | `#EEE9FB` |
+| `midnight` | Midnight | `#0a0a12` |
+| `forest` | Forest | `#0d1a0f` |
+| `rose` | Rose | `#1a0d12` |
+| `ocean` | Ocean | `#0a1220` |
 
-**Accent colors** (same in both themes):
-- Deep purple: `#361E7B`
-- Purple glow: `#7C5BF5`
-- Pink: `#FF7EA0`
+### Core tokens
 
-### Glass Card Pattern
+| Token | Role |
+|---|---|
+| `--bg` | Page background |
+| `--bg-card` | Card / panel background |
+| `--text-1` | Primary text |
+| `--text-4` | Secondary / muted text |
+| `--border` | Dividers and outlines |
+| `--shadow` | Drop shadow colour |
 
-```tsx
-const GLASS: React.CSSProperties = {
-  background: "var(--bg-card)",
-  backdropFilter: "blur(20px)",
-  border: "1px solid var(--border-card)",
-  boxShadow: "0 4px 24px var(--shadow)",
-};
-```
+**Accent** (theme-independent): `#361E7B` deep purple · `#7C5BF5` purple glow · `#9B7CF5` soft purple
 
-### Responsive Layout
-
-- **Desktop (lg+):** Fixed sidebar (`w-56`), content offset with `lg:ml-56`
-- **Mobile:** Sidebar hidden, glassmorphism bottom nav with Feed / Messages / +Create / Dashboard
-- All pages use `pb-24 lg:pb-7` to clear the mobile bottom nav
+Theme switching uses `document.startViewTransition()` for a smooth cross-fade animation and persists to Supabase via `PATCH /api/settings`.
 
 ---
 
-## Pages
+## Database Migrations
 
-### `/` — Landing
-Animated hero with a 6-card artwork fan, entrance word animations, and parallax mouse tilt on desktop. The card fan scales down and renders below the headline on mobile.
+SQL migrations live in `supabase/migrations/`. Run them in order in the Supabase Dashboard SQL editor, or use the Supabase CLI:
 
-### `/feed` — Feed
-Masonry grid using CSS columns. Infinite scroll via `IntersectionObserver` loads 8 posts per batch. Stories row at the top with gradient avatar rings.
+```bash
+supabase db push
+```
 
-### `/dashboard` — Analytics
-Stat cards with sparklines, SVG engagement line chart (Views / Likes / Sales tabs), traffic source progress bars, category bubble chart, and a paginated commissions table.
+Key migrations:
 
-### `/messages` — Messaging
-Responsive two-panel layout. On mobile, tapping a conversation navigates to a full-screen chat view with a back arrow to return to the list. On desktop, both panels are visible side by side.
-
-### `/upload` — Upload
-Drag-and-drop artwork upload flow with file preview.
-
-### `/onboarding` — Onboarding
-Interest selection cards to personalise the feed for new users.
+| File | What it adds |
+|---|---|
+| `001_initial.sql` | Core tables: profiles, posts, likes, saves, follows, comments |
+| `008_hire_requests_tracking.sql` | Hire requests and tracking |
+| `009_user_settings.sql` | `settings JSONB` column on profiles |
 
 ---
 
-## Theme Toggle
+## Auth — Protected Routes
 
-The theme is managed by `ThemeContext`. The toggle button lives in the sidebar between the nav links and the logout button.
+All routes require Clerk authentication **except**:
 
-```tsx
-import { useTheme } from "@/contexts/ThemeContext";
-
-const { theme, toggle } = useTheme();
-// theme: "dark" | "light"
-// toggle(): flips theme, persists to localStorage
-```
+`/` · `/login` · `/feed` · `/api/posts` · `/hiring` · `/api/profiles` · `/u/[username]`
