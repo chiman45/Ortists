@@ -15,7 +15,7 @@ import storiesRouter     from "./routes/stories";
 import messagesRouter    from "./routes/messages";
 import uploadRouter      from "./routes/upload";
 import paymentRouter     from "./routes/payment";
-import shiprocketRouter  from "./routes/shiprocket";
+// import shiprocketRouter  from "./routes/shiprocket";
 
 const app  = express();
 const PORT = process.env.PORT ?? 4000;
@@ -77,7 +77,7 @@ app.use("/api/stories",        storiesRouter);
 app.use("/api/messages",       messagesRouter);
 app.use("/api/upload",         writeLimiter, uploadRouter);
 app.use("/api/payment",        paymentRouter);
-app.use("/api/shiprocket",     shiprocketRouter);
+// app.use("/api/shiprocket",     shiprocketRouter);
 
 // ── 404 ───────────────────────────────────────────────────────────────────────
 app.use((_req, res) => res.status(404).json({ error: "Route not found" }));

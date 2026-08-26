@@ -38,7 +38,7 @@ router.get("/track/shipment/:id", async (req: Request, res: Response, next: Next
 // GET /api/shiprocket/track/awb/:awb
 router.get("/track/awb/:awb", async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const data = await trackByAwb(req.params.awb);
+    const data = await trackByAwb(String(req.params.awb));
     res.json(data);
   } catch (err) {
     next(err);
