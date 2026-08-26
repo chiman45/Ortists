@@ -9,13 +9,6 @@ const ACCENT = "#7B4DFF";
 const GOLD   = "#FFB800";
 const MUTED  = "#8B8B95";
 
-const NAV_SIMPLE = [
-  { label: "About",   href: "/about"       },
-  { label: "Feed",    href: "/feed"        },
-  { label: "Gallery", href: "/gallery" },
-  { label: "Profile", href: "/profile"     },
-];
-
 const HIRE_CATEGORIES = [
   {
     label: "Fine Arts", Icon: Palette, color: "#F59E0B",
@@ -355,76 +348,80 @@ export default function PublicNav() {
 
   return (
     <nav
-      className="fixed top-0 inset-x-0 z-50 flex items-center gap-6 px-8 md:px-14 lg:px-20 py-4 transition-all duration-500"
+      className="fixed top-0 inset-x-0 z-50 flex items-center px-6 md:px-10 lg:px-16 py-3.5 transition-all duration-500"
       style={{
         background:     scrolled ? "rgba(5,5,5,0.88)" : "transparent",
         backdropFilter: scrolled ? "blur(22px)" : "none",
         borderBottom:   scrolled ? "1px solid rgba(255,255,255,0.05)" : "none",
       }}
     >
-      {/* Logo */}
-      <Link href="/" className="flex items-center gap-2.5 shrink-0 mr-2">
+      {/* Left: Logo */}
+      <Link href="/" className="flex items-center gap-2 shrink-0">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src="/login-image/ortists logo1.png" alt="Ortists" className="w-7 h-7 rounded-md object-cover" />
-        <span className="text-[15px] font-bold tracking-[0.06em] text-white">Ortists</span>
+        <span className="text-[15px] font-bold tracking-[0.06em] text-white">
+          Ortist<span style={{ color: ACCENT }}>.</span>
+        </span>
       </Link>
 
-      {/* Left nav links */}
-      <div className="hidden md:flex items-center gap-6 text-[13px] font-medium flex-1">
-        {NAV_SIMPLE.map(({ label, href }) => (
-          <Link
-            key={label}
-            href={href}
-            className="transition-colors duration-200 hover:text-white"
-            style={{ color: isActive(href) ? "#fff" : MUTED }}
-          >
-            {label}
-          </Link>
-        ))}
+      {/* Center: nav links */}
+      <div className="hidden md:flex items-center gap-7 text-[12px] font-semibold tracking-[0.12em] uppercase absolute left-1/2 -translate-x-1/2">
+        <Link
+          href="/feed"
+          className="transition-colors duration-200 hover:text-white"
+          style={{ color: isActive("/feed") ? "#fff" : MUTED }}
+        >
+          Feed
+        </Link>
 
-        {/* Hire mega-menu */}
+        {/* Marketplace (Gallery) */}
+        <Link
+          href="/gallery"
+          className="transition-colors duration-200 hover:text-white"
+          style={{ color: isActive("/gallery") ? "#fff" : MUTED }}
+        >
+          Marketplace
+        </Link>
+
+        {/* Hire Artists mega-menu */}
         <div className="relative" onMouseEnter={() => open("hire")} onMouseLeave={close}>
           <button
             className="flex items-center gap-1 transition-colors duration-200 hover:text-white"
             style={{ color: pathname.startsWith("/hiring") ? "#fff" : MUTED }}
           >
-            Hire
-            <ChevronDown size={12} style={{ transition: "transform 0.2s", transform: openDropdown === "hire" ? "rotate(180deg)" : "rotate(0deg)" }} />
+            Hire Artists
+            <ChevronDown size={11} style={{ transition: "transform 0.2s", transform: openDropdown === "hire" ? "rotate(180deg)" : "rotate(0deg)" }} />
           </button>
           {openDropdown === "hire" && <HireMenu onEnter={() => open("hire")} onLeave={close} />}
         </div>
 
-        {/* Artists mega-menu */}
-        <div className="relative" onMouseEnter={() => open("artists")} onMouseLeave={close}>
-          <button
-            className="flex items-center gap-1 transition-colors duration-200 hover:text-white"
-            style={{ color: MUTED }}
-          >
-            Artists
-            <ChevronDown size={12} style={{ transition: "transform 0.2s", transform: openDropdown === "artists" ? "rotate(180deg)" : "rotate(0deg)" }} />
-          </button>
-          {openDropdown === "artists" && <ArtistsMenu onEnter={() => open("artists")} onLeave={close} />}
-        </div>
+        <Link
+          href="/about"
+          className="transition-colors duration-200 hover:text-white"
+          style={{ color: isActive("/about") ? "#fff" : MUTED }}
+        >
+          About
+        </Link>
       </div>
 
       {/* Right: auth buttons */}
-      <div className="hidden md:flex items-center gap-3 ml-auto shrink-0">
-        {/* Sign In */}
+      <div className="flex items-center gap-2 ml-auto shrink-0">
         <Link
           href="/login"
-          className="px-5 py-2 rounded-full text-[13px] font-semibold transition-all duration-200 hover:text-white"
-          style={{ color: MUTED, border: "1px solid rgba(255,255,255,0.12)" }}
+          className="px-3 sm:px-5 py-2 rounded-full text-[12px] font-semibold tracking-wide uppercase transition-all duration-200 hover:text-white"
+          style={{ color: MUTED }}
         >
-          Sign In
+          <span className="hidden sm:inline">Sign In</span>
+          <span className="sm:hidden">In</span>
         </Link>
 
-        {/* Sign Up */}
         <Link
           href="/login"
-          className="px-5 py-2 rounded-full text-[13px] font-semibold text-white transition-all duration-200 hover:opacity-85"
+          className="px-3 sm:px-5 py-2 rounded-full text-[12px] font-semibold tracking-wide uppercase text-white transition-all duration-200 hover:opacity-85"
           style={{ background: ACCENT }}
         >
-          Sign Up
+          <span className="hidden sm:inline">Sign Up</span>
+          <span className="sm:hidden">Up</span>
         </Link>
       </div>
     </nav>

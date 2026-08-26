@@ -37,8 +37,6 @@ const STATS = [
 
 const HERO_CATEGORIES = ["PORTRAIT", "WATERCOLOR", "ACRYLIC PAINTING", "OIL PAINTING", "SCULPTURE", "TRIBAL ART", "DIGITAL ART", "PRINTMAKING"];
 
-const MARQUEE_ITEMS = ["ARTISTS", "GALLERY", "PORTRAIT", "ACRYLIC & OIL PAINTING", "WATERCOLOR", "SCULPTURE", "ILLUSTRATION", "PHOTOGRAPHY", "DIGITAL ART", "PRINTMAKING", "TRIBAL ART", "MIXED MEDIA"];
-
 /* ── Scroll-reveal ── */
 function useReveal(threshold = 0.15) {
   const ref = useRef<HTMLDivElement>(null);
@@ -107,10 +105,10 @@ export default function LandingPage() {
         </div>
 
         {/* Centered content */}
-        <div className="relative z-10 flex flex-col items-center text-center px-6 w-full" style={{ maxWidth: 860 }}>
+        <div className="relative z-10 flex flex-col items-center text-center px-6 w-full" style={{ maxWidth: 860, paddingTop: "80px" }}>
 
           {/* — CREATIVE ECOSYSTEM — */}
-          <div className="flex items-center gap-4 mb-10">
+          <div className="flex items-center gap-4 mb-8">
             <div style={{ height: 1, width: 56, background: "rgba(255,255,255,0.35)" }} />
             <p className="text-[10px] font-semibold tracking-[0.36em] uppercase" style={{ color: "rgba(255,255,255,0.6)" }}>
               Creative Ecosystem
@@ -118,32 +116,18 @@ export default function LandingPage() {
             <div style={{ height: 1, width: 56, background: "rgba(255,255,255,0.35)" }} />
           </div>
 
-          {/* Headline */}
-          <h1
-            className={`${playfair.className} mb-10 leading-[1.04]`}
-            style={{ fontSize: "clamp(46px, 7.5vw, 100px)", fontWeight: 400, fontStyle: "italic" }}
-          >
-            The Home for<br />Creative Work
-          </h1>
+          {/* Circular logo */}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/login-image/ortists logo1.png"
+            alt="Ortists"
+            style={{ width: "clamp(180px, 24vw, 280px)", height: "clamp(180px, 24vw, 280px)", objectFit: "contain", marginBottom: "2rem", filter: "drop-shadow(0 0 48px rgba(124,91,245,0.35))" }}
+          />
 
-          {/* Marquee ticker */}
-          <div className="w-full mb-8 overflow-hidden" style={{ maskImage: "linear-gradient(to right, transparent, black 12%, black 88%, transparent)" }}>
-            <div
-              className="flex gap-0 whitespace-nowrap"
-              style={{ animation: "marquee 28s linear infinite" }}
-            >
-              {[...MARQUEE_ITEMS, ...MARQUEE_ITEMS].map((item, i) => (
-                <span
-                  key={i}
-                  className="text-[10px] font-bold tracking-[0.32em] uppercase shrink-0 px-6"
-                  style={{ color: "rgba(255,255,255,0.28)" }}
-                >
-                  {item} <span style={{ color: "rgba(255,255,255,0.14)" }}>·</span>
-                </span>
-              ))}
-            </div>
-          </div>
-          <style>{`@keyframes marquee { from { transform: translateX(0) } to { transform: translateX(-50%) } }`}</style>
+          {/* Tagline */}
+          <p className="mb-8 text-[15px] sm:text-[17px]" style={{ color: "rgba(255,255,255,0.7)", letterSpacing: "0.01em" }}>
+            Discover artists. Share ideas. Create extraordinary.
+          </p>
 
           {/* Search bar */}
           <div className="w-full max-w-[540px] mb-6 flex items-center gap-3 px-5 py-3.5 rounded-lg"
@@ -178,7 +162,7 @@ export default function LandingPage() {
           </div>
 
           {/* Nav links */}
-          <div className="flex items-center gap-10 text-[13px] font-medium" style={{ color: "rgba(255,255,255,0.5)" }}>
+          <div className="flex flex-wrap items-center justify-center gap-6 sm:gap-10 text-[13px] font-medium" style={{ color: "rgba(255,255,255,0.5)" }}>
             <Link href="/feed"    className="hover:text-white transition-colors duration-200">Browse Feed →</Link>
             <Link href="/hiring"  className="hover:text-white transition-colors duration-200">Hire Artists →</Link>
             <Link href="/gallery" className="hover:text-white transition-colors duration-200">Marketplace →</Link>

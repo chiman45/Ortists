@@ -268,290 +268,259 @@ export default function FeedPostPage({ params }: { params: Promise<{ id: string 
 
           <div className={loading && isUUID ? "hidden" : undefined}>
 
-            {/* Back link */}
-            <div className="px-4 md:px-6 pt-5 pb-0">
-              <button
-                onClick={() => router.back()}
-                className="inline-flex items-center gap-2 text-sm mb-2 transition-opacity hover:opacity-70"
-                style={{ color: "var(--text-4)" }}
-              >
-                <ArrowLeft size={15} /> Back
-              </button>
-            </div>
+            {/* ── Pinterest-style: sticky image left | scrollable details right ── */}
+            <div className="lg:flex lg:items-start">
 
-            {/* ── 3-column layout ── */}
-            <div className="flex gap-0 items-start px-4 md:px-6 pt-4">
-
-              {/* ── Left: Sticky artwork image ── */}
+              {/* ── Left: sticky image panel ── */}
               <div
-                className="hidden lg:block shrink-0 rounded-2xl overflow-hidden"
-                style={{ width: 420, position: "sticky", top: 80, border: "1px solid var(--border)" }}
+                className="hidden lg:flex lg:items-center lg:justify-center shrink-0"
+                style={{
+                  width: "48%",
+                  position: "sticky",
+                  top: 52,
+                  height: "calc(100vh - 52px)",
+                  background: "var(--bg-card)",
+                  borderRight: "1px solid var(--border)",
+                  overflow: "hidden",
+                }}
               >
                 {isVideo ? (
-                  <video src={img} controls className="w-full" style={{ display: "block", background: "#000" }} />
+                  <video src={img} controls className="w-full max-h-full object-contain" style={{ background: "#000" }} />
                 ) : (
-                  <div className="relative">
+                  <div
+                    className="relative w-full h-full flex items-center justify-center cursor-zoom-in"
+                    onClick={() => setViewerOpen(true)}
+                    onContextMenu={e => e.preventDefault()}
+                  >
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
                       src={img} alt={title}
-                      style={{ width: "100%", display: "block", objectFit: "cover" }}
+                      style={{ maxWidth: "100%", maxHeight: "100%", objectFit: "contain", display: "block" }}
                       draggable={false}
-                    />
-                    <div
-                      className="absolute inset-0 cursor-zoom-in"
-                      onClick={() => setViewerOpen(true)}
-                      onContextMenu={e => e.preventDefault()}
                     />
                   </div>
                 )}
               </div>
 
-              {/* ── Center: Details ── */}
-              <div className="flex flex-col gap-5 flex-1 min-w-0 px-0 lg:px-6" style={{ maxWidth: 420 }}>
+              {/* ── Right: scrollable details ── */}
+              <div className="flex-1 min-w-0 flex flex-col">
 
-                {/* Mobile image */}
-                <div className="lg:hidden rounded-2xl overflow-hidden" style={{ border: "1px solid var(--border)" }}>
-                  {isVideo ? (
-                    <video src={img} controls className="w-full" style={{ background: "#000" }} />
-                  ) : (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={img} alt={title} className="w-full object-cover" draggable={false} />
-                  )}
+                {/* Back link */}
+                <div className="px-4 md:px-6 pt-5 pb-0">
+                  <button
+                    onClick={() => router.back()}
+                    className="inline-flex items-center gap-2 text-sm mb-2 transition-opacity hover:opacity-70"
+                    style={{ color: "var(--text-4)" }}
+                  >
+                    <ArrowLeft size={15} /> Back
+                  </button>
                 </div>
 
-                {/* Artist row */}
-                <div className="flex items-center gap-3">
-                  <Link href={profileHref} className="shrink-0">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={avatar} alt={udisp} className="w-10 h-10 rounded-full object-cover"
-                      style={{ border: "2px solid rgba(124,91,245,0.4)" }} />
-                  </Link>
-                  <div className="flex-1 min-w-0">
-                    <Link href={profileHref} className="hover:underline">
-                      <p className="text-sm font-semibold truncate" style={{ color: "var(--text-1)" }}>{udisp}</p>
-                    </Link>
-                    <p className="text-xs" style={{ color: "var(--text-5)" }}>{cat}</p>
-                  </div>
-                  <div className="flex gap-2 shrink-0">
-                    {user?.id !== post?.user_id && (
-                      <button
-                        onClick={handleFollow}
-                        className="text-xs font-semibold px-3 py-1.5 rounded-full transition-all hover:opacity-80"
-                        style={following
-                          ? { background: "rgba(16,185,129,0.12)", color: "#10B981", border: "1px solid rgba(16,185,129,0.3)" }
-                          : { background: "rgba(124,91,245,0.15)", color: "#9B7CF5", border: "1px solid rgba(124,91,245,0.3)" }}
-                      >
-                        {following ? "Following" : "Follow"}
-                      </button>
+                <div className="flex flex-col gap-5 px-4 md:px-6 pt-4 pb-8">
+
+                  {/* Mobile image */}
+                  <div className="lg:hidden rounded-2xl overflow-hidden" style={{ border: "1px solid var(--border)" }}>
+                    {isVideo ? (
+                      <video src={img} controls className="w-full" style={{ background: "#000" }} />
+                    ) : (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={img} alt={title} className="w-full object-cover" draggable={false} />
                     )}
-                    <button
-                      className="w-8 h-8 rounded-full flex items-center justify-center transition-all hover:opacity-80"
-                      style={{ background: "var(--bg-card)", border: "1px solid var(--border)", color: "var(--text-4)" }}
-                    >
-                      <MessageCircle size={15} />
-                    </button>
                   </div>
-                </div>
 
-                {/* Title + description */}
-                <div>
-                  <h1 className="text-2xl font-bold mb-2" style={{ color: "var(--text-1)" }}>{title}</h1>
-                  <p className="text-sm leading-relaxed" style={{ color: "var(--text-4)" }}>
-                    {descText ?? `A stunning piece from ${udisp} exploring the world of ${cat}.`}
-                  </p>
-                </div>
+                  {/* Artist row */}
+                  <div className="flex items-center gap-3">
+                    <Link href={profileHref} className="shrink-0">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={avatar} alt={udisp} className="w-10 h-10 rounded-full object-cover"
+                        style={{ border: "2px solid rgba(124,91,245,0.4)" }} />
+                    </Link>
+                    <div className="flex-1 min-w-0">
+                      <Link href={profileHref} className="hover:underline">
+                        <p className="text-sm font-semibold truncate" style={{ color: "var(--text-1)" }}>{udisp}</p>
+                      </Link>
+                      <p className="text-xs" style={{ color: "var(--text-5)" }}>{cat}</p>
+                    </div>
+                    <div className="flex gap-2 shrink-0">
+                      {user?.id !== post?.user_id && (
+                        <button
+                          onClick={handleFollow}
+                          className="text-xs font-semibold px-3 py-1.5 rounded-full transition-all hover:opacity-80"
+                          style={following
+                            ? { background: "rgba(16,185,129,0.12)", color: "#10B981", border: "1px solid rgba(16,185,129,0.3)" }
+                            : { background: "rgba(124,91,245,0.15)", color: "#9B7CF5", border: "1px solid rgba(124,91,245,0.3)" }}
+                        >
+                          {following ? "Following" : "Follow"}
+                        </button>
+                      )}
+                      <button
+                        className="w-8 h-8 rounded-full flex items-center justify-center transition-all hover:opacity-80"
+                        style={{ background: "var(--bg-card)", border: "1px solid var(--border)", color: "var(--text-4)" }}
+                      >
+                        <MessageCircle size={15} />
+                      </button>
+                    </div>
+                  </div>
 
-                {/* Meta grid */}
-                <div
-                  className="grid grid-cols-2 gap-3 p-4 rounded-2xl text-sm"
-                  style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}
-                >
+                  {/* Title + description */}
                   <div>
-                    <p className="text-xs mb-0.5" style={{ color: "var(--text-5)" }}>Category</p>
-                    <p style={{ color: "var(--text-2)" }}>{cat || "Art"}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs mb-0.5" style={{ color: "var(--text-5)" }}>Type</p>
-                    <p style={{ color: "var(--text-2)" }}>Digital</p>
-                  </div>
-                  <div>
-                    <p className="text-xs mb-0.5" style={{ color: "var(--text-5)" }}>Artist</p>
-                    <p className="truncate" style={{ color: "var(--text-2)" }}>@{uname}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs mb-0.5" style={{ color: "var(--text-5)" }}>Posted</p>
-                    <p style={{ color: "var(--text-2)" }}>
-                      {post?.created_at ? new Date(post.created_at).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) : "—"}
+                    <h1 className="text-2xl font-bold mb-2" style={{ color: "var(--text-1)" }}>{title}</h1>
+                    <p className="text-sm leading-relaxed" style={{ color: "var(--text-4)" }}>
+                      {descText ?? `A stunning piece from ${udisp} exploring the world of ${cat}.`}
                     </p>
                   </div>
-                </div>
 
-                {/* Price & CTA */}
-                <div className="p-4 rounded-2xl" style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}>
-                  {descPrice && (
-                    <div className="flex items-baseline gap-1 mb-4">
-                      <span className="text-xs" style={{ color: "var(--text-5)" }}>Price</span>
-                      <span className="text-3xl font-bold" style={{ color: "#9B7CF5" }}>{descPrice}</span>
+                  {/* Meta grid */}
+                  <div
+                    className="grid grid-cols-2 gap-3 p-4 rounded-2xl text-sm"
+                    style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}
+                  >
+                    <div>
+                      <p className="text-xs mb-0.5" style={{ color: "var(--text-5)" }}>Category</p>
+                      <p style={{ color: "var(--text-2)" }}>{cat || "Art"}</p>
                     </div>
-                  )}
-                  <div className="flex flex-col gap-2">
+                    <div>
+                      <p className="text-xs mb-0.5" style={{ color: "var(--text-5)" }}>Type</p>
+                      <p style={{ color: "var(--text-2)" }}>Digital</p>
+                    </div>
+                    <div>
+                      <p className="text-xs mb-0.5" style={{ color: "var(--text-5)" }}>Artist</p>
+                      <p className="truncate" style={{ color: "var(--text-2)" }}>@{uname}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs mb-0.5" style={{ color: "var(--text-5)" }}>Posted</p>
+                      <p style={{ color: "var(--text-2)" }}>
+                        {post?.created_at ? new Date(post.created_at).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) : "—"}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Price & CTA */}
+                  <div className="p-4 rounded-2xl" style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}>
                     {descPrice && (
-                      payDone ? (
-                        <div className="w-full py-3 rounded-xl font-semibold text-sm text-center"
-                          style={{ background: "rgba(16,185,129,0.15)", color: "#10B981", border: "1px solid rgba(16,185,129,0.3)" }}>
-                          ✓ Payment successful!
-                        </div>
-                      ) : (
-                        <>
-                          <button
-                            onClick={handleBuyNow}
-                            disabled={paying}
-                            className="w-full py-3 rounded-xl font-semibold text-sm text-white transition-opacity hover:opacity-85 disabled:opacity-60 flex items-center justify-center gap-2"
-                            style={{ background: "linear-gradient(135deg, #361E7B, #7C5BF5)" }}
-                          >
-                            {paying && <Loader2 size={15} className="animate-spin" />}
-                            {paying ? "Processing…" : "Buy Now"}
-                          </button>
-                          {payError && (
-                            <p className="text-xs text-center px-3 py-2 rounded-xl"
-                              style={{ background: "rgba(239,68,68,0.1)", color: "#EF4444", border: "1px solid rgba(239,68,68,0.25)" }}>
-                              {payError}
-                            </p>
-                          )}
-                        </>
-                      )
+                      <div className="flex items-baseline gap-1 mb-4">
+                        <span className="text-xs" style={{ color: "var(--text-5)" }}>Price</span>
+                        <span className="text-3xl font-bold" style={{ color: "#9B7CF5" }}>{descPrice}</span>
+                      </div>
                     )}
-                    <div className="flex gap-2">
-                      <button
-                        onClick={handleLike}
-                        className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-medium transition-all"
-                        style={{
-                          background: liked ? "rgba(244,63,94,0.1)" : "var(--bg-subtle)",
-                          border:     `1px solid ${liked ? "rgba(244,63,94,0.4)" : "var(--border)"}`,
-                          color:      liked ? "#f43f5e" : "var(--text-4)",
-                        }}
-                      >
-                        <Heart size={15} fill={liked ? "#f43f5e" : "none"} stroke={liked ? "#f43f5e" : "currentColor"} />
-                        {likeCount}
-                      </button>
-                      <button
-                        onClick={handleSave}
-                        className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-medium transition-all"
-                        style={{
-                          background: saved ? "rgba(124,91,245,0.1)" : "var(--bg-subtle)",
-                          border:     `1px solid ${saved ? "rgba(124,91,245,0.4)" : "var(--border)"}`,
-                          color:      saved ? "#9B7CF5" : "var(--text-4)",
-                        }}
-                      >
-                        <Bookmark size={15} fill={saved ? "#9B7CF5" : "none"} stroke={saved ? "#9B7CF5" : "currentColor"} />
-                        Save
-                      </button>
-                      <button
-                        className="flex items-center justify-center w-11 rounded-xl transition-all hover:opacity-70"
-                        style={{ background: "var(--bg-subtle)", border: "1px solid var(--border)", color: "var(--text-4)" }}
-                      >
-                        <Share2 size={15} />
-                      </button>
+                    <div className="flex flex-col gap-2">
+                      {descPrice && (
+                        payDone ? (
+                          <div className="w-full py-3 rounded-xl font-semibold text-sm text-center"
+                            style={{ background: "rgba(16,185,129,0.15)", color: "#10B981", border: "1px solid rgba(16,185,129,0.3)" }}>
+                            ✓ Payment successful!
+                          </div>
+                        ) : (
+                          <>
+                            <button
+                              onClick={handleBuyNow}
+                              disabled={paying}
+                              className="w-full py-3 rounded-xl font-semibold text-sm text-white transition-opacity hover:opacity-85 disabled:opacity-60 flex items-center justify-center gap-2"
+                              style={{ background: "linear-gradient(135deg, #361E7B, #7C5BF5)" }}
+                            >
+                              {paying && <Loader2 size={15} className="animate-spin" />}
+                              {paying ? "Processing…" : "Buy Now"}
+                            </button>
+                            {payError && (
+                              <p className="text-xs text-center px-3 py-2 rounded-xl"
+                                style={{ background: "rgba(239,68,68,0.1)", color: "#EF4444", border: "1px solid rgba(239,68,68,0.25)" }}>
+                                {payError}
+                              </p>
+                            )}
+                          </>
+                        )
+                      )}
+                      <div className="flex gap-2">
+                        <button
+                          onClick={handleLike}
+                          className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-medium transition-all"
+                          style={{
+                            background: liked ? "rgba(244,63,94,0.1)" : "var(--bg-subtle)",
+                            border:     `1px solid ${liked ? "rgba(244,63,94,0.4)" : "var(--border)"}`,
+                            color:      liked ? "#f43f5e" : "var(--text-4)",
+                          }}
+                        >
+                          <Heart size={15} fill={liked ? "#f43f5e" : "none"} stroke={liked ? "#f43f5e" : "currentColor"} />
+                          {likeCount}
+                        </button>
+                        <button
+                          onClick={handleSave}
+                          className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-medium transition-all"
+                          style={{
+                            background: saved ? "rgba(124,91,245,0.1)" : "var(--bg-subtle)",
+                            border:     `1px solid ${saved ? "rgba(124,91,245,0.4)" : "var(--border)"}`,
+                            color:      saved ? "#9B7CF5" : "var(--text-4)",
+                          }}
+                        >
+                          <Bookmark size={15} fill={saved ? "#9B7CF5" : "none"} stroke={saved ? "#9B7CF5" : "currentColor"} />
+                          Save
+                        </button>
+                        <button
+                          className="flex items-center justify-center w-11 rounded-xl transition-all hover:opacity-70"
+                          style={{ background: "var(--bg-subtle)", border: "1px solid var(--border)", color: "var(--text-4)" }}
+                        >
+                          <Share2 size={15} />
+                        </button>
+                      </div>
                     </div>
                   </div>
-                </div>
 
-                {/* Comments */}
-                <div className="flex flex-col gap-4">
-                  <h3 className="text-sm font-semibold" style={{ color: "var(--text-1)" }}>
-                    Comments {comments.length > 0 && <span style={{ color: "var(--text-5)" }}>({comments.length})</span>}
-                  </h3>
-
-                  {/* Comment input */}
-                  <div className="flex items-center gap-2 p-3 rounded-xl" style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}>
-                    {user && (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={user.imageUrl} alt="you" className="w-7 h-7 rounded-full object-cover shrink-0" />
-                    )}
-                    <input
-                      value={commentText}
-                      onChange={e => setCommentText(e.target.value)}
-                      onKeyDown={e => e.key === "Enter" && submitComment()}
-                      placeholder="Add a comment…"
-                      className="flex-1 bg-transparent text-sm outline-none"
-                      style={{ color: "var(--text-1)" }}
-                    />
-                    <button onClick={submitComment} disabled={!commentText.trim()}
-                      className="transition-opacity disabled:opacity-30" style={{ color: "#9B7CF5" }}>
-                      <Send size={17} />
-                    </button>
-                  </div>
-
-                  {/* Comment list */}
+                  {/* Comments */}
                   <div className="flex flex-col gap-4">
-                    {loading && <p className="text-xs text-center" style={{ color: "var(--text-5)" }}>Loading…</p>}
-                    {!loading && comments.length === 0 && (
-                      <p className="text-xs text-center py-4" style={{ color: "var(--text-5)" }}>No comments yet. Be the first!</p>
-                    )}
-                    {comments.map(c => (
-                      <div key={c.id} className="flex gap-2.5">
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src={c.author_avatar ?? "https://i.pravatar.cc/40"} alt={c.author_name}
-                          className="w-7 h-7 rounded-full object-cover shrink-0 mt-0.5" />
-                        <div>
-                          <span className="text-xs font-semibold mr-1.5" style={{ color: "var(--text-1)" }}>{c.author_name}</span>
-                          <span className="text-xs" style={{ color: "var(--text-3)" }}>{c.text}</span>
-                          <p className="text-[10px] mt-0.5" style={{ color: "var(--text-5)" }}>
-                            {new Date(c.created_at).toLocaleDateString()}
-                          </p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
+                    <h3 className="text-sm font-semibold" style={{ color: "var(--text-1)" }}>
+                      Comments {comments.length > 0 && <span style={{ color: "var(--text-5)" }}>({comments.length})</span>}
+                    </h3>
 
-              </div>
-
-              {/* ── Right: Pinterest-style related posts ── */}
-              <div className="hidden xl:block flex-1 min-w-0 pl-4">
-                <div className="columns-2 gap-4" style={{ columnGap: 16 }}>
-                  {rightGrid.map(work => (
-                    <Link
-                      key={work.id}
-                      href={`/feed/${work.id}`}
-                      className="group relative block rounded-2xl overflow-hidden mb-4 break-inside-avoid"
-                      style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}
-                    >
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
-                        src={firstImage(work.image_url ?? "")}
-                        alt={work.title}
-                        className="w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                    {/* Comment input */}
+                    <div className="flex items-center gap-2 p-3 rounded-xl" style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}>
+                      {user && (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={user.imageUrl} alt="you" className="w-7 h-7 rounded-full object-cover shrink-0" />
+                      )}
+                      <input
+                        value={commentText}
+                        onChange={e => setCommentText(e.target.value)}
+                        onKeyDown={e => e.key === "Enter" && submitComment()}
+                        placeholder="Add a comment…"
+                        className="flex-1 bg-transparent text-sm outline-none"
+                        style={{ color: "var(--text-1)" }}
                       />
-                      <div
-                        className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex flex-col justify-between p-3"
-                        style={{ background: "linear-gradient(to top, rgba(0,0,0,0.78) 45%, rgba(0,0,0,0.08) 100%)" }}
-                      >
-                        <div className="flex justify-end">
-                          <span
-                            className="px-3 py-1 rounded-full text-[11px] font-bold text-white"
-                            style={{ background: "rgba(0,0,0,0.5)", backdropFilter: "blur(6px)", border: "1px solid rgba(255,255,255,0.15)" }}
-                          >
-                            View
-                          </span>
-                        </div>
-                        <div>
-                          <p className="text-xs font-semibold text-white truncate">{work.title}</p>
-                          <p className="text-[10px] mt-0.5" style={{ color: "rgba(255,255,255,0.6)" }}>
-                            {work.author_name ?? work.author_username}
-                          </p>
-                        </div>
-                      </div>
-                    </Link>
-                  ))}
-                </div>
-              </div>
+                      <button onClick={submitComment} disabled={!commentText.trim()}
+                        className="transition-opacity disabled:opacity-30" style={{ color: "#9B7CF5" }}>
+                        <Send size={17} />
+                      </button>
+                    </div>
 
-            </div>
+                    {/* Comment list */}
+                    <div className="flex flex-col gap-4">
+                      {loading && <p className="text-xs text-center" style={{ color: "var(--text-5)" }}>Loading…</p>}
+                      {!loading && comments.length === 0 && (
+                        <p className="text-xs text-center py-4" style={{ color: "var(--text-5)" }}>No comments yet. Be the first!</p>
+                      )}
+                      {comments.map(c => (
+                        <div key={c.id} className="flex gap-2.5">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img src={c.author_avatar ?? "https://i.pravatar.cc/40"} alt={c.author_name}
+                            className="w-7 h-7 rounded-full object-cover shrink-0 mt-0.5" />
+                          <div>
+                            <span className="text-xs font-semibold mr-1.5" style={{ color: "var(--text-1)" }}>{c.author_name}</span>
+                            <span className="text-xs" style={{ color: "var(--text-3)" }}>{c.text}</span>
+                            <p className="text-[10px] mt-0.5" style={{ color: "var(--text-5)" }}>
+                              {new Date(c.created_at).toLocaleDateString()}
+                            </p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
 
-            {/* ── Below: More like this ── */}
+                </div>{/* end details gap-5 */}
+              </div>{/* end right column */}
+            </div>{/* end Pinterest 2-col */}
+
+            {/* ── Below: More like this (full width, below the fold) ── */}
             {belowGrid.length > 0 && (
-              <div className="px-4 md:px-6 mt-12">
+              <div className="px-4 md:px-6 mt-12 border-t" style={{ borderColor: "var(--border)", paddingTop: 40 }}>
                 <div className="flex items-center justify-between mb-6">
                   <div>
                     <h2 className="text-xl font-bold" style={{ color: "var(--text-1)" }}>More like this</h2>

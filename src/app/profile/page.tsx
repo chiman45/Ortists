@@ -326,12 +326,12 @@ export default function ProfilePage() {
 
             {/* ── Profile header ── */}
             <div className="mb-6">
-              <div className="flex items-start gap-5">
+              <div className="flex items-start gap-4">
                 {/* Avatar — square rounded */}
                 <div className="relative shrink-0">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img src={avatar} alt={name}
-                    className="w-24 h-24 rounded-2xl object-cover"
+                    className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl object-cover"
                     style={{ border: "2px solid rgba(124,91,245,0.3)" }} />
                   {available && (
                     <span className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2"
@@ -339,16 +339,33 @@ export default function ProfilePage() {
                   )}
                 </div>
 
-                {/* Center info */}
+                {/* Center info + action buttons stacked */}
                 <div className="flex-1 min-w-0">
-                  {/* Name + verified */}
-                  <div className="flex items-center gap-2 mb-1.5">
-                    <h1 className="text-2xl font-bold" style={{ color: "var(--text-1)" }}>{name}</h1>
-                    {rating >= 4.0 && <CheckCircle2 size={18} style={{ color: "#7C5BF5" }} />}
+                  {/* Name row + action buttons on same line for md+ */}
+                  <div className="flex items-start justify-between gap-2 mb-1.5">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <h1 className="text-xl sm:text-2xl font-bold truncate" style={{ color: "var(--text-1)" }}>{name}</h1>
+                      {rating >= 4.0 && <CheckCircle2 size={18} className="shrink-0" style={{ color: "#7C5BF5" }} />}
+                    </div>
+                    {/* Action buttons — icon-only on xs, text on sm+ */}
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <button onClick={() => setShareOpen(true)}
+                        className="flex items-center gap-1.5 px-2.5 sm:px-4 py-2 rounded-xl text-sm font-semibold transition-opacity hover:opacity-70"
+                        style={{ background: "var(--bg-subtle)", border: "1px solid var(--border)", color: "var(--text-3)" }}>
+                        <Share2 size={15} />
+                        <span className="hidden sm:inline">Share</span>
+                      </button>
+                      <button onClick={() => openEdit("Basic Info")}
+                        className="flex items-center gap-1.5 px-2.5 sm:px-4 py-2 rounded-xl text-sm font-bold transition-opacity hover:opacity-90"
+                        style={{ background: "#7C5BF5", color: "#fff" }}>
+                        <Pencil size={14} />
+                        <span className="hidden sm:inline">Edit Profile</span>
+                      </button>
+                    </div>
                   </div>
 
                   {/* @username · location */}
-                  <div className="flex items-center gap-2 mb-3">
+                  <div className="flex items-center gap-2 mb-2 flex-wrap">
                     <span className="text-sm" style={{ color: "var(--text-4)" }}>{username}</span>
                     {location && (
                       <>
@@ -361,35 +378,20 @@ export default function ProfilePage() {
 
                   {/* Tag chips */}
                   {tag && (
-                    <div className="flex flex-wrap gap-2 mb-4">
+                    <div className="flex flex-wrap gap-1.5">
                       {tag.split(",").map(t => t.trim()).filter(Boolean).map(t => (
-                        <span key={t} className="px-3 py-1 rounded-full text-xs font-medium"
+                        <span key={t} className="px-2.5 py-0.5 rounded-full text-xs font-medium"
                           style={{ border: "1px solid var(--border)", color: "var(--text-3)", background: "var(--bg-subtle)" }}>
                           {t}
                         </span>
                       ))}
                     </div>
                   )}
-
-                </div>
-
-                {/* Action buttons — top right */}
-                <div className="flex items-center gap-2 shrink-0">
-                  <button onClick={() => setShareOpen(true)}
-                    className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-opacity hover:opacity-70"
-                    style={{ background: "var(--bg-subtle)", border: "1px solid var(--border)", color: "var(--text-3)" }}>
-                    <Share2 size={15} /> Share
-                  </button>
-                  <button onClick={() => openEdit("Basic Info")}
-                    className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-opacity hover:opacity-90"
-                    style={{ background: "#7C5BF5", color: "#fff" }}>
-                    <Pencil size={14} /> Edit Profile
-                  </button>
                 </div>
               </div>
 
               {/* Stats bar — below, separated by a divider */}
-              <div className="mt-6 pt-5 flex items-center gap-8 flex-wrap"
+              <div className="mt-5 pt-4 grid grid-cols-3 sm:flex sm:items-center sm:gap-8 gap-3"
                 style={{ borderTop: "1px solid var(--border)" }}>
                 {[
                   { value: dbPosts.length,  label: "Portfolio",  onClick: undefined },
@@ -560,9 +562,9 @@ export default function ProfilePage() {
                   const featuredPost = dbPosts.find(p => !isVideoUrl(firstImage(p.image_url)));
                   if (!featuredPost) return null;
                   return (
-                  <div className="rounded-2xl overflow-hidden flex"
-                    style={{ background: "var(--bg-card)", border: "1px solid var(--border)", minHeight: 220 }}>
-                    <div className="w-2/5 shrink-0 relative">
+                  <div className="rounded-2xl overflow-hidden flex flex-col sm:flex-row"
+                    style={{ background: "var(--bg-card)", border: "1px solid var(--border)", minHeight: 200 }}>
+                    <div className="w-full sm:w-2/5 shrink-0 relative" style={{ minHeight: 160 }}>
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img src={firstImage(featuredPost.image_url)} alt={featuredPost.title}
                         className="w-full h-full object-cover" />

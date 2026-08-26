@@ -341,9 +341,9 @@ export default function GalleryPage() {
 
               {/* ── 2. Editorial featured grid ── */}
               <section className="px-4 md:px-6 py-6">
-                <div className="grid grid-cols-3 gap-3" style={{ height: 400 }}>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3" style={{ minHeight: 300 }}>
                   {/* Left: large card — img absolute so it fills the grid cell height */}
-                  <Link href={`/gallery/${featuredGrid[0].id}`} className="group col-span-2 relative rounded-2xl overflow-hidden block" style={{ minHeight: 400 }}>
+                  <Link href={`/gallery/${featuredGrid[0].id}`} className="group sm:col-span-2 relative rounded-2xl overflow-hidden block" style={{ minHeight: 280 }}>
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
                       src={featuredGrid[0].imageUrl} alt={featuredGrid[0].title}
@@ -364,7 +364,7 @@ export default function GalleryPage() {
                   </Link>
 
                   {/* Right: 2 stacked — each Link fills its flex-1 slot */}
-                  <div className="flex flex-col gap-3" style={{ height: 400 }}>
+                  <div className="flex sm:flex-col gap-3" style={{ minHeight: 280 }}>
                     {featuredGrid.slice(1, 3).map(item => (
                       <Link key={item.id} href={`/gallery/${item.id}`} className="group relative flex-1 rounded-2xl overflow-hidden block">
                         {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -405,10 +405,10 @@ export default function GalleryPage() {
 
               {/* ── 4. "From the Collection" promo ── */}
               <section
-                className="mx-4 md:mx-6 mb-8 rounded-2xl overflow-hidden grid grid-cols-5"
+                className="mx-4 md:mx-6 mb-8 rounded-2xl overflow-hidden grid grid-cols-1 sm:grid-cols-5"
                 style={{ background: "rgba(8,5,20,0.95)", border: "1px solid rgba(255,255,255,0.07)" }}
               >
-                <div className="col-span-2 flex flex-col justify-center px-8 py-10 gap-4">
+                <div className="sm:col-span-2 flex flex-col justify-center px-6 sm:px-8 py-8 sm:py-10 gap-4">
                   <p className="text-[9px] font-black tracking-[0.25em]" style={{ color: "rgba(255,255,255,0.35)" }}>FROM THE COLLECTION</p>
                   <h3 className="text-2xl font-black leading-tight" style={{ color: "#fff" }}>
                     Works that challenge<br />how we see.
@@ -421,7 +421,7 @@ export default function GalleryPage() {
                   </button>
                 </div>
 
-                <Link href={`/gallery/${collectionFeatured.id}`} className="group col-span-3 relative block" style={{ minHeight: 300 }}>
+                <Link href={`/gallery/${collectionFeatured.id}`} className="group sm:col-span-3 relative block" style={{ minHeight: 260 }}>
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={collectionFeatured.imageUrl} alt={collectionFeatured.title}

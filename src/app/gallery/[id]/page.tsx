@@ -410,32 +410,44 @@ export default function GalleryDetailPage({ params }: { params: Promise<{ id: st
             </Link>
           </div>
 
-          {/* ── 3-column layout ── */}
-          <div className="flex gap-0 items-start px-4 md:px-6 pt-4">
+          {/* ── Pinterest-style 2-column layout ── */}
+          <div className="lg:flex lg:items-start">
 
-            {/* ── Left: Sticky artwork image ── */}
+            {/* ── Left: sticky image panel ── */}
             <div
-              className="hidden lg:block shrink-0 rounded-2xl overflow-hidden"
+              className="hidden lg:flex lg:items-center lg:justify-center shrink-0"
               style={{
-                width:    420,
+                width:    "48%",
                 position: "sticky",
-                top:      80,
-                border:   "1px solid var(--border)",
+                top:      52,
+                height:   "calc(100vh - 52px)",
+                background: "var(--bg-card)",
+                borderRight: "1px solid var(--border)",
+                overflow: "hidden",
               }}
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={item.imageUrl}
                 alt={item.title}
-                style={{ width: "100%", display: "block", objectFit: "cover" }}
+                style={{ maxWidth: "100%", maxHeight: "100%", objectFit: "contain", display: "block" }}
                 draggable={false}
               />
             </div>
 
-            {/* ── Center: Post details + comments (original style) ── */}
+            {/* ── Right: scrollable details ── */}
+            <div className="flex-1 min-w-0 flex flex-col">
+
+            {/* Mobile image */}
+            <div className="lg:hidden px-4 pt-4 pb-0">
+              <div className="rounded-2xl overflow-hidden" style={{ border: "1px solid var(--border)" }}>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={item.imageUrl} alt={item.title} className="w-full object-cover" draggable={false} />
+              </div>
+            </div>
+
             <div
-              className="flex flex-col gap-5 flex-1 min-w-0 px-6"
-              style={{ maxWidth: 420 }}
+              className="flex flex-col gap-5 flex-1 min-w-0 px-4 md:px-6 pt-4 pb-8"
             >
               {/* Artist */}
               <div className="flex items-center gap-3">
@@ -582,54 +594,13 @@ export default function GalleryDetailPage({ params }: { params: Promise<{ id: st
                 </div>
               </div>
 
-            </div>
-
-            {/* ── Right: Pinterest-style recommendation grid ── */}
-            <div className="hidden xl:block flex-1 min-w-0 pl-4">
-              <div className="columns-2 gap-4" style={{ columnGap: 16 }}>
-                {rightGrid.map(work => (
-                  <Link
-                    key={work.id}
-                    href={`/gallery/${work.id}`}
-                    className="group relative block rounded-2xl overflow-hidden mb-4 break-inside-avoid"
-                    style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}
-                  >
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={work.imageUrl}
-                      alt={work.title}
-                      className="w-full object-cover transition-transform duration-300 group-hover:scale-105"
-                    />
-                    {/* Hover overlay */}
-                    <div
-                      className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex flex-col justify-between p-3"
-                      style={{ background: "linear-gradient(to top, rgba(0,0,0,0.78) 45%, rgba(0,0,0,0.08) 100%)" }}
-                    >
-                      <div className="flex justify-end">
-                        <button
-                          onClick={e => e.preventDefault()}
-                          className="px-3 py-1 rounded-full text-[11px] font-bold text-white"
-                          style={{ background: "rgba(0,0,0,0.5)", backdropFilter: "blur(6px)", border: "1px solid rgba(255,255,255,0.15)" }}
-                        >
-                          Save
-                        </button>
-                      </div>
-                      <div>
-                        <p className="text-xs font-semibold text-white truncate">{work.title}</p>
-                        <p className="text-[10px] mt-0.5" style={{ color: "rgba(255,255,255,0.6)" }}>
-                          {work.artistName} · ${work.price}
-                        </p>
-                      </div>
-                    </div>
-                  </Link>
-                ))}
-              </div>
-            </div>
-          </div>
+            </div>{/* end details gap-5 */}
+            </div>{/* end right column */}
+          </div>{/* end Pinterest 2-col */}
 
           {/* ── Below post: Recommendations grid ── */}
           {belowGrid.length > 0 && (
-            <div className="px-4 md:px-6 mt-12">
+            <div className="px-4 md:px-6 mt-12 border-t" style={{ borderColor: "var(--border)", paddingTop: 40 }}>
               <div className="flex items-center justify-between mb-6">
                 <div>
                   <h2 className="text-xl font-bold" style={{ color: "var(--text-1)" }}>More from the Gallery</h2>
