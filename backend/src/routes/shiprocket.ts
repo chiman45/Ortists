@@ -28,7 +28,7 @@ router.post("/create-order", async (req: Request, res: Response, next: NextFunct
 // GET /api/shiprocket/track/shipment/:id
 router.get("/track/shipment/:id", async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const data = await trackByShipmentId(req.params.id);
+    const data = await trackByShipmentId(String(req.params.id));
     res.json(data);
   } catch (err) {
     next(err);
