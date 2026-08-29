@@ -413,11 +413,11 @@ export default function GalleryDetailPage({ params }: { params: Promise<{ id: st
           {/* ── Pinterest-style 2-column layout ── */}
           <div className="lg:flex lg:items-start">
 
-            {/* ── Left: sticky image panel ── */}
+            {/* ── Left: sticky image panel (flex-1) ── */}
             <div
               className="hidden lg:flex lg:items-center lg:justify-center shrink-0"
               style={{
-                width:    "48%",
+                width: "55%",
                 position: "sticky",
                 top:      52,
                 height:   "calc(100vh - 52px)",
@@ -435,8 +435,8 @@ export default function GalleryDetailPage({ params }: { params: Promise<{ id: st
               />
             </div>
 
-            {/* ── Right: scrollable details ── */}
-            <div className="flex-1 min-w-0 flex flex-col">
+            {/* ── Right: flex-1 scrollable details panel ── */}
+            <div className="flex flex-col flex-1 min-w-0 overflow-y-auto" style={{ height: "calc(100vh - 52px)", position: "sticky", top: 52 }}>
 
             {/* Mobile image */}
             <div className="lg:hidden px-4 pt-4 pb-0">

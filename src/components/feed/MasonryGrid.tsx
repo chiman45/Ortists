@@ -28,9 +28,10 @@ interface Props {
   posts: DbPost[];
   category?: string | null;
   loadFromDb?: boolean;
+  columns?: string;
 }
 
-export default function MasonryGrid({ posts: initial, category, loadFromDb = true }: Props) {
+export default function MasonryGrid({ posts: initial, category, loadFromDb = true, columns = "columns-2 sm:columns-3 lg:columns-4 xl:columns-5" }: Props) {
   const [visible, setVisible] = useState<DbPost[]>(initial);
   const [loading, setLoading] = useState(false);
   const [done, setDone]       = useState(false);
@@ -85,7 +86,7 @@ export default function MasonryGrid({ posts: initial, category, loadFromDb = tru
 
   return (
     <>
-      <div className="columns-2 sm:columns-3 lg:columns-4 xl:columns-5 gap-4">
+      <div className={`${columns} gap-4`}>
         {visible.map((p, i) => (
           <FeedCard
             key={p.id}

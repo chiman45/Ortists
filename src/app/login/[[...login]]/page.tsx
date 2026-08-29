@@ -2,7 +2,7 @@
 
 import { SignIn, SignUp } from "@clerk/nextjs";
 import { useUser } from "@clerk/nextjs";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 
 const APPEARANCE = {
@@ -70,7 +70,10 @@ const ART_IMAGES = [
 export default function LoginPage() {
   const { isLoaded, isSignedIn } = useUser();
   const router = useRouter();
-  const [mode, setMode] = useState<"signin" | "signup">("signin");
+  const searchParams = useSearchParams();
+  const [mode, setMode] = useState<"signin" | "signup">(
+    searchParams.get("mode") === "signup" ? "signup" : "signin"
+  );
 
   // Already signed in → go straight to feed
   useEffect(() => {
@@ -94,7 +97,8 @@ export default function LoginPage() {
           <img
             src="/login-image/ortists logo1.png"
             alt="Ortist"
-            className="w-12 h-12 object-contain mx-auto mb-2"
+            className="object-contain mx-auto mb-3"
+            style={{ width: 80, height: 80, filter: "brightness(1.08) drop-shadow(0 0 18px rgba(255,255,255,0.3)) drop-shadow(0 0 40px rgba(124,91,245,0.5)) drop-shadow(0 0 4px rgba(255,255,255,0.55))" }}
           />
           <h1 className="text-2xl font-bold text-white tracking-tight">Ortist</h1>
           <p className="text-xs mt-1" style={{ color: "rgba(255,255,255,0.35)" }}>

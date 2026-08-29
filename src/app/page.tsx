@@ -77,9 +77,44 @@ function Divider() {
   return <div style={{ height: 1, background: "rgba(255,255,255,0.06)" }} />;
 }
 
+const ALL_SUGGESTIONS = [
+  "Portrait",        "Watercolor",       "Acrylic Painting",  "Oil Painting",
+  "Sculpture",       "Tribal Art",       "Digital Art",       "Printmaking",
+  "Illustration",    "Photography",      "Mixed Media",       "Mural Art",
+  "Wood Carving",    "Resin Art",        "Charcoal Art",      "Ink Art",
+  "Abstract Art",    "Warli Art",        "Madhubani Art",     "Gond Art",
+  "Tanjore Painting","Kalamkari",        "Logo & Branding",   "Character Design",
+  "Concept Art",     "3D Modeling",      "Motion Graphics",   "Fluid Art",
+];
+
 export default function LandingPage() {
   const router = useRouter();
-  const [heroSearch, setHeroSearch] = useState("");
+  const [heroSearch,   setHeroSearch]   = useState("");
+  const [searchFocused, setSearchFocused] = useState(false);
+  const searchRef = useRef<HTMLDivElement>(null);
+
+  const suggestions = heroSearch.trim()
+    ? ALL_SUGGESTIONS.filter(s => s.toLowerCase().includes(heroSearch.toLowerCase())).slice(0, 8)
+    : ALL_SUGGESTIONS.slice(0, 8);
+
+  const showDropdown = searchFocused && suggestions.length > 0;
+
+  function pickSuggestion(s: string) {
+    setHeroSearch("");
+    setSearchFocused(false);
+    router.push(`/hiring?search=${encodeURIComponent(s)}`);
+  }
+
+  // Close on outside click
+  useEffect(() => {
+    function handler(e: MouseEvent) {
+      if (searchRef.current && !searchRef.current.contains(e.target as Node)) {
+        setSearchFocused(false);
+      }
+    }
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
 
   return (
     <div style={{ background: BG, color: "#fff", overflowX: "hidden" }}>
@@ -107,21 +142,12 @@ export default function LandingPage() {
         {/* Centered content */}
         <div className="relative z-10 flex flex-col items-center text-center px-6 w-full" style={{ maxWidth: 860, paddingTop: "80px" }}>
 
-          {/* — CREATIVE ECOSYSTEM — */}
-          <div className="flex items-center gap-4 mb-8">
-            <div style={{ height: 1, width: 56, background: "rgba(255,255,255,0.35)" }} />
-            <p className="text-[10px] font-semibold tracking-[0.36em] uppercase" style={{ color: "rgba(255,255,255,0.6)" }}>
-              Creative Ecosystem
-            </p>
-            <div style={{ height: 1, width: 56, background: "rgba(255,255,255,0.35)" }} />
-          </div>
-
           {/* Circular logo */}
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src="/login-image/ortists logo1.png"
             alt="Ortists"
-            style={{ width: "clamp(180px, 24vw, 280px)", height: "clamp(180px, 24vw, 280px)", objectFit: "contain", marginBottom: "2rem", filter: "drop-shadow(0 0 48px rgba(124,91,245,0.35))" }}
+            style={{ width: "clamp(180px, 24vw, 280px)", height: "clamp(180px, 24vw, 280px)", objectFit: "contain", marginBottom: "2rem", filter: "brightness(1.08) drop-shadow(0 0 32px rgba(255,255,255,0.35)) drop-shadow(0 0 80px rgba(124,91,245,0.5)) drop-shadow(0 0 6px rgba(255,255,255,0.6))" }}
           />
 
           {/* Tagline */}
@@ -129,22 +155,84 @@ export default function LandingPage() {
             Discover artists. Share ideas. Create extraordinary.
           </p>
 
-          {/* Search bar */}
-          <div className="w-full max-w-[540px] mb-6 flex items-center gap-3 px-5 py-3.5 rounded-lg"
-            style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.18)", backdropFilter: "blur(16px)" }}>
-            <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none"
-              stroke="rgba(255,255,255,0.45)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="11" cy="11" r="8" /><path d="m21 21-4.35-4.35" />
-            </svg>
-            <input
-              type="text"
-              value={heroSearch}
-              onChange={e => setHeroSearch(e.target.value)}
-              onKeyDown={e => { if (e.key === "Enter" && heroSearch.trim()) router.push(`/hiring?search=${encodeURIComponent(heroSearch.trim())}`); }}
-              placeholder="Search artists, artwork, services or categories..."
-              className="flex-1 bg-transparent outline-none text-sm"
-              style={{ color: "#fff" }}
-            />
+          {/* Search bar + dropdown */}
+          <div ref={searchRef} className="w-full max-w-[540px] mb-6 relative">
+            <div
+              className="flex items-center gap-3 px-5 py-3.5 rounded-lg"
+              style={{
+                background: "rgba(255,255,255,0.07)",
+                border: `1px solid ${searchFocused ? "rgba(255,255,255,0.38)" : "rgba(255,255,255,0.18)"}`,
+                backdropFilter: "blur(16px)",
+                transition: "border-color 0.2s",
+              }}
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none"
+                stroke="rgba(255,255,255,0.45)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="11" cy="11" r="8" /><path d="m21 21-4.35-4.35" />
+              </svg>
+              <input
+                type="text"
+                value={heroSearch}
+                onChange={e => setHeroSearch(e.target.value)}
+                onFocus={() => setSearchFocused(true)}
+                onKeyDown={e => {
+                  if (e.key === "Enter" && heroSearch.trim()) pickSuggestion(heroSearch.trim());
+                  if (e.key === "Escape") setSearchFocused(false);
+                }}
+                placeholder="Search artists, artwork, services or categories..."
+                className="flex-1 bg-transparent outline-none text-sm"
+                style={{ color: "#fff" }}
+              />
+              {heroSearch && (
+                <button onClick={() => setHeroSearch("")} style={{ color: "rgba(255,255,255,0.35)", lineHeight: 1 }}>✕</button>
+              )}
+            </div>
+
+            {/* Dropdown */}
+            {showDropdown && (
+              <div
+                className="absolute left-0 right-0 top-full mt-2 rounded-xl overflow-hidden"
+                style={{
+                  background: "rgba(10,10,16,0.97)",
+                  border: "1px solid rgba(255,255,255,0.1)",
+                  backdropFilter: "blur(24px)",
+                  boxShadow: "0 20px 60px rgba(0,0,0,0.7)",
+                  zIndex: 60,
+                }}
+              >
+                <div className="px-3 pt-3 pb-1">
+                  <p className="text-[9px] font-bold tracking-[0.28em] uppercase px-2 mb-2" style={{ color: "rgba(255,255,255,0.25)" }}>
+                    {heroSearch.trim() ? "Matching categories" : "Popular searches"}
+                  </p>
+                  {suggestions.map(s => (
+                    <button
+                      key={s}
+                      onMouseDown={() => pickSuggestion(s)}
+                      className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left text-[13px] transition-all duration-100 group"
+                      style={{ color: "rgba(255,255,255,0.75)" }}
+                      onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "rgba(124,91,245,0.12)"; (e.currentTarget as HTMLElement).style.color = "#fff"; }}
+                      onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = "transparent"; (e.currentTarget as HTMLElement).style.color = "rgba(255,255,255,0.75)"; }}
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none"
+                        stroke="rgba(255,255,255,0.3)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <circle cx="11" cy="11" r="8" /><path d="m21 21-4.35-4.35" />
+                      </svg>
+                      {s}
+                      <span className="ml-auto text-[10px]" style={{ color: "rgba(255,255,255,0.2)" }}>→</span>
+                    </button>
+                  ))}
+                </div>
+                <div className="px-5 py-3 mt-1" style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}>
+                  <button
+                    onMouseDown={() => { if (heroSearch.trim()) pickSuggestion(heroSearch.trim()); else router.push("/hiring"); setSearchFocused(false); }}
+                    className="text-[11px] font-semibold transition-opacity hover:opacity-70"
+                    style={{ color: ACCENT }}
+                  >
+                    Browse all artists →
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Category chips */}
