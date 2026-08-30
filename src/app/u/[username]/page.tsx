@@ -206,7 +206,7 @@ export default function UserProfilePage({ params }: { params: Promise<{ username
                   </div>
 
                   {/* @username row + inline buttons at ≥446px */}
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center justify-between gap-2">
                     <p className="text-sm" style={{ color: "#9B7CF5" }}>@{profile.username}</p>
 
                     {/* Inline buttons — visible at ≥446px */}

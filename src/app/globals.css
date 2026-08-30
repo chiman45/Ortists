@@ -283,6 +283,23 @@ html.ocean .skeleton-shimmer {
   animation: skeleton-shimmer 1.6s ease-in-out infinite;
 }
 
+/* Project detail page: full height on desktop, minus BottomNav on mobile */
+.project-layout { height: 100vh; }
+@media (max-width: 1023px) {
+  .project-layout { height: calc(100svh - 56px); }
+}
+
+/* Profile action buttons — two-layout responsive */
+/* Mobile (<446px): hide inline, show row */
+.profile-btn-inline { display: none !important; }
+.profile-btn-row    { display: flex !important; flex-direction: row; gap: 0.5rem; }
+
+/* Desktop (≥446px): show inline beside @username, hide row */
+@media (min-width: 446px) {
+  .profile-btn-inline { display: flex !important; flex-direction: row; align-items: center; gap: 0.5rem; }
+  .profile-btn-row    { display: none !important; }
+}
+
 .word-clip {
   display: inline-block;
   overflow: hidden;

@@ -1140,7 +1140,7 @@ export default function ProjectDetailPage() {
   const isActive = project.status === "accepted";
 
   return (
-    <div className="flex h-screen overflow-hidden" style={{ background: "var(--bg)" }}>
+    <div className="flex overflow-hidden project-layout" style={{ background: "var(--bg)" }}>
       <Sidebar />
 
       <div className="flex-1 flex flex-col lg:ml-17 min-w-0 overflow-hidden">

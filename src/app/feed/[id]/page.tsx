@@ -297,7 +297,7 @@ export default function FeedPostPage({ params }: { params: Promise<{ id: string 
                   {/* Image side */}
                   <div
                     className="relative shrink-0"
-                    style={{ width: "100%", maxWidth: 480, borderRadius: "24px 0 0 24px", overflow: "hidden", background: "var(--bg)" }}
+                    style={{ width: "100%", maxWidth: 480, borderRadius: "24px 0 0 24px", overflow: "hidden", background: "var(--bg)", alignSelf: "center" }}
                   >
                     {isVideo ? (
                       <video src={img} controls className="w-full block" style={{ background: "#000", minHeight: 340 }} />

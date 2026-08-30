@@ -123,6 +123,13 @@ export default function LegalPage({ title, subtitle, lastUpdated, sections, chil
 
         {/* Body */}
         <div className="max-w-6xl mx-auto px-6 py-14">
+          <div style={{
+            border: "1px solid rgba(255,255,255,0.10)",
+            borderRadius: "24px",
+            boxShadow: "0 0 0 1px rgba(255,255,255,0.04), 0 8px 48px rgba(0,0,0,0.45), 0 0 80px rgba(124,91,245,0.06)",
+            background: "rgba(255,255,255,0.015)",
+            padding: "32px",
+          }}>
           {hasToc ? (
             <div className="flex gap-10 items-start">
               {/* Sticky TOC */}
@@ -196,6 +203,7 @@ export default function LegalPage({ title, subtitle, lastUpdated, sections, chil
             /* Fallback for children-based pages (contact, help) */
             <div className="max-w-2xl mx-auto">{children}</div>
           )}
+          </div>
         </div>
 
         {/* Footer strip */}
