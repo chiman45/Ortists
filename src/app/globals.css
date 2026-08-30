@@ -290,3 +290,11 @@ html.ocean .skeleton-shimmer {
   padding-bottom: 0.06em;
 }
 .word-clip span { display: inline-block; }
+
+/* Profile action buttons — own row below 430px, inline beside @rpd at 430px+ */
+.profile-btn-inline { display: none !important; }
+.profile-btn-row    { display: flex !important; flex-direction: row; gap: 0.5rem; margin-bottom: 0.75rem; }
+@media (min-width: 430px) {
+  .profile-btn-inline { display: flex !important; align-items: center; gap: 0.5rem; margin-left: auto; }
+  .profile-btn-row    { display: none !important; }
+}

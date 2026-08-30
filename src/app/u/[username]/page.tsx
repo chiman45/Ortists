@@ -181,47 +181,84 @@ export default function UserProfilePage({ params }: { params: Promise<{ username
               </div>
 
               <div className="px-5 pb-5">
-                <div className="flex flex-wrap items-end gap-4 -mt-8 mb-4">
+                {/* Avatar row */}
+                <div className="flex items-end gap-4 -mt-8 mb-3">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={profile.avatar_url ?? `https://i.pravatar.cc/150?u=${profile.clerk_id}`}
                     alt={profile.display_name ?? "Artist"}
                     className="w-20 h-20 rounded-full object-cover shrink-0 relative z-10"
                     style={{ border: "3px solid var(--bg-card)" }} />
-                  <div className="flex-1 min-w-0 pt-10">
-                    <div className="flex flex-wrap items-center gap-2 mb-0.5">
-                      <h1 className="text-xl font-bold" style={{ color: "var(--text-1)" }}>
-                        {profile.display_name ?? profile.username}
-                      </h1>
-                      {profile.available && (
-                        <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full"
-                          style={{ background: "rgba(16,185,129,0.15)", color: "#10B981", border: "1px solid rgba(16,185,129,0.3)" }}>
-                          Available
-                        </span>
-                      )}
-                    </div>
-                    <p className="text-sm mb-1" style={{ color: "#9B7CF5" }}>@{profile.username}</p>
-                    {profile.location && (
-                      <div className="flex items-center gap-1.5 mb-1">
-                        <MapPin size={12} style={{ color: "var(--text-5)" }} />
-                        <span className="text-xs" style={{ color: "var(--text-5)" }}>{profile.location}</span>
-                        <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full ml-1"
-                          style={{ background: "rgba(124,91,245,0.15)", color: "#9B7CF5", border: "1px solid rgba(124,91,245,0.3)" }}>
-                          {profile.tag}
-                        </span>
-                      </div>
-                    )}
-                    {profile.bio && (
-                      <p className="text-xs leading-relaxed mt-1" style={{ color: "var(--text-4)" }}>{profile.bio}</p>
+                </div>
+
+                {/* Profile info */}
+                <div className="mb-3">
+                  <div className="flex flex-wrap items-center gap-2 mb-0.5">
+                    <h1 className="text-xl font-bold" style={{ color: "var(--text-1)" }}>
+                      {profile.display_name ?? profile.username}
+                    </h1>
+                    {profile.available && (
+                      <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full"
+                        style={{ background: "rgba(16,185,129,0.15)", color: "#10B981", border: "1px solid rgba(16,185,129,0.3)" }}>
+                        Available
+                      </span>
                     )}
                   </div>
 
-                  {/* Actions */}
+                  {/* @username row + inline buttons at ≥446px */}
+                  <div className="flex items-center gap-2">
+                    <p className="text-sm" style={{ color: "#9B7CF5" }}>@{profile.username}</p>
+
+                    {/* Inline buttons — visible at ≥446px */}
+                    {!isOwnProfile && (
+                      <div className="profile-btn-inline">
+                        <button onClick={handleFollow} disabled={followPending}
+                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all hover:opacity-85 disabled:opacity-60"
+                          style={following
+                            ? { background: "rgba(124,91,245,0.15)", color: "#9B7CF5", border: "1px solid rgba(124,91,245,0.4)" }
+                            : { background: "#7C5BF5", color: "#fff" }}>
+                          <UserPlus size={12} />
+                          {followPending ? "…" : following ? "Following" : "Follow"}
+                        </button>
+                        <button onClick={handleHire}
+                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-white transition-all hover:opacity-85"
+                          style={{ background: "linear-gradient(135deg,#361E7B,#7C5BF5)" }}>
+                          <Briefcase size={12} /> Hire
+                        </button>
+                      </div>
+                    )}
+                    {isOwnProfile && (
+                      <div className="profile-btn-inline">
+                        <Link href="/profile"
+                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all hover:opacity-85"
+                          style={{ background: "#7C5BF5", color: "#fff" }}>
+                          Edit Profile
+                        </Link>
+                      </div>
+                    )}
+                  </div>
+
+                  {profile.location && (
+                    <div className="flex items-center gap-1.5 mt-1 mb-1">
+                      <MapPin size={12} style={{ color: "var(--text-5)" }} />
+                      <span className="text-xs" style={{ color: "var(--text-5)" }}>{profile.location}</span>
+                      <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full ml-1"
+                        style={{ background: "rgba(124,91,245,0.15)", color: "#9B7CF5", border: "1px solid rgba(124,91,245,0.3)" }}>
+                        {profile.tag}
+                      </span>
+                    </div>
+                  )}
+                  {profile.bio && (
+                    <p className="text-xs leading-relaxed mt-1" style={{ color: "var(--text-4)" }}>{profile.bio}</p>
+                  )}
+                </div>
+
+                {/* Row buttons — visible below 446px only */}
+                <div className="profile-btn-row">
                   {!isOwnProfile && (
-                    <div className="flex items-center gap-2 shrink-0">
-                      <button onClick={handleFollow}
-                        disabled={followPending}
-                        className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold transition-all hover:opacity-85 disabled:opacity-60"
+                    <>
+                      <button onClick={handleFollow} disabled={followPending}
+                        className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-sm font-semibold transition-all hover:opacity-85 disabled:opacity-60"
                         style={following
                           ? { background: "rgba(124,91,245,0.15)", color: "#9B7CF5", border: "1px solid rgba(124,91,245,0.4)" }
                           : { background: "#7C5BF5", color: "#fff" }}>
@@ -229,15 +266,15 @@ export default function UserProfilePage({ params }: { params: Promise<{ username
                         {followPending ? "…" : following ? "Following" : "Follow"}
                       </button>
                       <button onClick={handleHire}
-                        className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold text-white transition-all hover:opacity-85"
+                        className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-sm font-semibold text-white transition-all hover:opacity-85"
                         style={{ background: "linear-gradient(135deg,#361E7B,#7C5BF5)" }}>
                         <Briefcase size={14} /> Hire
                       </button>
-                    </div>
+                    </>
                   )}
                   {isOwnProfile && (
                     <Link href="/profile"
-                      className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold transition-all hover:opacity-85"
+                      className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-sm font-semibold transition-all hover:opacity-85"
                       style={{ background: "#7C5BF5", color: "#fff" }}>
                       Edit Profile
                     </Link>
