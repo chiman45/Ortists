@@ -1,7 +1,7 @@
 ﻿"use client";
 
 import Link from "next/link";
-import { ArrowRight, Award, Briefcase, ChevronDown, Cpu, Feather, Layers, Paintbrush, Palette, Printer, Sparkles, Star, TrendingUp, Triangle, TreePine, Users } from "lucide-react";
+import { ArrowRight, Award, Briefcase, ChevronDown, ChevronRight, Cpu, Feather, Layers, Menu, Paintbrush, Palette, Printer, Sparkles, Star, TrendingUp, Triangle, TreePine, Users, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 
@@ -325,7 +325,12 @@ export default function PublicNav() {
   const pathname = usePathname();
   const [scrolled,     setScrolled]     = useState(false);
   const [openDropdown, setOpenDropdown] = useState<"hire" | "artists" | null>(null);
+  const [menuOpen,     setMenuOpen]     = useState(false);
+  const [mobileHire,   setMobileHire]   = useState(false);
   const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Close mobile menu on route change
+  useEffect(() => { setMenuOpen(false); setMobileHire(false); }, [pathname]);
 
   useEffect(() => {
     const fn = () => setScrolled(window.scrollY > 70);
@@ -404,26 +409,123 @@ export default function PublicNav() {
         </Link>
       </div>
 
-      {/* Right: auth buttons */}
+      {/* Right: auth buttons (desktop) + hamburger (mobile) */}
       <div className="flex items-center gap-2 ml-auto shrink-0">
         <Link
           href="/login"
-          className="px-3 sm:px-5 py-2 rounded-full text-[12px] font-semibold tracking-wide uppercase transition-all duration-200 hover:text-white"
+          className="px-4 py-2 rounded-full text-[12px] font-semibold tracking-wide uppercase transition-all duration-200 hover:text-white"
           style={{ color: MUTED }}
         >
-          <span className="hidden sm:inline">Sign In</span>
-          <span className="sm:hidden">In</span>
+          Sign In
         </Link>
 
         <Link
           href="/login?mode=signup"
-          className="px-3 sm:px-5 py-2 rounded-full text-[12px] font-semibold tracking-wide uppercase text-white transition-all duration-200 hover:opacity-85"
+          className="hidden md:block px-5 py-2 rounded-full text-[12px] font-semibold tracking-wide uppercase text-white transition-all duration-200 hover:opacity-85"
           style={{ background: ACCENT }}
         >
-          <span className="hidden sm:inline">Sign Up</span>
-          <span className="sm:hidden">Up</span>
+          Sign Up
         </Link>
+
+        {/* Hamburger — mobile only */}
+        <button
+          onClick={() => setMenuOpen(o => !o)}
+          className="md:hidden flex items-center justify-center w-9 h-9 rounded-full transition-all"
+          style={{ background: "rgba(255,255,255,0.07)", color: "#fff" }}
+          aria-label="Toggle menu"
+        >
+          {menuOpen ? <X size={18} /> : <Menu size={18} />}
+        </button>
       </div>
+
+      {/* ── Mobile drawer ── */}
+      {menuOpen && (
+        <div
+          className="md:hidden fixed inset-0 z-40"
+          style={{ top: 0 }}
+          onClick={() => setMenuOpen(false)}
+        >
+          {/* backdrop */}
+          <div className="absolute inset-0" style={{ background: "rgba(0,0,0,0.6)", backdropFilter: "blur(4px)" }} />
+
+          {/* panel */}
+          <div
+            className="absolute right-0 top-0 bottom-0 flex flex-col"
+            style={{ width: "min(320px, 85vw)", background: "#0d0d12", borderLeft: "1px solid rgba(255,255,255,0.08)" }}
+            onClick={e => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between px-5 py-4" style={{ borderBottom: "1px solid rgba(255,255,255,0.07)" }}>
+              <div className="flex items-center gap-2">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src="/login-image/ortists logo1.png" alt="Ortist" className="w-7 h-7 rounded-md object-cover" />
+                <span className="text-[15px] font-bold text-white">Ortist<span style={{ color: ACCENT }}>.</span></span>
+              </div>
+              <button onClick={() => setMenuOpen(false)} className="w-8 h-8 rounded-full flex items-center justify-center" style={{ background: "rgba(255,255,255,0.07)", color: "#fff" }}>
+                <X size={16} />
+              </button>
+            </div>
+
+            {/* Nav links */}
+            <nav className="flex flex-col flex-1 overflow-y-auto px-4 py-5 gap-1">
+              <Link href="/feed" className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all hover:bg-white/5"
+                style={{ color: isActive("/feed") ? "#fff" : MUTED }}>
+                Feed
+              </Link>
+
+              <Link href="/gallery" className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all hover:bg-white/5"
+                style={{ color: isActive("/gallery") ? "#fff" : MUTED }}>
+                Marketplace
+              </Link>
+
+              {/* Hire Artists accordion */}
+              <button
+                onClick={() => setMobileHire(h => !h)}
+                className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all hover:bg-white/5 w-full text-left"
+                style={{ color: pathname.startsWith("/hiring") ? "#fff" : MUTED }}
+              >
+                <span className="flex-1">Hire Artists</span>
+                <ChevronRight size={14} style={{ transform: mobileHire ? "rotate(90deg)" : "none", transition: "transform 0.2s", color: "rgba(255,255,255,0.25)" }} />
+              </button>
+
+              {mobileHire && (
+                <div className="ml-4 flex flex-col gap-0.5 mb-1">
+                  {HIRE_CATEGORIES.map(({ label, color, Icon }) => (
+                    <Link
+                      key={label}
+                      href={`/hiring?category=${encodeURIComponent(label)}`}
+                      className="flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-[12px] font-medium transition-all hover:bg-white/5"
+                      style={{ color: "rgba(255,255,255,0.55)" }}
+                    >
+                      <Icon size={12} style={{ color }} />
+                      {label}
+                    </Link>
+                  ))}
+                </div>
+              )}
+
+              <Link href="/about" className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all hover:bg-white/5"
+                style={{ color: isActive("/about") ? "#fff" : MUTED }}>
+                About
+              </Link>
+            </nav>
+
+            {/* Footer auth */}
+            <div className="px-4 pb-8 pt-4 flex flex-col gap-2" style={{ borderTop: "1px solid rgba(255,255,255,0.07)" }}>
+              <Link href="/login" onClick={() => setMenuOpen(false)}
+                className="w-full py-3 rounded-xl text-sm font-semibold text-center transition-all hover:bg-white/5"
+                style={{ color: "#fff", border: "1px solid rgba(255,255,255,0.12)" }}>
+                Sign In
+              </Link>
+              <Link href="/login?mode=signup" onClick={() => setMenuOpen(false)}
+                className="w-full py-3 rounded-xl text-sm font-bold text-center text-white transition-all hover:opacity-90"
+                style={{ background: ACCENT }}>
+                Sign Up
+              </Link>
+            </div>
+          </div>
+        </div>
+      )}
     </nav>
   );
 }

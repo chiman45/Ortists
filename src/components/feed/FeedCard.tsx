@@ -4,7 +4,6 @@ import { Post } from "@/lib/types";
 import { type Post as DbPost } from "@/lib/db/posts";
 import Avatar from "@/components/ui/Avatar";
 import AuthPromptModal from "@/components/ui/AuthPromptModal";
-import PostModal from "@/components/ui/PostModal";
 import { Heart, MessageCircle } from "lucide-react";
 import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
@@ -34,10 +33,8 @@ export default function FeedCard({ post, dbPost, priority = false }: FeedCardPro
   const [count, setCount]           = useState(post.likes);
   const [pending, setPending]       = useState(false);
   const [promptOpen, setPromptOpen] = useState(false);
-  const [modalPost, setModalPost]   = useState<DbPost | null>(null);
   const [carouselIdx, setCarouselIdx] = useState(0);
   const touchStartX = useRef<number | null>(null);
-  const clickTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const isOwn = !!user && !!post.userId && post.userId === user.id;
 
@@ -52,36 +49,10 @@ export default function FeedCard({ post, dbPost, priority = false }: FeedCardPro
       .catch(() => {});
   }, [post.id, user]);
 
-  // Cleanup timer on unmount
-  useEffect(() => () => { if (clickTimer.current) clearTimeout(clickTimer.current); }, []);
-
   function handleCardClick(e: React.MouseEvent) {
-    // Ignore clicks on action buttons
     if ((e.target as HTMLElement).closest("button")) return;
-
-    if (clickTimer.current) {
-      // Second click within 300ms = double click → navigate to full page
-      clearTimeout(clickTimer.current);
-      clickTimer.current = null;
-      if (!user) { setPromptOpen(true); return; }
-      router.push(`/feed/${post.id}`);
-    } else {
-      // First click → wait to see if double click arrives
-      clickTimer.current = setTimeout(() => {
-        clickTimer.current = null;
-        // Single click → open modal
-        if (!user) { setPromptOpen(true); return; }
-        if (dbPost) {
-          setModalPost(dbPost);
-        } else {
-          // Fetch full post if not available
-          fetch(`/api/posts/${post.id}?userId=${user.id}`)
-            .then(r => r.json())
-            .then(({ post: p }) => p && setModalPost(p))
-            .catch(() => {});
-        }
-      }, 280);
-    }
+    if (!user) { setPromptOpen(true); return; }
+    router.push(`/feed/${post.id}`);
   }
 
   async function handleLike(e: React.MouseEvent) {
@@ -239,13 +210,6 @@ export default function FeedCard({ post, dbPost, priority = false }: FeedCardPro
           );
         })()}
 
-        {/* Double-click hint overlay — shows on hover */}
-        <div className="absolute inset-0 flex items-end justify-center pb-3 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-          <span className="text-[10px] font-semibold px-2.5 py-1 rounded-full"
-            style={{ background: "rgba(0,0,0,0.55)", backdropFilter: "blur(6px)", color: "rgba(255,255,255,0.7)" }}>
-            double-click to open full page
-          </span>
-        </div>
       </div>
 
       {/* Meta row */}
@@ -270,16 +234,6 @@ export default function FeedCard({ post, dbPost, priority = false }: FeedCardPro
       </div>
     </div>
 
-    {modalPost && (
-      <PostModal
-        post={modalPost}
-        isOwner={isOwn}
-        ownerId={user?.id}
-        currentUserId={user?.id}
-        onClose={() => setModalPost(null)}
-        onUpdate={updated => setModalPost(updated)}
-      />
-    )}
     {promptOpen && <AuthPromptModal onClose={() => setPromptOpen(false)} />}
     </>
   );
