@@ -8,7 +8,7 @@ import BottomNav from "@/components/layout/BottomNav";
 import MainHeader from "@/components/layout/MainHeader";
 import Sidebar from "@/components/layout/Sidebar";
 import {
-  AlertTriangle, BarChart2, Bell, Bookmark, Check, FileText,
+  AlertTriangle, BarChart2, Bell, Bookmark, Check, ChevronDown, FileText,
   Heart, HelpCircle, Loader2, MessageSquare, Shield, Sliders,
   TrendingUp, Users,
 } from "lucide-react";
@@ -111,6 +111,162 @@ function StatBox({ icon: Icon, label, value, color }: { icon: React.ElementType;
   );
 }
 
+// ── Shared section content (used by both desktop panel and mobile accordion) ──
+
+interface SectionContentProps {
+  id: Section;
+  s: Settings;
+  stats: Stats | null;
+  statsLoading: boolean;
+  theme: string;
+  setTheme: (id: string, e: React.MouseEvent) => void;
+  updatePrivacy: (k: keyof Settings["privacy"], v: boolean) => void;
+  updateNotifs:  (k: keyof Settings["notifs"],  v: boolean) => void;
+  updatePrefs:   (k: keyof Settings["prefs"],   v: boolean | string) => void;
+  setDeleteOpen:  (v: boolean) => void;
+  setDeleteInput: (v: string)  => void;
+}
+
+function MobileSectionContent({ id, s, stats, statsLoading, theme, setTheme, updatePrivacy, updateNotifs, updatePrefs, setDeleteOpen, setDeleteInput }: SectionContentProps) {
+  return <SectionPanel id={id} s={s} stats={stats} statsLoading={statsLoading} theme={theme} setTheme={setTheme} updatePrivacy={updatePrivacy} updateNotifs={updateNotifs} updatePrefs={updatePrefs} setDeleteOpen={setDeleteOpen} setDeleteInput={setDeleteInput} />;
+}
+
+function SectionPanel({ id, s, stats, statsLoading, theme, setTheme, updatePrivacy, updateNotifs, updatePrefs, setDeleteOpen, setDeleteInput }: SectionContentProps) {
+  if (id === "privacy") return (
+    <div className="flex flex-col gap-6">
+      <Card>
+        <SectionTitle>Profile visibility</SectionTitle>
+        <Row label="Public Profile" desc="Anyone can discover and view your profile">
+          <Toggle on={s.privacy.publicProfile} onChange={v => updatePrivacy("publicProfile", v)} />
+        </Row>
+        <Row label="Show Contact Info" desc="Display your email or social links on your profile">
+          <Toggle on={s.privacy.showContact} onChange={v => updatePrivacy("showContact", v)} />
+        </Row>
+        <Row label="Activity Status" desc="Show others when you were last active">
+          <Toggle on={s.privacy.activityStatus} onChange={v => updatePrivacy("activityStatus", v)} />
+        </Row>
+        <Row label="Data Sharing" desc="Allow anonymised usage analytics to improve Ortist">
+          <Toggle on={s.privacy.dataSharing} onChange={v => updatePrivacy("dataSharing", v)} />
+        </Row>
+      </Card>
+      <Card>
+        <SectionTitle>Danger Zone</SectionTitle>
+        <Row label="Delete Account" desc="Permanently remove your profile and all content">
+          <button onClick={() => { setDeleteOpen(true); setDeleteInput(""); }}
+            className="px-4 py-1.5 rounded-xl text-xs font-semibold transition-opacity hover:opacity-80"
+            style={{ background: "rgba(239,68,68,0.12)", color: "#EF4444", border: "1px solid rgba(239,68,68,0.3)" }}>
+            Delete
+          </button>
+        </Row>
+      </Card>
+    </div>
+  );
+
+  if (id === "notifications") return (
+    <div className="flex flex-col gap-6">
+      <Card>
+        <SectionTitle>In-App</SectionTitle>
+        <Row label="Likes" desc="When someone likes your post"><Toggle on={s.notifs.likes} onChange={v => updateNotifs("likes", v)} /></Row>
+        <Row label="Comments" desc="When someone comments on your post"><Toggle on={s.notifs.comments} onChange={v => updateNotifs("comments", v)} /></Row>
+        <Row label="New Followers" desc="When someone follows you"><Toggle on={s.notifs.follows} onChange={v => updateNotifs("follows", v)} /></Row>
+        <Row label="Messages" desc="When you receive a new message"><Toggle on={s.notifs.messages} onChange={v => updateNotifs("messages", v)} /></Row>
+        <Row label="Project Updates" desc="Status changes on your commission requests"><Toggle on={s.notifs.projectUpdates} onChange={v => updateNotifs("projectUpdates", v)} /></Row>
+      </Card>
+      <Card>
+        <SectionTitle>Email</SectionTitle>
+        <Row label="Weekly Digest" desc="A summary of your activity every week"><Toggle on={s.notifs.emailDigest} onChange={v => updateNotifs("emailDigest", v)} /></Row>
+        <Row label="Marketing & Updates" desc="News about Ortist features and offers"><Toggle on={s.notifs.marketing} onChange={v => updateNotifs("marketing", v)} /></Row>
+      </Card>
+    </div>
+  );
+
+  if (id === "preferences") return (
+    <div className="flex flex-col gap-6">
+      <Card>
+        <SectionTitle>Appearance</SectionTitle>
+        <Row label="Theme" desc={`Currently: ${THEMES.find(t => t.id === theme)?.label ?? theme}`}>
+          <div className="flex items-center gap-2">
+            {THEMES.map(t => (
+              <button key={t.id} title={t.label} onClick={(e) => setTheme(t.id, e)}
+                className="relative rounded-full transition-transform hover:scale-110 focus:outline-none"
+                style={{ width: 22, height: 22, background: t.swatch, boxShadow: theme === t.id ? `0 0 0 2px var(--bg-card), 0 0 0 4px #7C5BF5` : "none" }}>
+                {theme === t.id && <span className="absolute inset-0 flex items-center justify-center"><Check size={10} color="#fff" strokeWidth={3} /></span>}
+              </button>
+            ))}
+          </div>
+        </Row>
+        <Row label="Compact View" desc="Show more content with reduced spacing">
+          <Toggle on={s.prefs.compactView} onChange={v => updatePrefs("compactView", v)} />
+        </Row>
+      </Card>
+      <Card>
+        <SectionTitle>Language & Content</SectionTitle>
+        <Row label="Language" desc="App display language">
+          <select value={s.prefs.language} onChange={e => updatePrefs("language", e.target.value)}
+            className="text-xs rounded-xl px-3 py-2 outline-none"
+            style={{ background: "var(--bg-subtle)", color: "var(--text-2)", border: "1px solid var(--border)" }}>
+            <option value="en">English</option>
+            <option value="hi">Hindi</option>
+            <option value="es">Spanish</option>
+            <option value="fr">French</option>
+            <option value="ja">Japanese</option>
+          </select>
+        </Row>
+        <Row label="Autoplay Videos" desc="Automatically play motion design previews">
+          <Toggle on={s.prefs.autoplay} onChange={v => updatePrefs("autoplay", v)} />
+        </Row>
+      </Card>
+    </div>
+  );
+
+  if (id === "analytics") return (
+    <div className="flex flex-col gap-6">
+      {statsLoading ? (
+        <div className="flex items-center justify-center py-12">
+          <Loader2 size={28} className="animate-spin" style={{ color: "#7C5BF5" }} />
+        </div>
+      ) : (
+        <div className="grid grid-cols-2 gap-4">
+          <StatBox icon={Users}      label="Followers"   value={stats?.followers  ?? 0} color="#7C5BF5" />
+          <StatBox icon={Heart}      label="Total Likes" value={stats?.totalLikes ?? 0} color="#f43f5e" />
+          <StatBox icon={TrendingUp} label="Posts"       value={stats?.posts      ?? 0} color="#10B981" />
+          <StatBox icon={Bookmark}   label="Total Saves" value={stats?.totalSaves ?? 0} color="#F59E0B" />
+        </div>
+      )}
+      <Card>
+        <SectionTitle>Coming Soon</SectionTitle>
+        <div className="flex flex-col items-center py-10 gap-3">
+          <BarChart2 size={36} style={{ color: "rgba(124,91,245,0.4)" }} />
+          <p className="text-sm font-semibold" style={{ color: "var(--text-2)" }}>Detailed Analytics</p>
+          <p className="text-xs text-center max-w-xs" style={{ color: "var(--text-5)" }}>Engagement charts, reach metrics, and audience insights are on the way.</p>
+        </div>
+      </Card>
+    </div>
+  );
+
+  // support
+  return (
+    <div className="flex flex-col gap-3">
+      {[
+        { icon: MessageSquare, color: "#9B7CF5", q: "How do I post artwork?", a: "Click the purple + Create Post button in the sidebar. You can upload an image and add a title, description, and category." },
+        { icon: FileText, color: "#10B981", q: "How do I get hired on Ortist?", a: "Keep your profile up to date, mark yourself as available, and post high-quality work. Clients can send you a Hire request directly from your posts or profile." },
+        { icon: Shield, color: "#F59E0B", q: "How do I delete my account?", a: "Go to Privacy in these settings and click Delete Account. Type DELETE to confirm. This action permanently removes all your data." },
+        { icon: HelpCircle, color: "#f43f5e", q: "Why can't I see my story views?", a: "Story views are only visible to you as the owner. Tap the eye icon at the bottom of your story to see who has viewed it." },
+        { icon: MessageSquare, color: "#60A5FA", q: "How do commissions work?", a: "Clients can hire you from your profile or any of your posts. You will receive their brief in the Hiring section and can accept or decline from there." },
+      ].map(({ icon: Icon, color, q, a }, i) => (
+        <div key={i} className="rounded-2xl p-5" style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}>
+          <div className="flex items-center gap-2 mb-2"><Icon size={14} style={{ color }} /><p className="text-sm font-semibold" style={{ color: "var(--text-1)" }}>{q}</p></div>
+          <p className="text-xs leading-relaxed" style={{ color: "var(--text-4)" }}>{a}</p>
+        </div>
+      ))}
+      <div className="rounded-2xl p-5" style={{ background: "rgba(124,91,245,0.08)", border: "1px solid rgba(124,91,245,0.25)" }}>
+        <p className="text-sm font-semibold mb-1" style={{ color: "#9B7CF5" }}>Still need help?</p>
+        <p className="text-xs" style={{ color: "var(--text-4)" }}>Reach out at <a href="mailto:support@ortist.art" className="underline" style={{ color: "#9B7CF5" }}>support@ortist.art</a></p>
+      </div>
+    </div>
+  );
+}
+
 // ── Page ───────────────────────────────────────────────────────
 
 export default function SettingsPage() {
@@ -118,7 +274,8 @@ export default function SettingsPage() {
   const router   = useRouter();
   const { theme, setTheme } = useTheme();
 
-  const [active,  setActive]  = useState<Section>("privacy");
+  const [active,      setActive]      = useState<Section>("privacy");
+  const [mobileOpen,  setMobileOpen]  = useState<Section | null>(null);
   const [s,       setS]       = useState<Settings>(DEFAULTS);
   const [loading, setLoading] = useState(true);
   const [saving,  setSaving]  = useState(false);
@@ -216,7 +373,7 @@ export default function SettingsPage() {
       <div className="flex-1 flex flex-col lg:ml-17 min-h-screen min-w-0">
         <MainHeader />
 
-        <main className="flex-1 flex gap-0 pb-24 lg:pb-0 min-w-0">
+        <main className="flex-1 flex flex-col md:flex-row gap-0 pb-24 lg:pb-0 min-w-0">
 
           {/* Left nav — desktop */}
           <div className="hidden md:flex flex-col gap-1 px-4 py-6 shrink-0" style={{ width: 200, borderRight: "1px solid var(--border)" }}>
@@ -245,256 +402,58 @@ export default function SettingsPage() {
             })}
           </div>
 
-          {/* Mobile nav */}
-          <div className="md:hidden flex gap-2 px-4 pt-4 pb-2 overflow-x-auto shrink-0" style={{ scrollbarWidth: "none" }}>
-            {NAV.map(({ id, label }) => (
-              <button
-                key={id}
-                onClick={() => setActive(id)}
-                className="shrink-0 px-4 py-1.5 rounded-full text-xs font-semibold transition-all"
-                style={{
-                  background: active === id ? "#7C5BF5" : "var(--bg-subtle)",
-                  color:      active === id ? "#fff"    : "var(--text-4)",
-                }}
-              >{label}</button>
-            ))}
+          {/* ── Mobile accordion (vertical) ── */}
+          <div className="md:hidden flex-1 overflow-y-auto px-4 py-4 flex flex-col">
+            {NAV.map(({ id, label, icon: Icon }) => {
+              const open = mobileOpen === id;
+              return (
+                <div key={id} style={{ borderBottom: "1px solid var(--border)" }}>
+                  <button
+                    onClick={() => setMobileOpen(open ? null : id)}
+                    className="flex items-center gap-3 w-full py-4 text-left"
+                  >
+                    <div className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0"
+                      style={{ background: open ? "rgba(124,91,245,0.15)" : "var(--bg-subtle)" }}>
+                      <Icon size={15} style={{ color: open ? "#9B7CF5" : "var(--text-4)" }} />
+                    </div>
+                    <span className="flex-1 text-sm font-semibold"
+                      style={{ color: open ? "#9B7CF5" : "var(--text-2)" }}>{label}</span>
+                    <ChevronDown size={16} style={{
+                      color: "var(--text-5)",
+                      transform: open ? "rotate(180deg)" : "none",
+                      transition: "transform 0.2s",
+                    }} />
+                  </button>
+                  {open && (
+                    <div className="pb-5">
+                      <MobileSectionContent
+                        id={id} s={s} stats={stats} statsLoading={statsLoading}
+                        theme={theme} setTheme={setTheme}
+                        updatePrivacy={updatePrivacy} updateNotifs={updateNotifs} updatePrefs={updatePrefs}
+                        setDeleteOpen={setDeleteOpen} setDeleteInput={setDeleteInput}
+                      />
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
 
-          {/* ── Content ── */}
-          <div className="flex-1 min-w-0 px-4 md:px-8 py-6 overflow-y-auto">
-
-            {/* PRIVACY */}
-            {active === "privacy" && (
-              <div className="max-w-xl flex flex-col gap-6">
-                <div>
-                  <h2 className="text-lg font-bold mb-1" style={{ color: "var(--text-1)" }}>Privacy</h2>
-                  <p className="text-sm" style={{ color: "var(--text-5)" }}>Control who can see your profile and activity.</p>
-                </div>
-
-                <Card>
-                  <SectionTitle>Profile visibility</SectionTitle>
-                  <Row label="Public Profile" desc="Anyone can discover and view your profile">
-                    <Toggle on={s.privacy.publicProfile} onChange={v => updatePrivacy("publicProfile", v)} />
-                  </Row>
-                  <Row label="Show Contact Info" desc="Display your email or social links on your profile">
-                    <Toggle on={s.privacy.showContact} onChange={v => updatePrivacy("showContact", v)} />
-                  </Row>
-                  <Row label="Activity Status" desc="Show others when you were last active">
-                    <Toggle on={s.privacy.activityStatus} onChange={v => updatePrivacy("activityStatus", v)} />
-                  </Row>
-                  <Row label="Data Sharing" desc="Allow anonymised usage analytics to improve Ortist">
-                    <Toggle on={s.privacy.dataSharing} onChange={v => updatePrivacy("dataSharing", v)} />
-                  </Row>
-                </Card>
-
-                <Card>
-                  <SectionTitle>Danger Zone</SectionTitle>
-                  <Row label="Delete Account" desc="Permanently remove your profile and all content">
-                    <button
-                      onClick={() => { setDeleteOpen(true); setDeleteInput(""); }}
-                      className="px-4 py-1.5 rounded-xl text-xs font-semibold transition-opacity hover:opacity-80"
-                      style={{ background: "rgba(239,68,68,0.12)", color: "#EF4444", border: "1px solid rgba(239,68,68,0.3)" }}
-                    >
-                      Delete
-                    </button>
-                  </Row>
-                </Card>
+          {/* ── Desktop content ── */}
+          <div className="hidden md:block flex-1 min-w-0 px-8 py-6 overflow-y-auto">
+            <div className="max-w-xl flex flex-col gap-6">
+              <div>
+                <h2 className="text-lg font-bold mb-1" style={{ color: "var(--text-1)" }}>
+                  {NAV.find(n => n.id === active)?.label}
+                </h2>
               </div>
-            )}
-
-            {/* NOTIFICATIONS */}
-            {active === "notifications" && (
-              <div className="max-w-xl flex flex-col gap-6">
-                <div>
-                  <h2 className="text-lg font-bold mb-1" style={{ color: "var(--text-1)" }}>Notifications</h2>
-                  <p className="text-sm" style={{ color: "var(--text-5)" }}>Choose what you want to be notified about.</p>
-                </div>
-
-                <Card>
-                  <SectionTitle>In-App</SectionTitle>
-                  <Row label="Likes" desc="When someone likes your post">
-                    <Toggle on={s.notifs.likes} onChange={v => updateNotifs("likes", v)} />
-                  </Row>
-                  <Row label="Comments" desc="When someone comments on your post">
-                    <Toggle on={s.notifs.comments} onChange={v => updateNotifs("comments", v)} />
-                  </Row>
-                  <Row label="New Followers" desc="When someone follows you">
-                    <Toggle on={s.notifs.follows} onChange={v => updateNotifs("follows", v)} />
-                  </Row>
-                  <Row label="Messages" desc="When you receive a new message">
-                    <Toggle on={s.notifs.messages} onChange={v => updateNotifs("messages", v)} />
-                  </Row>
-                  <Row label="Project Updates" desc="Status changes on your commission requests">
-                    <Toggle on={s.notifs.projectUpdates} onChange={v => updateNotifs("projectUpdates", v)} />
-                  </Row>
-                </Card>
-
-                <Card>
-                  <SectionTitle>Email</SectionTitle>
-                  <Row label="Weekly Digest" desc="A summary of your activity every week">
-                    <Toggle on={s.notifs.emailDigest} onChange={v => updateNotifs("emailDigest", v)} />
-                  </Row>
-                  <Row label="Marketing & Updates" desc="News about Ortist features and offers">
-                    <Toggle on={s.notifs.marketing} onChange={v => updateNotifs("marketing", v)} />
-                  </Row>
-                </Card>
-              </div>
-            )}
-
-            {/* PREFERENCES */}
-            {active === "preferences" && (
-              <div className="max-w-xl flex flex-col gap-6">
-                <div>
-                  <h2 className="text-lg font-bold mb-1" style={{ color: "var(--text-1)" }}>Preferences</h2>
-                  <p className="text-sm" style={{ color: "var(--text-5)" }}>Customise your Ortist experience.</p>
-                </div>
-
-                <Card>
-                  <SectionTitle>Appearance</SectionTitle>
-                  {/* Theme picker — wired to real ThemeContext */}
-                  <Row label="Theme" desc={`Currently: ${THEMES.find(t => t.id === theme)?.label ?? theme}`}>
-                    <div className="flex items-center gap-2">
-                      {THEMES.map(t => (
-                        <button
-                          key={t.id}
-                          title={t.label}
-                          onClick={(e) => setTheme(t.id, e)}
-                          className="relative rounded-full transition-transform hover:scale-110 focus:outline-none"
-                          style={{
-                            width:  22, height: 22,
-                            background: t.swatch,
-                            boxShadow:  theme === t.id ? `0 0 0 2px var(--bg-card), 0 0 0 4px #7C5BF5` : "none",
-                          }}
-                        >
-                          {theme === t.id && (
-                            <span className="absolute inset-0 flex items-center justify-center">
-                              <Check size={10} color="#fff" strokeWidth={3} />
-                            </span>
-                          )}
-                        </button>
-                      ))}
-                    </div>
-                  </Row>
-                  <Row label="Compact View" desc="Show more content with reduced spacing">
-                    <Toggle on={s.prefs.compactView} onChange={v => updatePrefs("compactView", v)} />
-                  </Row>
-                </Card>
-
-                <Card>
-                  <SectionTitle>Language & Content</SectionTitle>
-                  <Row label="Language" desc="App display language">
-                    <select
-                      value={s.prefs.language}
-                      onChange={e => updatePrefs("language", e.target.value)}
-                      className="text-xs rounded-xl px-3 py-2 outline-none"
-                      style={{ background: "var(--bg-subtle)", color: "var(--text-2)", border: "1px solid var(--border)" }}
-                    >
-                      <option value="en">English</option>
-                      <option value="hi">Hindi</option>
-                      <option value="es">Spanish</option>
-                      <option value="fr">French</option>
-                      <option value="ja">Japanese</option>
-                    </select>
-                  </Row>
-                  <Row label="Autoplay Videos" desc="Automatically play motion design previews">
-                    <Toggle on={s.prefs.autoplay} onChange={v => updatePrefs("autoplay", v)} />
-                  </Row>
-                </Card>
-              </div>
-            )}
-
-            {/* ANALYTICS */}
-            {active === "analytics" && (
-              <div className="flex flex-col gap-6">
-                <div>
-                  <h2 className="text-lg font-bold mb-1" style={{ color: "var(--text-1)" }}>Analytics</h2>
-                  <p className="text-sm" style={{ color: "var(--text-5)" }}>Overview of your profile and content performance.</p>
-                </div>
-
-                {statsLoading ? (
-                  <div className="flex items-center justify-center py-16">
-                    <Loader2 size={28} className="animate-spin" style={{ color: "#7C5BF5" }} />
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                    <StatBox icon={Users}      label="Followers"   value={stats?.followers  ?? 0} color="#7C5BF5" />
-                    <StatBox icon={Heart}      label="Total Likes" value={stats?.totalLikes ?? 0} color="#f43f5e" />
-                    <StatBox icon={TrendingUp} label="Posts"       value={stats?.posts      ?? 0} color="#10B981" />
-                    <StatBox icon={Bookmark}   label="Total Saves" value={stats?.totalSaves ?? 0} color="#F59E0B" />
-                  </div>
-                )}
-
-                <Card>
-                  <SectionTitle>Coming Soon</SectionTitle>
-                  <div className="flex flex-col items-center py-10 gap-3">
-                    <BarChart2 size={36} style={{ color: "rgba(124,91,245,0.4)" }} />
-                    <p className="text-sm font-semibold" style={{ color: "var(--text-2)" }}>Detailed Analytics</p>
-                    <p className="text-xs text-center max-w-xs" style={{ color: "var(--text-5)" }}>
-                      Engagement charts, reach metrics, and audience insights are on the way.
-                    </p>
-                  </div>
-                </Card>
-              </div>
-            )}
-
-            {/* SUPPORT */}
-            {active === "support" && (
-              <div className="max-w-xl flex flex-col gap-6">
-                <div>
-                  <h2 className="text-lg font-bold mb-1" style={{ color: "var(--text-1)" }}>Support</h2>
-                  <p className="text-sm" style={{ color: "var(--text-5)" }}>Frequently asked questions and contact.</p>
-                </div>
-
-                <div className="flex flex-col gap-3">
-                  {[
-                    {
-                      icon: MessageSquare, color: "#9B7CF5",
-                      q: "How do I post artwork?",
-                      a: "Click the purple + Create Post button in the sidebar. You can upload an image and add a title, description, and category.",
-                    },
-                    {
-                      icon: FileText, color: "#10B981",
-                      q: "How do I get hired on Ortist?",
-                      a: "Keep your profile up to date, mark yourself as available, and post high-quality work. Clients can send you a Hire request directly from your posts or profile.",
-                    },
-                    {
-                      icon: Shield, color: "#F59E0B",
-                      q: "How do I delete my account?",
-                      a: "Go to Privacy in these settings and click Delete Account. Type DELETE to confirm. This action permanently removes all your data.",
-                    },
-                    {
-                      icon: HelpCircle, color: "#f43f5e",
-                      q: "Why can't I see my story views?",
-                      a: "Story views are only visible to you as the owner. Tap the eye icon at the bottom of your story to see who has viewed it.",
-                    },
-                    {
-                      icon: MessageSquare, color: "#60A5FA",
-                      q: "How do commissions work?",
-                      a: "Clients can hire you from your profile or any of your posts. You will receive their brief in the Hiring section and can accept or decline from there.",
-                    },
-                  ].map(({ icon: Icon, color, q, a }, i) => (
-                    <div key={i} className="rounded-2xl p-5" style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}>
-                      <div className="flex items-center gap-2 mb-2">
-                        <Icon size={14} style={{ color }} />
-                        <p className="text-sm font-semibold" style={{ color: "var(--text-1)" }}>{q}</p>
-                      </div>
-                      <p className="text-xs leading-relaxed" style={{ color: "var(--text-4)" }}>{a}</p>
-                    </div>
-                  ))}
-
-                  <div className="rounded-2xl p-5" style={{ background: "rgba(124,91,245,0.08)", border: "1px solid rgba(124,91,245,0.25)" }}>
-                    <p className="text-sm font-semibold mb-1" style={{ color: "#9B7CF5" }}>Still need help?</p>
-                    <p className="text-xs" style={{ color: "var(--text-4)" }}>
-                      Reach out at{" "}
-                      <a href="mailto:support@ortist.art" className="underline" style={{ color: "#9B7CF5" }}>
-                        support@ortist.art
-                      </a>
-                    </p>
-                  </div>
-                </div>
-              </div>
-            )}
-
+              <SectionPanel
+                id={active} s={s} stats={stats} statsLoading={statsLoading}
+                theme={theme} setTheme={setTheme}
+                updatePrivacy={updatePrivacy} updateNotifs={updateNotifs} updatePrefs={updatePrefs}
+                setDeleteOpen={setDeleteOpen} setDeleteInput={setDeleteInput}
+              />
+            </div>
           </div>
         </main>
       </div>
