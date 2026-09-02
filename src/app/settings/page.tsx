@@ -3,7 +3,7 @@
 import { useUser } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, useCallback } from "react";
-import { useTheme, THEMES } from "@/contexts/ThemeContext";
+import { useTheme, THEMES, type Theme } from "@/contexts/ThemeContext";
 import BottomNav from "@/components/layout/BottomNav";
 import MainHeader from "@/components/layout/MainHeader";
 import Sidebar from "@/components/layout/Sidebar";
@@ -119,7 +119,7 @@ interface SectionContentProps {
   stats: Stats | null;
   statsLoading: boolean;
   theme: string;
-  setTheme: (id: string, e: React.MouseEvent) => void;
+  setTheme: (theme: Theme, e?: React.MouseEvent) => void;
   updatePrivacy: (k: keyof Settings["privacy"], v: boolean) => void;
   updateNotifs:  (k: keyof Settings["notifs"],  v: boolean) => void;
   updatePrefs:   (k: keyof Settings["prefs"],   v: boolean | string) => void;
