@@ -300,6 +300,18 @@ html.ocean .skeleton-shimmer {
   .profile-btn-row    { display: none !important; }
 }
 
+/* Hire form field containers */
+.hire-field {
+  border: 1px solid rgba(255,255,255,0.14);
+  border-radius: 14px;
+  background: rgba(255,255,255,0.04);
+  transition: border-color 0.18s, background 0.18s;
+}
+.hire-field:focus-within {
+  border-color: rgba(124,91,245,0.6) !important;
+  background: rgba(124,91,245,0.04) !important;
+}
+
 .word-clip {
   display: inline-block;
   overflow: hidden;

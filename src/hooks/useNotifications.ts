@@ -5,7 +5,6 @@ import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
 const LIKES_KEY       = "ortist_last_seen_likes";
-const TOAST_MSG_KEY   = "ortist_last_toast_msg";
 const TOAST_LIKES_KEY = "ortist_last_toast_likes";
 
 export function useNotifications() {
@@ -26,18 +25,6 @@ export function useNotifications() {
       if (msgRes?.ok) {
         const { unreadMessages: um } = await msgRes.json();
         const count = um ?? 0;
-        // Use localStorage as a cross-instance singleton so only ONE toast fires
-        const lastToastedMsg = parseInt(localStorage.getItem(TOAST_MSG_KEY) ?? "-1", 10);
-        if (lastToastedMsg !== -1 && count > lastToastedMsg) {
-          const diff = count - lastToastedMsg;
-          localStorage.setItem(TOAST_MSG_KEY, String(count));
-          toast.message(`${diff} new message${diff > 1 ? "s" : ""}`, {
-            description: "You have unread messages in your projects",
-            action: { label: "View", onClick: () => { window.location.href = "/hiring"; } },
-          });
-        } else if (lastToastedMsg === -1) {
-          localStorage.setItem(TOAST_MSG_KEY, String(count));
-        }
         prevMessages.current = count;
         setUnreadMessages(count);
       }

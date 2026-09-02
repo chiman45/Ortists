@@ -1,7 +1,7 @@
 "use client";
 
 import { useUser } from "@clerk/nextjs";
-import { ChevronRight, Plus, X } from "lucide-react";
+import { ChevronRight, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import type { Artist } from "@/lib/hiringData";
@@ -17,18 +17,23 @@ const INTENDED_USE_OPTIONS = [
   "Advertising", "Editorial", "Commercial Product",
 ];
 
-function Section({ label, optional, children }: { label: string; optional?: boolean; children: React.ReactNode }) {
+function SectionLabel({ label, optional }: { label: string; optional?: boolean }) {
   return (
-    <div className="flex flex-col gap-3">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <p className="text-[10px] font-bold tracking-widest" style={{ color: "rgba(255,255,255,0.45)" }}>{label}</p>
-          {optional && <span className="text-[10px]" style={{ color: "rgba(255,255,255,0.22)" }}>optional</span>}
-        </div>
-        <Plus size={13} style={{ color: "rgba(255,255,255,0.22)" }} />
-      </div>
-      <div className="h-px" style={{ background: "rgba(255,255,255,0.07)" }} />
+    <div className="flex items-center gap-2">
+      <p className="text-[10px] font-bold tracking-widest" style={{ color: "rgba(255,255,255,0.45)" }}>{label}</p>
+      {optional && <span className="text-[10px]" style={{ color: "rgba(255,255,255,0.22)" }}>optional</span>}
+    </div>
+  );
+}
+
+function Field({ innerLabel, hint, children }: { innerLabel?: string; hint?: string; children: React.ReactNode }) {
+  return (
+    <div className="hire-field px-4 py-3 flex flex-col gap-1.5">
+      {innerLabel && (
+        <p className="text-[10px] font-semibold tracking-wider" style={{ color: "rgba(255,255,255,0.32)" }}>{innerLabel}</p>
+      )}
       {children}
+      {hint && <p className="text-[11px] mt-0.5" style={{ color: "rgba(255,255,255,0.22)" }}>{hint}</p>}
     </div>
   );
 }
@@ -254,66 +259,76 @@ export default function HireModal({ artist, artistClerkId, onClose }: Props) {
           </div>
 
           {/* BRIEF */}
-          <Section label="BRIEF">
-            <textarea
-              value={brief}
-              onChange={e => setBrief(e.target.value)}
-              placeholder="Tell the artist what you need..."
-              rows={3}
-              className="w-full bg-transparent text-sm outline-none resize-none"
-              style={{ color: "rgba(255,255,255,0.82)", caretColor: "#7C5BF5" }}
-            />
-            <textarea
-              value={description}
-              onChange={e => setDescription(e.target.value)}
-              placeholder="Describe what you'd like them to create — the more context, the better."
-              rows={2}
-              className="w-full bg-transparent text-sm outline-none resize-none"
-              style={{ color: "rgba(255,255,255,0.82)", caretColor: "#7C5BF5" }}
-            />
-          </Section>
+          <div className="flex flex-col gap-3">
+            <SectionLabel label="BRIEF" />
+            <Field innerLabel="SUMMARY" hint="A short headline for what you need">
+              <textarea
+                value={brief}
+                onChange={e => setBrief(e.target.value)}
+                placeholder="e.g. Album cover illustration, dark fantasy style"
+                rows={2}
+                className="w-full bg-transparent text-sm outline-none resize-none"
+                style={{ color: "rgba(255,255,255,0.82)", caretColor: "#7C5BF5" }}
+              />
+            </Field>
+            <Field innerLabel="DETAILS" hint="The more context you give, the better the proposal">
+              <textarea
+                value={description}
+                onChange={e => setDescription(e.target.value)}
+                placeholder="Describe the style, mood, references, and any specific requirements..."
+                rows={4}
+                className="w-full bg-transparent text-sm outline-none resize-none"
+                style={{ color: "rgba(255,255,255,0.82)", caretColor: "#7C5BF5" }}
+              />
+            </Field>
+          </div>
 
           {/* DELIVERABLES */}
-          <Section label="DELIVERABLES">
-            <textarea
-              value={deliverables}
-              onChange={e => setDeliverables(e.target.value)}
-              placeholder="What should the artist deliver?"
-              rows={2}
-              className="w-full bg-transparent text-sm outline-none resize-none"
-              style={{ color: "rgba(255,255,255,0.82)", caretColor: "#7C5BF5" }}
-            />
-            <p className="text-xs" style={{ color: "rgba(255,255,255,0.22)" }}>e.g. 1 portrait illustration + source files</p>
-          </Section>
+          <div className="flex flex-col gap-3">
+            <SectionLabel label="DELIVERABLES" />
+            <Field hint="e.g. 1 portrait illustration + source files (.ai, .png)">
+              <textarea
+                value={deliverables}
+                onChange={e => setDeliverables(e.target.value)}
+                placeholder="What should the artist deliver?"
+                rows={2}
+                className="w-full bg-transparent text-sm outline-none resize-none"
+                style={{ color: "rgba(255,255,255,0.82)", caretColor: "#7C5BF5" }}
+              />
+            </Field>
+          </div>
 
           {/* DEADLINE */}
-          <Section label="DEADLINE">
-            <div className="flex items-center gap-3 flex-wrap">
-              {/* Toggle */}
-              <div className="flex rounded-xl overflow-hidden shrink-0" style={{ border: "1px solid rgba(255,255,255,0.1)" }}>
-                {(["specific", "flexible"] as const).map(t => (
-                  <button
-                    key={t}
-                    onClick={() => setDeadlineType(t)}
-                    className="px-4 py-2 text-xs font-semibold transition-all"
-                    style={{
-                      background: deadlineType === t ? "#7C5BF5" : "transparent",
-                      color:      deadlineType === t ? "#fff"    : "rgba(255,255,255,0.4)",
-                    }}
-                  >
-                    {t === "specific" ? "Specific date" : "Flexible"}
-                  </button>
-                ))}
+          <div className="flex flex-col gap-3">
+            <SectionLabel label="DEADLINE" />
+            <div className="hire-field px-4 py-3 flex flex-col gap-3">
+              <div className="flex items-center gap-3 flex-wrap">
+                <div className="flex rounded-xl overflow-hidden shrink-0" style={{ border: "1px solid rgba(255,255,255,0.1)" }}>
+                  {(["specific", "flexible"] as const).map(t => (
+                    <button
+                      key={t}
+                      onClick={() => setDeadlineType(t)}
+                      className="px-4 py-2 text-xs font-semibold transition-all"
+                      style={{
+                        background: deadlineType === t ? "#7C5BF5" : "transparent",
+                        color:      deadlineType === t ? "#fff"    : "rgba(255,255,255,0.4)",
+                      }}
+                    >
+                      {t === "specific" ? "Specific date" : "Flexible"}
+                    </button>
+                  ))}
+                </div>
+                {deadlineType === "flexible" && (
+                  <p className="text-xs" style={{ color: "rgba(255,255,255,0.35)" }}>The artist will suggest a timeline</p>
+                )}
               </div>
-
-              {/* Date picker */}
               {deadlineType === "specific" && (
                 <input
                   type="date"
                   value={deadline}
                   min={new Date().toISOString().split("T")[0]}
                   onChange={e => setDeadline(e.target.value)}
-                  className="bg-transparent text-sm outline-none"
+                  className="bg-transparent text-sm outline-none w-full"
                   style={{
                     color:       deadline ? "rgba(255,255,255,0.82)" : "rgba(255,255,255,0.3)",
                     colorScheme: "dark",
@@ -321,13 +336,12 @@ export default function HireModal({ artist, artistClerkId, onClose }: Props) {
                 />
               )}
             </div>
-          </Section>
+          </div>
 
           {/* INTENDED USE */}
           <div className="flex flex-col gap-3">
-            <p className="text-[10px] font-bold tracking-widest" style={{ color: "rgba(255,255,255,0.45)" }}>INTENDED USE</p>
-            <div className="h-px" style={{ background: "rgba(255,255,255,0.07)" }} />
-            <div className="flex flex-wrap gap-2">
+            <SectionLabel label="INTENDED USE" />
+            <div className="hire-field px-4 py-3 flex flex-wrap gap-2">
               {INTENDED_USE_OPTIONS.map(u => {
                 const active = intendedUse.includes(u);
                 return (
@@ -336,8 +350,8 @@ export default function HireModal({ artist, artistClerkId, onClose }: Props) {
                     onClick={() => toggleUse(u)}
                     className="px-4 py-2 rounded-full text-xs font-medium transition-all hover:opacity-80"
                     style={{
-                      background: active ? "rgba(124,91,245,0.18)" : "transparent",
-                      border:     `1px solid ${active ? "rgba(124,91,245,0.5)" : "rgba(255,255,255,0.14)"}`,
+                      background: active ? "rgba(124,91,245,0.18)" : "rgba(255,255,255,0.04)",
+                      border:     `1px solid ${active ? "rgba(124,91,245,0.5)" : "rgba(255,255,255,0.1)"}`,
                       color:      active ? "#9B7CF5" : "rgba(255,255,255,0.55)",
                     }}
                   >
@@ -349,54 +363,58 @@ export default function HireModal({ artist, artistClerkId, onClose }: Props) {
           </div>
 
           {/* REFERENCES */}
-          <Section label="REFERENCES">
-            <div className="flex items-center gap-3">
-              <input
-                value={refInput}
-                onChange={e => setRefInput(e.target.value)}
-                onKeyDown={e => e.key === "Enter" && (e.preventDefault(), addRef())}
-                placeholder="https://..."
-                className="flex-1 bg-transparent text-sm outline-none"
-                style={{ color: "rgba(255,255,255,0.82)", caretColor: "#7C5BF5" }}
-              />
-              <button
-                onClick={addRef}
-                className="text-xs font-bold shrink-0 transition-opacity hover:opacity-70"
-                style={{ color: "#7C5BF5" }}
-              >
-                + Add
-              </button>
-            </div>
-            {references.length > 0 && (
-              <div className="flex flex-col gap-1">
-                {references.map((r, i) => (
-                  <div key={i} className="flex items-center gap-2 text-xs" style={{ color: "#9B7CF5" }}>
-                    <span className="flex-1 truncate">{r}</span>
-                    <button onClick={() => setReferences(prev => prev.filter((_, j) => j !== i))} style={{ color: "rgba(255,255,255,0.3)" }}>
-                      <X size={11} />
-                    </button>
-                  </div>
-                ))}
+          <div className="flex flex-col gap-3">
+            <SectionLabel label="REFERENCES" />
+            <Field hint="Moodboard, Pinterest, Drive link, or anything visual">
+              <div className="flex items-center gap-3">
+                <input
+                  value={refInput}
+                  onChange={e => setRefInput(e.target.value)}
+                  onKeyDown={e => e.key === "Enter" && (e.preventDefault(), addRef())}
+                  placeholder="https://..."
+                  className="flex-1 bg-transparent text-sm outline-none"
+                  style={{ color: "rgba(255,255,255,0.82)", caretColor: "#7C5BF5" }}
+                />
+                <button
+                  onClick={addRef}
+                  className="text-xs font-bold shrink-0 px-3 py-1.5 rounded-lg transition-all hover:opacity-80"
+                  style={{ background: "rgba(124,91,245,0.15)", color: "#9B7CF5", border: "1px solid rgba(124,91,245,0.3)" }}
+                >
+                  + Add
+                </button>
               </div>
-            )}
-            <p className="text-xs" style={{ color: "rgba(255,255,255,0.22)" }}>Moodboard, Pinterest, Drive link, or anything visual.</p>
-          </Section>
+              {references.length > 0 && (
+                <div className="flex flex-col gap-1 pt-1">
+                  {references.map((r, i) => (
+                    <div key={i} className="flex items-center gap-2 text-xs" style={{ color: "#9B7CF5" }}>
+                      <span className="flex-1 truncate">{r}</span>
+                      <button onClick={() => setReferences(prev => prev.filter((_, j) => j !== i))} style={{ color: "rgba(255,255,255,0.3)" }}>
+                        <X size={11} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </Field>
+          </div>
 
           {/* BUDGET */}
-          <Section label="BUDGET" optional>
-            <div className="flex items-center gap-2">
-              <span className="text-sm font-medium" style={{ color: "rgba(255,255,255,0.35)" }}>€</span>
-              <input
-                type="number"
-                value={budget}
-                onChange={e => setBudget(e.target.value)}
-                placeholder="—"
-                className="flex-1 bg-transparent text-sm outline-none"
-                style={{ color: "rgba(255,255,255,0.82)", caretColor: "#7C5BF5" }}
-              />
-            </div>
-            <p className="text-xs" style={{ color: "rgba(255,255,255,0.22)" }}>Leave blank and the artist will propose a price.</p>
-          </Section>
+          <div className="flex flex-col gap-3">
+            <SectionLabel label="BUDGET" optional />
+            <Field hint="Leave blank and the artist will propose a price">
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-medium" style={{ color: "rgba(255,255,255,0.35)" }}>€</span>
+                <input
+                  type="number"
+                  value={budget}
+                  onChange={e => setBudget(e.target.value)}
+                  placeholder="Enter your budget"
+                  className="flex-1 bg-transparent text-sm outline-none"
+                  style={{ color: "rgba(255,255,255,0.82)", caretColor: "#7C5BF5" }}
+                />
+              </div>
+            </Field>
+          </div>
         </div>
 
         {/* ── Sticky footer ── */}

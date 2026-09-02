@@ -53,6 +53,7 @@ interface Message {
   sender_name: string | null;
   sender_avatar: string | null;
   text: string | null;
+  read: boolean;
   created_at: string;
 }
 
@@ -471,7 +472,7 @@ function ConversationPanel({ project, userId, userName, userAvatar, isArtist, on
       body: JSON.stringify({ action: "mark_read", conversationId: convId, userId }),
     }).catch(() => {});
 
-    // Realtime subscription — push new messages as they arrive
+    // Realtime subscription — new messages + read-receipt updates
     const supabase = createClient();
     const channel = supabase
       .channel(`messages:${convId}`)
@@ -479,12 +480,28 @@ function ConversationPanel({ project, userId, userName, userAvatar, isArtist, on
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "messages", filter: `conversation_id=eq.${convId}` },
         (payload) => {
+          const incoming = payload.new as Message;
           setMessages(prev => {
-            // Skip if we already have this id (e.g. optimistic insert)
-            if (prev.some(m => m.id === (payload.new as Message).id)) return prev;
-            return [...prev, payload.new as Message];
+            if (prev.some(m => m.id === incoming.id)) return prev;
+            return [...prev, incoming];
           });
           setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: "smooth" }), 50);
+          // Mark as read immediately when the other user's message arrives
+          if (incoming.sender_id !== userId) {
+            fetch("/api/messages", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ action: "mark_read", conversationId: convId, userId }),
+            }).catch(() => {});
+          }
+        }
+      )
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "messages", filter: `conversation_id=eq.${convId}` },
+        (payload) => {
+          const updated = payload.new as Message;
+          setMessages(prev => prev.map(m => m.id === updated.id ? { ...m, read: updated.read } : m));
         }
       )
       .subscribe();
@@ -531,6 +548,7 @@ function ConversationPanel({ project, userId, userName, userAvatar, isArtist, on
       sender_name: userName,
       sender_avatar: userAvatar,
       text: trimmed,
+      read: false,
       created_at: new Date().toISOString(),
     };
     updateMessages([...messages, optimistic]);
@@ -559,6 +577,9 @@ function ConversationPanel({ project, userId, userName, userAvatar, isArtist, on
   function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
     if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); }
   }
+
+  // ID of the last message I sent that the other side has read
+  const lastReadMeId = [...messages].reverse().find(m => m.sender_id === userId && m.read)?.id;
 
   const grouped: { date: string; msgs: Message[] }[] = [];
   messages.forEach(m => {
@@ -642,6 +663,11 @@ function ConversationPanel({ project, userId, userName, userAvatar, isArtist, on
                           </div>
                         )
                       }
+
+                      {/* Read receipt — show "Seen" under the last read message I sent */}
+                      {isMe && m.id === lastReadMeId && (
+                        <span className="text-[10px] font-medium" style={{ color: "var(--text-5)" }}>Seen</span>
+                      )}
 
                       {/* Approve / Request Revision — client only, on image messages from artist */}
                       {isImageMsg && !isMe && !isArtist && (
