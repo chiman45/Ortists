@@ -10,6 +10,7 @@ import {
 import { useRouter, useParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { createClient } from "@/utils/supabase/client";
 
 // ── Types ────────────────────────────────────────────────────
 
@@ -449,25 +450,20 @@ function ConversationPanel({ project, userId, userName, userAvatar, isArtist, on
 
   function updateMessages(msgs: Message[]) {
     setMessages(msgs);
-    onMessagesChange(msgs);
   }
+
+  // Keep parent in sync whenever local messages state changes
+  useEffect(() => { onMessagesChange(messages); }, [messages]);
 
   useEffect(() => {
     if (!project.conversation_id) return;
     const convId = project.conversation_id;
 
-    function load() {
-      fetch(`/api/messages?action=messages&conversationId=${convId}`)
-        .then(r => r.json())
-        .then(({ messages: msgs }) => {
-          if (!msgs) return;
-          updateMessages(msgs);
-        })
-        .catch(() => {});
-    }
-
-    load();
-    const interval = setInterval(load, 5000);
+    // Initial load
+    fetch(`/api/messages?action=messages&conversationId=${convId}`)
+      .then(r => r.json())
+      .then(({ messages: msgs }) => { if (msgs) updateMessages(msgs); })
+      .catch(() => {});
 
     fetch("/api/messages", {
       method: "POST",
@@ -475,7 +471,25 @@ function ConversationPanel({ project, userId, userName, userAvatar, isArtist, on
       body: JSON.stringify({ action: "mark_read", conversationId: convId, userId }),
     }).catch(() => {});
 
-    return () => clearInterval(interval);
+    // Realtime subscription — push new messages as they arrive
+    const supabase = createClient();
+    const channel = supabase
+      .channel(`messages:${convId}`)
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "messages", filter: `conversation_id=eq.${convId}` },
+        (payload) => {
+          setMessages(prev => {
+            // Skip if we already have this id (e.g. optimistic insert)
+            if (prev.some(m => m.id === (payload.new as Message).id)) return prev;
+            return [...prev, payload.new as Message];
+          });
+          setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: "smooth" }), 50);
+        }
+      )
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [project.conversation_id, userId]);
 
@@ -529,7 +543,14 @@ function ConversationPanel({ project, userId, userName, userAvatar, isArtist, on
 
     if (res.ok) {
       const { message } = await res.json();
-      updateMessages(messages.map(m => m.id === optimistic.id ? message : m).concat(message ? [] : [optimistic]));
+      if (message) {
+        setMessages(prev => {
+          // Remove optimistic; add real only if Realtime hasn't already inserted it
+          const without = prev.filter(m => m.id !== optimistic.id);
+          if (without.some(m => m.id === message.id)) return without;
+          return [...without, message];
+        });
+      }
     }
     setSending(false);
     inputRef.current?.focus();
