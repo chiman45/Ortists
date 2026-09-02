@@ -472,38 +472,33 @@ function ConversationPanel({ project, userId, userName, userAvatar, isArtist, on
       body: JSON.stringify({ action: "mark_read", conversationId: convId, userId }),
     }).catch(() => {});
 
-    // Realtime subscription — new messages + read-receipt updates
+    // Broadcast-based Realtime — works without Supabase Auth JWT (Clerk app)
+    // The server fires REST broadcasts after every insert/update, bypassing RLS.
     const supabase = createClient();
     const channel = supabase
       .channel(`messages:${convId}`)
-      .on(
-        "postgres_changes",
-        { event: "INSERT", schema: "public", table: "messages", filter: `conversation_id=eq.${convId}` },
-        (payload) => {
-          const incoming = payload.new as Message;
-          setMessages(prev => {
-            if (prev.some(m => m.id === incoming.id)) return prev;
-            return [...prev, incoming];
-          });
-          setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: "smooth" }), 50);
-          // Mark as read immediately when the other user's message arrives
-          if (incoming.sender_id !== userId) {
-            fetch("/api/messages", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ action: "mark_read", conversationId: convId, userId }),
-            }).catch(() => {});
-          }
+      .on("broadcast", { event: "new_message" }, ({ payload }) => {
+        const incoming = payload as Message;
+        setMessages(prev => {
+          if (prev.some(m => m.id === incoming.id)) return prev;
+          return [...prev, incoming];
+        });
+        setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: "smooth" }), 50);
+        // Mark messages from the other user as read as soon as they arrive
+        if (incoming.sender_id !== userId) {
+          fetch("/api/messages", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ action: "mark_read", conversationId: convId, userId }),
+          }).catch(() => {});
         }
-      )
-      .on(
-        "postgres_changes",
-        { event: "UPDATE", schema: "public", table: "messages", filter: `conversation_id=eq.${convId}` },
-        (payload) => {
-          const updated = payload.new as Message;
-          setMessages(prev => prev.map(m => m.id === updated.id ? { ...m, read: updated.read } : m));
+      })
+      .on("broadcast", { event: "mark_read" }, ({ payload }) => {
+        // Someone read the messages — mark all our sent messages as read
+        if ((payload as { readBy: string }).readBy !== userId) {
+          setMessages(prev => prev.map(m => m.sender_id === userId ? { ...m, read: true } : m));
         }
-      )
+      })
       .subscribe();
 
     return () => { supabase.removeChannel(channel); };

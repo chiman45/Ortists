@@ -1,6 +1,19 @@
 import { adminDb } from "@/utils/supabase/admin";
 import { NextRequest, NextResponse } from "next/server";
 
+// Broadcast an event to a Supabase Realtime channel without a WebSocket connection.
+// Works in serverless/edge environments — no persistent connection needed.
+async function realtimeBroadcast(channel: string, event: string, payload: unknown) {
+  const url  = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key  = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !key) return;
+  await fetch(`${url}/realtime/v1/api/broadcast`, {
+    method:  "POST",
+    headers: { "Content-Type": "application/json", "apikey": key, "Authorization": `Bearer ${key}` },
+    body:    JSON.stringify({ messages: [{ topic: `realtime:${channel}`, event, payload }] }),
+  }).catch(() => {});
+}
+
 // GET /api/messages?action=conversations&userId=
 // GET /api/messages?action=messages&conversationId=
 export async function GET(req: NextRequest) {
@@ -127,6 +140,9 @@ export async function POST(req: NextRequest) {
         }
       }
 
+      // Broadcast so the recipient sees the message without polling/refresh
+      await realtimeBroadcast(`messages:${conversation_id}`, "new_message", data);
+
       return NextResponse.json({ message: data });
     }
 
@@ -137,6 +153,10 @@ export async function POST(req: NextRequest) {
         .update({ read: true })
         .eq("conversation_id", conversationId)
         .neq("sender_id", userId);
+
+      // Broadcast so the sender sees the "Seen" indicator update in real-time
+      await realtimeBroadcast(`messages:${conversationId}`, "mark_read", { conversationId, readBy: userId });
+
       return NextResponse.json({ ok: true });
     }
 
