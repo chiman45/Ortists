@@ -128,10 +128,10 @@ export default function LandingPage() {
         <div className="absolute inset-0 overflow-hidden">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            src="/Landing-Images/HeroSection background.png"
+            src="/Landing-Images/34.jpeg"
             alt=""
             className="absolute inset-0 w-full h-full object-cover"
-            style={{ filter: "brightness(0.32) saturate(0.85)" }}
+            style={{ opacity: 0.18, filter: "saturate(0.9)" }}
           />
           {/* Bottom fade */}
           <div className="absolute bottom-0 inset-x-0 h-48" style={{
@@ -145,9 +145,9 @@ export default function LandingPage() {
           {/* Circular logo */}
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            src="/login-image/ortists logo1.png"
+            src="/login-image/ortists-badge.png"
             alt="Ortists"
-            style={{ width: "clamp(180px, 24vw, 280px)", height: "clamp(180px, 24vw, 280px)", objectFit: "contain", marginBottom: "2rem", filter: "brightness(1.08) drop-shadow(0 0 32px rgba(255,255,255,0.35)) drop-shadow(0 0 80px rgba(124,91,245,0.5)) drop-shadow(0 0 6px rgba(255,255,255,0.6))" }}
+            style={{ width: "clamp(180px, 24vw, 280px)", height: "clamp(180px, 24vw, 280px)", objectFit: "contain", marginBottom: "2rem" }}
           />
 
           {/* Tagline */}
@@ -249,13 +249,21 @@ export default function LandingPage() {
             ))}
           </div>
 
-          {/* Nav links */}
-          <div className="flex flex-wrap items-center justify-center gap-6 sm:gap-10 text-[13px] font-medium" style={{ color: "rgba(255,255,255,0.5)" }}>
-            <Link href="/feed"    className="hover:text-white transition-colors duration-200">Browse Feed →</Link>
-            <Link href="/hiring"  className="hover:text-white transition-colors duration-200">Hire Artists →</Link>
-            <Link href="/gallery" className="hover:text-white transition-colors duration-200">Marketplace →</Link>
-          </div>
         </div>
+
+        {/* Scroll indicator */}
+        <button
+          onClick={() => window.scrollTo({ top: window.innerHeight * 0.9, behavior: "smooth" })}
+          aria-label="Scroll down"
+          className="absolute left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 animate-bounce transition-opacity duration-300 hover:opacity-70"
+          style={{ color: "rgba(255,255,255,0.5)", bottom: "17px" }}
+        >
+          <span className="text-[10px] font-semibold tracking-[0.2em] uppercase">Scroll</span>
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="m6 9 6 6 6-6" />
+          </svg>
+        </button>
 
       </section>
 
@@ -268,7 +276,7 @@ export default function LandingPage() {
             <div className="relative overflow-hidden" style={{ borderRadius: 3, aspectRatio: "3/4" }}>
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
-                src="/Landing-Images/5.jpeg"
+                src="/Landing-Images/Message_2.jpg"
                 alt="Creative Feed"
                 className="w-full h-full object-cover transition-transform duration-1000 hover:scale-[1.04]"
               />
@@ -322,7 +330,6 @@ export default function LandingPage() {
               style={{ fontSize: "clamp(36px, 4.2vw, 62px)", fontWeight: 700 }}>
               Hire Artists
             </h2>
-            {/* Message 1 */}
             <div className="mb-8 pb-8" style={{ borderBottom: "1px solid rgba(255,255,255,0.07)" }}>
               <p className="text-[15px] font-semibold leading-[1.7] mb-2" style={{ color: "#fff" }}>
                 A wall is not just a wall. It is a feeling waiting to be painted.
@@ -349,7 +356,7 @@ export default function LandingPage() {
             <div className="relative overflow-hidden" style={{ borderRadius: 3, aspectRatio: "3/4" }}>
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
-                src="/Landing-Images/10.jpeg"
+                src="/Landing-Images/Message_1.jpg"
                 alt="Hire Artists"
                 className="w-full h-full object-cover transition-transform duration-1000 hover:scale-[1.04]"
               />
@@ -372,7 +379,7 @@ export default function LandingPage() {
             <div className="relative overflow-hidden" style={{ borderRadius: 3, aspectRatio: "3/4" }}>
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
-                src="/Landing-Images/5.jpeg"
+                src="/Landing-Images/Message_3.jpg"
                 alt="gallery"
                 className="w-full h-full object-cover transition-transform duration-1000 hover:scale-[1.04]"
               />
@@ -416,6 +423,10 @@ export default function LandingPage() {
             <p className="text-[11px] font-semibold tracking-[0.26em] uppercase mb-6" style={{ color: GOLD }}>
               04 — Grow
             </p>
+            <p className="text-[13px] font-bold leading-[1.7] mb-6 uppercase tracking-[0.02em]" style={{ color: "#fff", maxWidth: 400 }}>
+              Your art deserves to be seen, valued, and hired.<br />
+              Create your Ortists profile and let the world discover your talent.
+            </p>
             <h2 className={`${playfair.className} mb-7 leading-[1.08]`}
               style={{ fontSize: "clamp(36px, 4.2vw, 62px)", fontWeight: 700 }}>
               Create Your<br />Profile
@@ -437,7 +448,7 @@ export default function LandingPage() {
             <div className="relative overflow-hidden" style={{ borderRadius: 3, aspectRatio: "3/4" }}>
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
-                src="/Landing-Images/25.jpeg"
+                src="/Landing-Images/Message_4.jpg"
                 alt="Create Profile"
                 className="w-full h-full object-cover transition-transform duration-1000 hover:scale-[1.04]"
               />
@@ -599,7 +610,7 @@ export default function LandingPage() {
                 whiteSpace: "nowrap",
               }}
             >
-              ORTISTS
+              ORTISTS<sup style={{ fontSize: "0.3em" }}>™</sup>
             </h2>
           </div>
 
@@ -610,8 +621,8 @@ export default function LandingPage() {
               <div className="col-span-2 md:col-span-1">
                 <div className="flex items-center gap-2.5 mb-4">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src="/login-image/ortists logo1.png" alt="Ortists" className="w-7 h-7 rounded-md object-cover" />
-                  <span className="font-bold text-white text-[15px] tracking-[0.06em]">Ortists</span>
+                  <img src="/login-image/ortists-badge.png" alt="Ortists" className="w-7 h-7 rounded-md object-cover" />
+                  <span className="font-bold text-white text-[15px] tracking-[0.06em]">Ortists<sup style={{ fontSize: "0.5em", color: ACCENT }}>™</sup></span>
                 </div>
                 <p className="text-[13px] leading-relaxed mb-7" style={{ color: MUTED, maxWidth: 220 }}>
                   A creative ecosystem for artists to showcase, connect, and thrive.
@@ -717,7 +728,7 @@ export default function LandingPage() {
             style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}
           >
             <p className="text-xs" style={{ color: "rgba(255,255,255,0.22)" }}>
-              © {new Date().getFullYear()} Ortist. All rights reserved.
+              © {new Date().getFullYear()} Ortists. All rights reserved.
             </p>
             <p className="text-xs" style={{ color: "rgba(255,255,255,0.22)" }}>
               Built for creators, by creators.

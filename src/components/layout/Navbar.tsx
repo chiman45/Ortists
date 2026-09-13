@@ -14,7 +14,7 @@ export default function Navbar({ onSearchClick }: NavbarProps) {
         {/* Logo */}
         <div className="w-36 shrink-0">
           <span className="text-xl font-bold bg-linear-to-r from-violet-600 to-purple-500 bg-clip-text text-transparent tracking-tight">
-            Ortist
+            Ortists
           </span>
         </div>
 

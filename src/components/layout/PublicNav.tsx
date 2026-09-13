@@ -101,7 +101,7 @@ const HIRE_CATEGORIES = [
     ],
   },
   {
-    label: "Print Art", Icon: Printer, color: "#64748B",
+    label: "Art Print", Icon: Printer, color: "#64748B",
     desc: "Fine art prints, posters & editions",
     items: [
       { label: "Fine Art Print" },        { label: "Giclée Print" },
@@ -363,9 +363,9 @@ export default function PublicNav() {
       {/* Left: Logo */}
       <Link href="/" className="flex items-center gap-2 shrink-0">
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/login-image/ortists logo1.png" alt="Ortists" className="w-7 h-7 rounded-md object-cover" />
+        <img src="/login-image/ortists-badge.png" alt="Ortists" className="w-7 h-7 rounded-md object-cover" />
         <span className="text-[15px] font-bold tracking-[0.06em] text-white">
-          Ortist<span style={{ color: ACCENT }}>.</span>
+          Ortists<sup style={{ fontSize: "0.5em", color: ACCENT }}>™</sup>
         </span>
       </Link>
 
@@ -458,8 +458,8 @@ export default function PublicNav() {
             <div className="flex items-center justify-between px-5 py-4" style={{ borderBottom: "1px solid rgba(255,255,255,0.07)" }}>
               <div className="flex items-center gap-2">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src="/login-image/ortists logo1.png" alt="Ortist" className="w-7 h-7 rounded-md object-cover" />
-                <span className="text-[15px] font-bold text-white">Ortist<span style={{ color: ACCENT }}>.</span></span>
+                <img src="/login-image/ortists-badge.png" alt="Ortists" className="w-7 h-7 rounded-md object-cover" />
+                <span className="text-[15px] font-bold text-white">Ortists<sup style={{ fontSize: "0.5em", color: ACCENT }}>™</sup></span>
               </div>
               <button onClick={() => setMenuOpen(false)} className="w-8 h-8 rounded-full flex items-center justify-center" style={{ background: "rgba(255,255,255,0.07)", color: "#fff" }}>
                 <X size={16} />
