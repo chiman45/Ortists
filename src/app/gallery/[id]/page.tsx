@@ -6,371 +6,189 @@ import Sidebar from "@/components/layout/Sidebar";
 import ArtworkCard from "@/components/gallery/ArtworkCard";
 import { GalleryListings } from "@/lib/galleryData";
 import type { GalleryListing } from "@/lib/types";
-import { ArrowLeft, Bookmark, Clock, Heart, Loader2, MessageCircle, Package, Share2, X } from "lucide-react";
+import { ArrowLeft, Bookmark, Check, Clock, Heart, Package, Share2, Star, X } from "lucide-react";
 import Link from "next/link";
-import { use, useState } from "react";
-
-// Razorpay browser SDK type (loaded dynamically from CDN)
-declare global {
-  interface Window {
-    Razorpay: new (options: RazorpayOptions) => { open(): void };
-  }
-}
-interface RazorpayOptions {
-  key:          string;
-  amount:       number;
-  currency:     string;
-  order_id:     string;
-  name:         string;
-  description:  string;
-  image?:       string;
-  prefill?:     { email?: string; name?: string };
-  theme?:       { color?: string };
-  handler(response: { razorpay_payment_id: string; razorpay_order_id: string; razorpay_signature: string }): void;
-  modal?:       { ondismiss?(): void };
-}
-
-async function loadRazorpayScript(): Promise<boolean> {
-  if (window.Razorpay) return true;
-  return new Promise(resolve => {
-    const s   = document.createElement("script");
-    s.src     = "https://checkout.razorpay.com/v1/checkout.js";
-    s.onload  = () => resolve(true);
-    s.onerror = () => resolve(false);
-    document.body.appendChild(s);
-  });
-}
+import { useRouter } from "next/navigation";
+import { use, useEffect, useState } from "react";
+import { useUser } from "@clerk/nextjs";
 
 // ── Purchase modal ─────────────────────────────────────────────
 
 function PurchaseModal({ item, onClose }: { item: GalleryListing; onClose: () => void }) {
-  const [step, setStep]       = useState<1 | 2>(1);
-  const [email, setEmail]     = useState("");
-  const [address, setAddress] = useState("");
-  const [city, setCity]       = useState("");
-  const [zip, setZip]         = useState("");
-  const [country, setCountry] = useState("");
-  const [done, setDone]       = useState(false);
-  const [paying, setPaying]   = useState(false);
-  const [payError, setPayError] = useState("");
+  const router  = useRouter();
 
-  const sym      = item.currency === "GBP" ? "£" : item.currency === "EUR" ? "€" : "$";
-  const artwork  = item.price;
-  const shipping = item.physical ? 15 : 0;
-  const fee      = Math.round(artwork * 0.05);
-  const total    = artwork + shipping + fee;
+  const sym     = "₹";
+  const artwork = item.price;
+  const fee     = Math.round(artwork * 0.05);
 
-  function handleBackdrop(e: React.MouseEvent<HTMLDivElement>) {
-    if (e.target === e.currentTarget) onClose();
+  function goToCheckout() {
+    const params = new URLSearchParams({
+      listingId: item.id,
+      title:     item.title,
+      price:     String(item.price),
+      image:     item.imageUrl,
+      artist:    item.artistName,
+      weight:    "0.5",
+    });
+    router.push(`/checkout?${params.toString()}`);
   }
 
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center p-4"
       style={{ background: "rgba(0,0,0,0.65)", backdropFilter: "blur(6px)" }}
-      onClick={handleBackdrop}
+      onClick={e => { if (e.target === e.currentTarget) onClose(); }}
     >
       <div
         className="w-full flex flex-col rounded-2xl overflow-hidden"
-        style={{
-          maxWidth: 520,
-          background: "#1a1a1a",
-          border: "1px solid rgba(255,255,255,0.1)",
-          boxShadow: "0 32px 80px rgba(0,0,0,0.55)",
-        }}
+        style={{ maxWidth: 480, background: "#1a1a1a", border: "1px solid rgba(255,255,255,0.1)", boxShadow: "0 32px 80px rgba(0,0,0,0.55)" }}
         onClick={e => e.stopPropagation()}
       >
-        {/* ── Header ── */}
-        <div className="px-6 pt-5 pb-4 flex items-start justify-between gap-4" style={{ borderBottom: "1px solid rgba(255,255,255,0.07)" }}>
+        {/* Header */}
+        <div className="px-6 pt-5 pb-4 flex items-center justify-between" style={{ borderBottom: "1px solid rgba(255,255,255,0.07)" }}>
           <div>
-            <p className="text-[10px] font-bold tracking-widest mb-1" style={{ color: "rgba(255,255,255,0.35)" }}>PURCHASE</p>
-            <h2 className="text-xl font-bold" style={{ color: "#fff" }}>
-              {done ? "Order Placed!" : step === 1 ? "Summary" : "Delivery Details"}
-            </h2>
+            <p className="text-[10px] font-bold tracking-widest mb-0.5" style={{ color: "rgba(255,255,255,0.35)" }}>ORDER SUMMARY</p>
+            <h2 className="text-xl font-bold" style={{ color: "#fff" }}>Review Your Order</h2>
           </div>
-          <div className="flex items-center gap-3 mt-1">
-            {/* Step dots */}
-            <div className="flex items-center gap-1.5">
-              {[1, 2].map(s => (
-                <div
-                  key={s}
-                  className="rounded-full transition-all"
-                  style={{
-                    width:  step === s || (done && s === 2) ? 24 : 8,
-                    height: 8,
-                    background: step >= s || done ? "#7C5BF5" : "rgba(255,255,255,0.2)",
-                  }}
-                />
-              ))}
-            </div>
-            <button
-              onClick={onClose}
-              className="w-8 h-8 rounded-full flex items-center justify-center transition-opacity hover:opacity-70"
-              style={{ background: "rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.6)" }}
-            >
-              <X size={15} />
-            </button>
-          </div>
+          <button
+            onClick={onClose}
+            className="w-8 h-8 rounded-full flex items-center justify-center transition-opacity hover:opacity-70"
+            style={{ background: "rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.6)" }}
+          >
+            <X size={15} />
+          </button>
         </div>
 
         <div className="px-6 py-5 flex flex-col gap-5">
-
-          {/* ── Step 1: Summary ── */}
-          {step === 1 && !done && (
-            <>
-              {/* Artwork card */}
-              <div
-                className="flex items-center gap-4 p-3 rounded-xl"
-                style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}
-              >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={item.imageUrl}
-                  alt={item.title}
-                  className="rounded-xl object-cover shrink-0"
-                  style={{ width: 72, height: 72 }}
-                />
-                <div className="flex-1 min-w-0">
-                  <p className="font-bold text-base truncate" style={{ color: "#fff" }}>{item.title}</p>
-                  <p className="text-xs mt-0.5 truncate" style={{ color: "rgba(255,255,255,0.45)" }}>
-                    by {item.artistName}{item.artistLocation ? ` · ${item.artistLocation.split(",")[0]}` : ""}
-                  </p>
-                  <div className="flex items-center gap-2 mt-2">
-                    <span
-                      className="text-[10px] font-semibold px-2 py-0.5 rounded-md"
-                      style={{ background: "rgba(255,255,255,0.1)", color: "rgba(255,255,255,0.55)" }}
-                    >
-                      {item.physical ? "Physical" : "Digital"}
-                    </span>
-                    <span
-                      className="flex items-center gap-1 text-[10px] font-semibold"
-                      style={{ color: "#10B981" }}
-                    >
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0" />
-                      Available
-                    </span>
-                  </div>
-                </div>
-                <p className="text-base font-bold shrink-0" style={{ color: "#fff" }}>{sym}{artwork.toLocaleString()}</p>
+          {/* Artwork card */}
+          <div className="flex items-center gap-4 p-3 rounded-xl" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={item.imageUrl} alt={item.title} className="rounded-xl object-cover shrink-0" style={{ width: 72, height: 72 }} />
+            <div className="flex-1 min-w-0">
+              <p className="font-bold text-base truncate" style={{ color: "#fff" }}>{item.title}</p>
+              <p className="text-xs mt-0.5 truncate" style={{ color: "rgba(255,255,255,0.45)" }}>
+                by {item.artistName}{item.artistLocation ? ` · ${item.artistLocation.split(",")[0]}` : ""}
+              </p>
+              <div className="flex items-center gap-2 mt-2">
+                <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md" style={{ background: "rgba(255,255,255,0.1)", color: "rgba(255,255,255,0.55)" }}>
+                  {item.physical ? "Physical" : "Digital"}
+                </span>
+                <span className="flex items-center gap-1 text-[10px] font-semibold" style={{ color: "#10B981" }}>
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0" /> Available
+                </span>
               </div>
-
-              {/* Price breakdown */}
-              <div className="flex flex-col" style={{ gap: 0 }}>
-                {[
-                  { label: "Artwork",           val: `${sym}${artwork.toLocaleString()}` },
-                  ...(item.physical ? [{ label: "Shipping", val: `${sym}${shipping}` }] : []),
-                  { label: `Platform fee (5%)`, val: `${sym}${fee}` },
-                ].map(row => (
-                  <div
-                    key={row.label}
-                    className="flex justify-between py-3 text-sm"
-                    style={{ borderBottom: "1px solid rgba(255,255,255,0.07)", color: "rgba(255,255,255,0.55)" }}
-                  >
-                    <span>{row.label}</span>
-                    <span style={{ color: "rgba(255,255,255,0.7)" }}>{row.val}</span>
-                  </div>
-                ))}
-                <div className="flex justify-between pt-3 text-base font-bold" style={{ color: "#fff" }}>
-                  <span>Total</span>
-                  <span>{sym}{total.toLocaleString()}</span>
-                </div>
-              </div>
-
-              {/* Info note */}
-              {item.physical && (
-                <p className="text-xs leading-relaxed px-3 py-2.5 rounded-xl" style={{ background: "rgba(255,255,255,0.04)", color: "rgba(255,255,255,0.4)", border: "1px solid rgba(255,255,255,0.06)" }}>
-                  Physical artwork — you will provide a shipping address on the next step. Estimated delivery 7–14 days from dispatch.
-                </p>
-              )}
-
-              <button
-                onClick={() => setStep(2)}
-                className="w-full py-4 rounded-xl font-bold text-white text-sm transition-opacity hover:opacity-85"
-                style={{ background: "linear-gradient(135deg,#361E7B,#7C5BF5)" }}
-              >
-                Continue →
-              </button>
-            </>
-          )}
-
-          {/* ── Step 2: Delivery / Payment ── */}
-          {step === 2 && !done && (
-            <>
-              <div className="flex flex-col gap-3">
-                <input
-                  value={email}
-                  onChange={e => setEmail(e.target.value)}
-                  placeholder="Email address"
-                  type="email"
-                  className="w-full px-4 py-3 rounded-xl text-sm outline-none"
-                  style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", color: "#fff" }}
-                />
-                {item.physical && (
-                  <>
-                    <input
-                      value={address}
-                      onChange={e => setAddress(e.target.value)}
-                      placeholder="Street address"
-                      className="w-full px-4 py-3 rounded-xl text-sm outline-none"
-                      style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", color: "#fff" }}
-                    />
-                    <div className="flex gap-3">
-                      <input
-                        value={city}
-                        onChange={e => setCity(e.target.value)}
-                        placeholder="City"
-                        className="flex-1 px-4 py-3 rounded-xl text-sm outline-none"
-                        style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", color: "#fff" }}
-                      />
-                      <input
-                        value={zip}
-                        onChange={e => setZip(e.target.value)}
-                        placeholder="ZIP / Postcode"
-                        className="w-32 px-4 py-3 rounded-xl text-sm outline-none"
-                        style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", color: "#fff" }}
-                      />
-                    </div>
-                    <input
-                      value={country}
-                      onChange={e => setCountry(e.target.value)}
-                      placeholder="Country"
-                      className="w-full px-4 py-3 rounded-xl text-sm outline-none"
-                      style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", color: "#fff" }}
-                    />
-                  </>
-                )}
-                {/* Order total reminder */}
-                <div
-                  className="flex justify-between text-sm px-4 py-3 rounded-xl font-semibold"
-                  style={{ background: "rgba(124,91,245,0.1)", border: "1px solid rgba(124,91,245,0.2)", color: "#9B7CF5" }}
-                >
-                  <span>Order total</span>
-                  <span>{sym}{total.toLocaleString()}</span>
-                </div>
-              </div>
-
-              {payError && (
-                <p className="text-xs text-center px-3 py-2 rounded-xl" style={{ background: "rgba(239,68,68,0.1)", color: "#EF4444", border: "1px solid rgba(239,68,68,0.25)" }}>
-                  {payError}
-                </p>
-              )}
-
-              <div className="flex gap-3">
-                <button
-                  onClick={() => setStep(1)}
-                  disabled={paying}
-                  className="px-5 py-4 rounded-xl text-sm font-semibold transition-opacity hover:opacity-70 disabled:opacity-40"
-                  style={{ background: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.6)", border: "1px solid rgba(255,255,255,0.1)" }}
-                >
-                  ← Back
-                </button>
-                <button
-                  disabled={paying}
-                  onClick={async () => {
-                    setPayError("");
-                    setPaying(true);
-                    try {
-                      // 1. Load Razorpay SDK
-                      const loaded = await loadRazorpayScript();
-                      if (!loaded) throw new Error("Could not load payment gateway. Check your connection.");
-
-                      // 2. Create order on server (amount in paise)
-                      const amountPaise = Math.round(total * 100);
-                      const orderRes = await fetch("/api/create-order", {
-                        method:  "POST",
-                        headers: { "Content-Type": "application/json" },
-                        body:    JSON.stringify({ amount: amountPaise, currency: "INR", receipt: `gallery_${item.id}` }),
-                      });
-                      if (!orderRes.ok) {
-                        const { error } = await orderRes.json();
-                        throw new Error(error ?? "Order creation failed");
-                      }
-                      const { order_id, amount: orderAmount, currency } = await orderRes.json();
-
-                      // 3. Open Razorpay checkout modal
-                      await new Promise<void>((resolve, reject) => {
-                        const rzp = new window.Razorpay({
-                          key:         process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID!,
-                          amount:      orderAmount as number,
-                          currency,
-                          order_id,
-                          name:        "Ortisit",
-                          description: item.title,
-                          image:       "/logo.jpeg",
-                          prefill:     { email, name: "" },
-                          theme:       { color: "#7C5BF5" },
-                          handler: async (response) => {
-                            // 4. Verify signature on server
-                            const verifyRes = await fetch("/api/verify-payment", {
-                              method:  "POST",
-                              headers: { "Content-Type": "application/json" },
-                              body:    JSON.stringify(response),
-                            });
-                            if (!verifyRes.ok) {
-                              const { error } = await verifyRes.json();
-                              reject(new Error(error ?? "Payment verification failed"));
-                            } else {
-                              resolve();
-                            }
-                          },
-                          modal: {
-                            ondismiss: () => reject(new Error("__dismissed__")),
-                          },
-                        });
-                        rzp.open();
-                      });
-
-                      setDone(true);
-                    } catch (err: unknown) {
-                      const msg = err instanceof Error ? err.message : "Payment failed";
-                      if (msg !== "__dismissed__") setPayError(msg);
-                    } finally {
-                      setPaying(false);
-                    }
-                  }}
-                  className="flex-1 py-4 rounded-xl font-bold text-white text-sm transition-opacity hover:opacity-85 disabled:opacity-60 flex items-center justify-center gap-2"
-                  style={{ background: "linear-gradient(135deg,#361E7B,#7C5BF5)" }}
-                >
-                  {paying && <Loader2 size={15} className="animate-spin" />}
-                  {paying ? "Processing…" : "Pay Now →"}
-                </button>
-              </div>
-            </>
-          )}
-
-          {/* ── Confirmation ── */}
-          {done && (
-            <div className="flex flex-col items-center gap-4 py-4 text-center">
-              <div
-                className="w-16 h-16 rounded-full flex items-center justify-center"
-                style={{ background: "rgba(16,185,129,0.15)", border: "2px solid rgba(16,185,129,0.4)" }}
-              >
-                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#10B981" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                  <polyline points="20 6 9 17 4 12" />
-                </svg>
-              </div>
-              <div>
-                <p className="text-lg font-bold mb-1" style={{ color: "#fff" }}>Order confirmed!</p>
-                <p className="text-sm" style={{ color: "rgba(255,255,255,0.45)" }}>
-                  A confirmation will be sent to {email || "your email"}.
-                  {item.physical ? " Estimated delivery 7–14 days from dispatch." : " Your digital file will be delivered shortly."}
-                </p>
-              </div>
-              <button
-                onClick={onClose}
-                className="mt-2 px-8 py-3 rounded-xl font-bold text-white text-sm transition-opacity hover:opacity-85"
-                style={{ background: "linear-gradient(135deg,#361E7B,#7C5BF5)" }}
-              >
-                Done
-              </button>
             </div>
+            <p className="text-base font-bold shrink-0" style={{ color: "#fff" }}>{sym}{artwork.toLocaleString()}</p>
+          </div>
+
+          {/* Price rows */}
+          <div className="flex flex-col">
+            {[
+              { label: "Artwork",          val: `${sym}${artwork.toLocaleString()}` },
+              { label: "Platform fee (5%)", val: `${sym}${fee}` },
+              ...(item.physical ? [{ label: "Delivery", val: "Calculated at checkout" }] : []),
+            ].map(row => (
+              <div key={row.label} className="flex justify-between py-3 text-sm" style={{ borderBottom: "1px solid rgba(255,255,255,0.07)", color: "rgba(255,255,255,0.55)" }}>
+                <span>{row.label}</span>
+                <span style={{ color: "rgba(255,255,255,0.7)" }}>{row.val}</span>
+              </div>
+            ))}
+          </div>
+
+          {item.physical && (
+            <p className="text-xs px-3 py-2.5 rounded-xl" style={{ background: "rgba(124,91,245,0.08)", color: "rgba(255,255,255,0.45)", border: "1px solid rgba(124,91,245,0.2)" }}>
+              Delivery charge and GST will be shown on the next page based on your address.
+            </p>
           )}
+
+          <button
+            onClick={goToCheckout}
+            className="w-full py-4 rounded-xl font-bold text-white text-sm transition-opacity hover:opacity-85"
+            style={{ background: "linear-gradient(135deg,#361E7B,#7C5BF5)" }}
+          >
+            Continue to Checkout →
+          </button>
         </div>
       </div>
     </div>
   );
 }
 
+// ── Public rating ──────────────────────────────────────────────
+// Open to any signed-in visitor — not just the artist's followers or
+// connections. Average + count are visible to everyone; casting a star
+// requires being signed in so one person can't stuff the average.
+
+function ArtworkRating({ artworkId }: { artworkId: string }) {
+  const { user } = useUser();
+  const [average,    setAverage]    = useState(0);
+  const [count,      setCount]      = useState(0);
+  const [myRating,   setMyRating]   = useState<number | null>(null);
+  const [hover,      setHover]      = useState<number | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    const url = user?.id
+      ? `/api/ratings?artworkId=${artworkId}&userId=${user.id}`
+      : `/api/ratings?artworkId=${artworkId}`;
+    fetch(url)
+      .then(r => r.json())
+      .then(d => { setAverage(d.average ?? 0); setCount(d.count ?? 0); setMyRating(d.myRating ?? null); })
+      .catch(() => {});
+  }, [artworkId, user?.id]);
+
+  async function rate(n: number) {
+    if (!user || submitting) return;
+    setSubmitting(true);
+    const prev = myRating;
+    setMyRating(n);
+    try {
+      const res = await fetch("/api/ratings", {
+        method:  "POST",
+        headers: { "Content-Type": "application/json" },
+        body:    JSON.stringify({ artworkId, userId: user.id, rating: n }),
+      });
+      const d = await res.json();
+      if (res.ok) { setAverage(d.average ?? 0); setCount(d.count ?? 0); }
+      else setMyRating(prev);
+    } catch {
+      setMyRating(prev);
+    }
+    setSubmitting(false);
+  }
+
+  const shown = hover ?? myRating ?? 0;
+
+  return (
+    <div className="p-4 rounded-2xl" style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}>
+      <div className="flex items-center justify-between mb-2.5">
+        <p className="text-xs font-semibold" style={{ color: "var(--text-4)" }}>Community Rating</p>
+        <span className="text-xs" style={{ color: "var(--text-5)" }}>
+          {count > 0 ? `${average.toFixed(1)} · ${count} rating${count !== 1 ? "s" : ""}` : "No ratings yet"}
+        </span>
+      </div>
+      <div className="flex items-center gap-1" onMouseLeave={() => setHover(null)}>
+        {[1, 2, 3, 4, 5].map(n => (
+          <button
+            key={n}
+            disabled={!user || submitting}
+            onClick={() => rate(n)}
+            onMouseEnter={() => setHover(n)}
+            className="transition-transform hover:scale-110 disabled:cursor-not-allowed disabled:hover:scale-100"
+            aria-label={`Rate ${n} star${n > 1 ? "s" : ""}`}
+          >
+            <Star size={20} fill={shown >= n ? "#FBBF24" : "none"} color={shown >= n ? "#FBBF24" : "var(--text-5)"} />
+          </button>
+        ))}
+      </div>
+      {!user && (
+        <p className="text-[11px] mt-1.5" style={{ color: "var(--text-5)" }}>
+          <Link href="/login" className="underline hover:opacity-80">Sign in</Link> to rate this artwork — open to everyone.
+        </p>
+      )}
+    </div>
+  );
+}
 
 export default function GalleryDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -389,6 +207,22 @@ export default function GalleryDetailPage({ params }: { params: Promise<{ id: st
   const [saved,     setSaved]     = useState(false);
   const [following, setFollowing] = useState(false);
   const [buyModal,  setBuyModal]  = useState(false);
+  const [shared,    setShared]    = useState(false);
+
+  async function handleShare() {
+    const url = window.location.href;
+    try {
+      if (navigator.share) {
+        await navigator.share({ title: item.title, text: `${item.title} by ${item.artistName}`, url });
+      } else {
+        await navigator.clipboard.writeText(url);
+        setShared(true);
+        setTimeout(() => setShared(false), 2000);
+      }
+    } catch {
+      // user dismissed the native share sheet — nothing to do
+    }
+  }
 
   return (
     <div className="flex min-h-screen" style={{ background: "var(--bg)" }}>
@@ -474,12 +308,6 @@ export default function GalleryDetailPage({ params }: { params: Promise<{ id: st
                   >
                     {following ? "Following" : "Follow"}
                   </button>
-                  <button
-                    className="w-8 h-8 rounded-full flex items-center justify-center transition-all hover:opacity-80"
-                    style={{ background: "var(--bg-card)", border: "1px solid var(--border)", color: "var(--text-4)" }}
-                  >
-                    <MessageCircle size={15} />
-                  </button>
                 </div>
               </div>
 
@@ -539,6 +367,9 @@ export default function GalleryDetailPage({ params }: { params: Promise<{ id: st
                 </div>
               )}
 
+              {/* Community rating — open to all signed-in visitors */}
+              <ArtworkRating artworkId={item.id} />
+
               {/* Price & CTA */}
               <div
                 className="p-4 rounded-2xl"
@@ -548,8 +379,7 @@ export default function GalleryDetailPage({ params }: { params: Promise<{ id: st
                   <span className="text-xs" style={{ color: "var(--text-5)" }}>
                     {item.type === "commission" ? "Starting at" : "Price"}
                   </span>
-                  <span className="text-3xl font-bold" style={{ color: "#9B7CF5" }}>${item.price}</span>
-                  <span className="text-xs" style={{ color: "var(--text-5)" }}>{item.currency}</span>
+                  <span className="text-3xl font-bold" style={{ color: "#9B7CF5" }}>{item.currency}{item.price}</span>
                 </div>
                 <div className="flex flex-col gap-2">
                   <button
@@ -585,10 +415,16 @@ export default function GalleryDetailPage({ params }: { params: Promise<{ id: st
                       Save
                     </button>
                     <button
+                      onClick={handleShare}
+                      title={shared ? "Link copied!" : "Share"}
                       className="flex items-center justify-center w-11 rounded-xl transition-all hover:opacity-70"
-                      style={{ background: "var(--bg-subtle)", border: "1px solid var(--border)", color: "var(--text-4)" }}
+                      style={{
+                        background: shared ? "rgba(16,185,129,0.12)" : "var(--bg-subtle)",
+                        border:     `1px solid ${shared ? "rgba(16,185,129,0.3)" : "var(--border)"}`,
+                        color:      shared ? "#10B981" : "var(--text-4)",
+                      }}
                     >
-                      <Share2 size={15} />
+                      {shared ? <Check size={15} /> : <Share2 size={15} />}
                     </button>
                   </div>
                 </div>

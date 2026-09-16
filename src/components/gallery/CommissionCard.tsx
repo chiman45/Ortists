@@ -41,7 +41,7 @@ export default function CommissionCard({ item }: { item: GalleryListing }) {
           <div className="flex items-center justify-between">
             <div>
               <span className="text-[10px]" style={{ color: "var(--text-5)" }}>Starting at </span>
-              <span className="text-sm font-bold" style={{ color: "#9B7CF5" }}>${item.price}</span>
+              <span className="text-sm font-bold" style={{ color: "#9B7CF5" }}>₹{item.price}</span>
             </div>
             <div className="flex items-center gap-1" style={{ color: "var(--text-5)" }}>
               <Clock size={11} />

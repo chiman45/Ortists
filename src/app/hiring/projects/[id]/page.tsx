@@ -499,7 +499,10 @@ function ConversationPanel({ project, userId, userName, userAvatar, isArtist, on
           setMessages(prev => prev.map(m => m.sender_id === userId ? { ...m, read: true } : m));
         }
       })
-      .subscribe();
+      .subscribe((status, err) => {
+        if (status === "SUBSCRIBED") console.log("[realtime] subscribed →", `messages:${convId}`);
+        if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") console.error("[realtime] subscription failed:", status, err);
+      });
 
     return () => { supabase.removeChannel(channel); };
   // eslint-disable-next-line react-hooks/exhaustive-deps

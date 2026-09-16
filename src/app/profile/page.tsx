@@ -673,7 +673,7 @@ export default function ProfilePage() {
                               <img src={src} alt={post.title} className="w-full h-full object-cover" />
                               <span className="absolute top-3 left-3 px-3 py-1 rounded-full text-xs font-bold"
                                 style={{ background: "#F59E0B", color: "#000" }}>
-                                From ${price}
+                                From ₹{price}
                               </span>
                             </div>
                             <div className="p-4">
@@ -1000,15 +1000,6 @@ export default function ProfilePage() {
                   </button>
                 ))}
               </nav>
-
-              {/* Save button */}
-              <div className="p-4" style={{ borderTop: "1px solid var(--border)" }}>
-                <button onClick={saveProfile} disabled={saving || avatarUploading}
-                  className="w-full py-2.5 rounded-xl text-sm font-bold text-white transition-opacity hover:opacity-90 disabled:opacity-50"
-                  style={{ background: "linear-gradient(135deg,#361E7B,#7C5BF5)" }}>
-                  {saving ? "Saving…" : "Save Changes"}
-                </button>
-              </div>
             </div>
 
             {/* ── Right content panel ── */}

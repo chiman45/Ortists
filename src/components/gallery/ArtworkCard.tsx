@@ -65,7 +65,7 @@ export default function ArtworkCard({ item }: { item: GalleryListing }) {
           </div>
           <p className="text-sm font-semibold mb-1 truncate" style={{ color: "var(--text-1)" }}>{item.title}</p>
           <div className="flex items-center justify-between">
-            <span className="text-sm font-bold" style={{ color: "#9B7CF5" }}>${item.price}</span>
+            <span className="text-sm font-bold" style={{ color: "#9B7CF5" }}>₹{item.price}</span>
             <span className="text-[10px]" style={{ color: "var(--text-5)" }}>{item.medium}</span>
           </div>
         </div>

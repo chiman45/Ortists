@@ -2,9 +2,10 @@
 
 import { useUser } from "@clerk/nextjs";
 import { Loader2, Play, Plus, X } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import type { StoryItem } from "./StoryViewer";
 import StoryViewer from "./StoryViewer";
+import StoryCreativeEditor from "./StoryCreativeEditor";
 
 interface DbStory {
   id: string;
@@ -29,20 +30,24 @@ function timeAgo(iso: string) {
 }
 
 function groupStories(raw: DbStory[]): RichStory[] {
+  // API returns stories newest-first; group by author first, then play each
+  // author's stories oldest → newest so a freshly-added story appears after
+  // (not before) the ones already posted.
   const map = new Map<string, DbStory[]>();
   raw.forEach(s => {
     if (!map.has(s.user_id)) map.set(s.user_id, []);
     map.get(s.user_id)!.push(s);
   });
-  return Array.from(map.values()).map(userStories => {
-    const first = userStories[0];
+  return Array.from(map.values()).map(userStoriesNewestFirst => {
+    const newest = userStoriesNewestFirst[0];
+    const userStories = [...userStoriesNewestFirst].reverse(); // oldest → newest
     return {
-      id:          first.user_id,
-      username:    first.author_username,
-      displayName: first.author_name,
-      avatar:      first.author_avatar ?? `https://i.pravatar.cc/80?u=${first.user_id}`,
+      id:          newest.user_id,
+      username:    newest.author_username,
+      displayName: newest.author_name,
+      avatar:      newest.author_avatar ?? `https://i.pravatar.cc/80?u=${newest.user_id}`,
       role:        "Artist",
-      time:        timeAgo(first.created_at),
+      time:        timeAgo(newest.created_at),
       frames:      userStories.map(s => ({ image: s.image_url, duration: 5000 })),
       storyIds:    userStories.map(s => s.id),
     } satisfies RichStory;
@@ -70,10 +75,10 @@ function saveViewed(viewed: Record<string, string>) {
 
 export default function StoriesRow() {
   const { user } = useUser();
-  const fileRef  = useRef<HTMLInputElement>(null);
 
   const [stories, setStories]       = useState<RichStory[]>([]);
   const [viewingIdx, setViewingIdx] = useState<number | null>(null);
+  const [creating, setCreating]     = useState(false);
   const [uploading, setUploading]   = useState(false);
   const [error, setError]           = useState<string | null>(null);
   // Map of storyUserId → newestStoryId that was viewed
@@ -85,8 +90,8 @@ export default function StoriesRow() {
   }, []);
 
   function markViewed(story: RichStory) {
-    // Use the first storyId (most recent, API returns desc order) as the "newest" marker
-    const newestId = story.storyIds[0];
+    // storyIds is ordered oldest → newest, so the last entry is the newest
+    const newestId = story.storyIds[story.storyIds.length - 1];
     if (!newestId) return;
     setViewed(prev => {
       const next = { ...prev, [story.id]: newestId };
@@ -96,7 +101,7 @@ export default function StoriesRow() {
   }
 
   function isViewed(story: RichStory): boolean {
-    const newestId = story.storyIds[0];
+    const newestId = story.storyIds[story.storyIds.length - 1];
     return !!newestId && viewed[story.id] === newestId;
   }
 
@@ -105,15 +110,13 @@ export default function StoriesRow() {
     markViewed(stories[idx]);
   }
 
-  async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file || !user) return;
-    e.target.value = "";
+  async function publishStory(file: File | Blob) {
+    if (!user) return;
     setUploading(true);
     setError(null);
     try {
       const form = new FormData();
-      form.append("file", file);
+      form.append("file", file, "story.jpg");
       const uploadRes = await fetch("/api/upload", { method: "POST", body: form });
       const { url, error: uploadErr } = await uploadRes.json();
       if (uploadErr || !url) throw new Error(uploadErr ?? "Upload failed");
@@ -133,8 +136,10 @@ export default function StoriesRow() {
       if (storyErr) throw new Error(storyErr);
 
       setStories(await loadStories());
+      setCreating(false);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong");
+      throw err;
     } finally {
       setUploading(false);
     }
@@ -171,7 +176,7 @@ export default function StoriesRow() {
           {/* Add story */}
           <div className="flex flex-col items-center gap-2 shrink-0">
             <button
-              onClick={() => fileRef.current?.click()}
+              onClick={() => setCreating(true)}
               disabled={uploading}
               className="w-14 h-14 rounded-full border-2 border-dashed flex items-center justify-center transition-all"
               style={{ borderColor: "rgba(124,91,245,0.4)" }}
@@ -187,8 +192,6 @@ export default function StoriesRow() {
               {uploading ? "Adding…" : "Add"}
             </span>
           </div>
-
-          <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
 
           {/* My story */}
           {myStoryIdx !== -1 && (
@@ -239,6 +242,13 @@ export default function StoriesRow() {
               body: JSON.stringify({ viewerId: user.id }),
             }).catch(() => {});
           }}
+        />
+      )}
+
+      {creating && (
+        <StoryCreativeEditor
+          onClose={() => setCreating(false)}
+          onPublish={publishStory}
         />
       )}
     </>

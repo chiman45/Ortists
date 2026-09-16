@@ -14,10 +14,11 @@ import { useRouter } from "next/navigation";
 import { use, useEffect, useState } from "react";
 
 // ── Razorpay ──────────────────────────────────────────────────────
-// `Window.Razorpay` is already declared in gallery/[id]/page.tsx — no redeclaration needed.
-// We reference it via `window.Razorpay` at runtime; the shared CDN script provides it.
+// Loaded from the CDN at runtime; no bundled type declarations, so we
+// access it as `any` (consistent with the cast used below at call time).
 function loadRazorpayScript(): Promise<boolean> {
-  if (typeof window !== "undefined" && window.Razorpay) return Promise.resolve(true);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  if (typeof window !== "undefined" && (window as any).Razorpay) return Promise.resolve(true);
   return new Promise(resolve => {
     const s = document.createElement("script");
     s.src = "https://checkout.razorpay.com/v1/checkout.js";
@@ -237,15 +238,17 @@ export default function FeedPostPage({ params }: { params: Promise<{ id: string 
   const img      = firstImage(post?.image_url ?? mockPost.imageUrl);
   const isVideo  = /\.(mp4|webm|mov|avi|mkv|ogv)(\?|$)/i.test(img);
   const title    = post?.title    ?? mockPost.title;
-  const cat    = post?.category ?? mockPost.category;
+  const cat      = (post?.category ?? mockPost.category)?.replace(/^gallery:/, "");
+  const typeLabel = post?.medium ?? "Digital";
 
   // Parse structured description (gallery posts embed price as JSON)
   let descText: string | null = null;
   let descPrice: string | null = null;
+  let descDimensions: string | null = null;
   if (post?.description) {
     try {
       const parsed = JSON.parse(post.description);
-      if (parsed._price !== undefined) { descPrice = parsed._price ?? null; descText = parsed._desc ?? null; }
+      if (parsed._price !== undefined) { descPrice = parsed._price ?? null; descText = parsed._desc ?? null; descDimensions = parsed._dimensions ?? null; }
       else { descText = post.description; }
     } catch { descText = post.description; }
   }
@@ -403,7 +406,7 @@ export default function FeedPostPage({ params }: { params: Promise<{ id: string 
                         </div>
                         <div>
                           <p className="text-[10px] uppercase tracking-wide mb-0.5" style={{ color: "var(--text-5)" }}>Type</p>
-                          <p className="text-sm font-medium" style={{ color: "var(--text-2)" }}>Digital</p>
+                          <p className="text-sm font-medium" style={{ color: "var(--text-2)" }}>{typeLabel}</p>
                         </div>
                         <div>
                           <p className="text-[10px] uppercase tracking-wide mb-0.5" style={{ color: "var(--text-5)" }}>Artist</p>
@@ -422,6 +425,9 @@ export default function FeedPostPage({ params }: { params: Promise<{ id: string 
                         <div className="flex flex-col gap-2">
                           <div className="flex items-baseline gap-1.5">
                             <span className="text-2xl font-bold" style={{ color: "#9B7CF5" }}>{descPrice}</span>
+                            {descDimensions && (
+                              <span className="text-xs" style={{ color: "var(--text-5)" }}>· {descDimensions}</span>
+                            )}
                           </div>
                           {payDone ? (
                             <div className="w-full py-2.5 rounded-xl font-semibold text-sm text-center"

@@ -5,13 +5,14 @@ import {
   Check, Grid2X2, ImageIcon, MapPin, Send, Upload, X,
 } from "lucide-react";
 import { useUser } from "@clerk/nextjs";
+import { useRouter } from "next/navigation";
 import { useCallback, useRef, useState } from "react";
 
 const STEPS = ["Type", "Media", "Details", "Options", "Preview"] as const;
 
 const CONTENT_TYPES = [
   { id: "portfolio", Icon: ImageIcon,  title: "Portfolio Post", desc: "Showcase your artwork — add multiple images in one post, like Instagram." },
-  { id: "gallery",   Icon: Grid2X2,    title: "Gallery Post",   desc: "Share a single artwork to the gallery with a price tag." },
+  { id: "gallery",   Icon: Grid2X2,    title: "Gallery Post",   desc: "Share artwork to the gallery with a price tag — add multiple photos of the piece." },
 ] as const;
 
 const ARTWORK_TYPES = [
@@ -138,6 +139,7 @@ function LocationField({ value, onChange }: { value: string; onChange: (v: strin
 
 export default function CreatePostModal({ onClose }: Props) {
   const { user } = useUser();
+  const router = useRouter();
   const [step, setStep]               = useState(0);
   const [type, setType]               = useState("portfolio");
   const [imageUrl, setImageUrl]       = useState<string | null>(null);
@@ -149,14 +151,14 @@ export default function CreatePostModal({ onClose }: Props) {
   const [dragging, setDragging]       = useState(false);
   const [title, setTitle]           = useState("");
   const [desc, setDesc]             = useState("");
-  const [category, setCategory]     = useState("");
   const [artworkType, setArtworkType] = useState<string[]>([]);
   const [medium, setMedium]         = useState("");
   const [technique, setTechnique]   = useState("");
   const [styles, setStyles]         = useState<string[]>([]);
   const [location, setLocation]     = useState("");
   const [price, setPrice]           = useState("");
-  const [currency, setCurrency]     = useState("£");
+  const [currency, setCurrency]     = useState("₹");
+  const [dimensions, setDimensions] = useState("");
   const [visibility, setVisibility] = useState<"Public" | "Followers" | "Private">("Public");
   const [comments, setComments]     = useState(true);
   const [downloads, setDownloads]   = useState(false);
@@ -306,41 +308,83 @@ export default function CreatePostModal({ onClose }: Props) {
               <h3 className="text-base font-bold text-center mb-4" style={{ color: "var(--text-1)" }}>Upload Media</h3>
 
               {type === "gallery" ? (
-                /* ── Gallery: single image only ── */
+                /* ── Gallery: multiple photos supported ── */
                 <>
                   <input ref={fileRef} type="file" accept="image/*" className="hidden"
                     onChange={e => { if (e.target.files?.[0]) handleFile(e.target.files[0]); }} />
-                  <div
-                    onClick={() => !imageUrl && fileRef.current?.click()}
-                    onDragOver={e => { e.preventDefault(); setDragging(true); }}
-                    onDragLeave={() => setDragging(false)}
-                    onDrop={onDrop}
-                    className="w-full rounded-2xl flex flex-col items-center justify-center transition-all overflow-hidden"
-                    style={{
-                      minHeight: imageUrl ? "auto" : 200,
-                      cursor: imageUrl ? "default" : "pointer",
-                      border: `2px dashed ${dragging ? "#7C5BF5" : "var(--border)"}`,
-                      background: dragging ? "rgba(124,91,245,0.06)" : "var(--bg-card)",
-                    }}
-                  >
-                    {imageUrl ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={imageUrl} alt="preview" className="w-full rounded-2xl object-cover" style={{ maxHeight: 340 }} />
-                    ) : (
+                  <input ref={extraRef} type="file" accept="image/*" multiple className="hidden"
+                    onChange={e => { if (e.target.files) handleGalleryFiles(e.target.files); }} />
+
+                  {!imageUrl ? (
+                    <div
+                      onClick={() => fileRef.current?.click()}
+                      onDragOver={e => { e.preventDefault(); setDragging(true); }}
+                      onDragLeave={() => setDragging(false)}
+                      onDrop={onDrop}
+                      className="w-full rounded-2xl flex flex-col items-center justify-center cursor-pointer transition-all overflow-hidden"
+                      style={{
+                        minHeight: 200,
+                        border: `2px dashed ${dragging ? "#7C5BF5" : "var(--border)"}`,
+                        background: dragging ? "rgba(124,91,245,0.06)" : "var(--bg-card)",
+                      }}
+                    >
                       <div className="flex flex-col items-center py-10">
                         <div className="w-12 h-12 rounded-full flex items-center justify-center mb-3" style={{ background: "rgba(124,91,245,0.15)" }}>
                           <Upload size={20} style={{ color: "#9B7CF5" }} />
                         </div>
                         <p className="text-sm font-semibold mb-1" style={{ color: "var(--text-2)" }}>Drop your artwork here</p>
-                        <p className="text-xs" style={{ color: "var(--text-5)" }}>or click to browse · single image only</p>
+                        <p className="text-xs" style={{ color: "var(--text-5)" }}>or click to browse · add up to 10 photos</p>
                       </div>
-                    )}
-                  </div>
-                  {imageUrl && (
-                    <button onClick={() => { setImageUrl(null); setImageFile(null); }}
-                      className="mt-2 text-xs transition-opacity hover:opacity-70 w-full text-center" style={{ color: "var(--text-5)" }}>
-                      Remove and choose different image
-                    </button>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col gap-2">
+                      <div className="grid grid-cols-3 gap-2">
+                        {/* Cover */}
+                        <div className="relative aspect-square rounded-xl overflow-hidden group">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img src={imageUrl} alt="" className="w-full h-full object-cover" />
+                          <button
+                            onClick={() => { setImageUrl(null); setImageFile(null); setGalleryFiles([]); setGalleryUrls([]); }}
+                            className="absolute top-1 right-1 w-5 h-5 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                            style={{ background: "rgba(0,0,0,0.7)" }}
+                          >
+                            <X size={10} color="#fff" />
+                          </button>
+                          <span className="absolute bottom-1 left-1 text-[9px] font-bold px-1.5 py-0.5 rounded-full" style={{ background: "#7C5BF5", color: "#fff" }}>Cover</span>
+                        </div>
+
+                        {/* Additional images */}
+                        {galleryUrls.map((url, i) => (
+                          <div key={i} className="relative aspect-square rounded-xl overflow-hidden group">
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img src={url} alt="" className="w-full h-full object-cover" />
+                            <button
+                              onClick={() => removeGalleryItem(i)}
+                              className="absolute top-1 right-1 w-5 h-5 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                              style={{ background: "rgba(0,0,0,0.7)" }}
+                            >
+                              <X size={10} color="#fff" />
+                            </button>
+                          </div>
+                        ))}
+
+                        {/* Add more slot */}
+                        {galleryUrls.length < 9 && (
+                          <button
+                            onClick={() => extraRef.current?.click()}
+                            className="aspect-square rounded-xl flex flex-col items-center justify-center transition-colors"
+                            style={{ background: "var(--bg-subtle)", border: "2px dashed var(--border)" }}
+                          >
+                            <Upload size={14} style={{ color: "var(--text-5)" }} />
+                            <span className="text-[10px] mt-1" style={{ color: "var(--text-5)" }}>Add</span>
+                          </button>
+                        )}
+                      </div>
+
+                      <p className="text-[11px] text-center" style={{ color: "var(--text-5)" }}>
+                        {galleryUrls.length + 1}/10 · buyers can browse all photos of this piece
+                      </p>
+                    </div>
                   )}
                 </>
               ) : (
@@ -492,7 +536,7 @@ export default function CreatePostModal({ onClose }: Props) {
               <div>
                 <label className="text-xs font-medium mb-2 block" style={{ color: "var(--text-4)" }}>Medium</label>
                 <div className="flex gap-2 mb-2">
-                  {["Physical", "Digital"].map(m => (
+                  {["Physical", "Digital", "Other"].map(m => (
                     <button
                       key={m}
                       onClick={() => { setMedium(medium === m ? "" : m); setTechnique(""); }}
@@ -507,7 +551,18 @@ export default function CreatePostModal({ onClose }: Props) {
                     </button>
                   ))}
                 </div>
-                {medium && (
+                {medium === "Other" ? (
+                  <div>
+                    <label className="text-xs mb-1.5 block" style={{ color: "var(--text-5)" }}>Describe the medium</label>
+                    <input
+                      value={technique}
+                      onChange={e => setTechnique(e.target.value)}
+                      placeholder="e.g. Embroidery, Photography, Found Objects…"
+                      className="w-full px-3 py-2.5 rounded-xl text-sm outline-none"
+                      style={{ background: "var(--bg-card)", border: "1px solid var(--border)", color: "var(--text-1)" }}
+                    />
+                  </div>
+                ) : medium && (
                   <div>
                     <label className="text-xs mb-1.5 block" style={{ color: "var(--text-5)" }}>Technique</label>
                     <div className="flex flex-wrap gap-2">
@@ -572,7 +627,7 @@ export default function CreatePostModal({ onClose }: Props) {
                     Price <span style={{ color: "rgba(124,91,245,0.7)" }}>*</span>
                   </label>
                   <div className="flex gap-2">
-                    {/* Currency selector */}
+                    {/* Currency selector — display symbol only; checkout always charges in ₹ via Razorpay */}
                     <div className="relative">
                       <select
                         value={currency}
@@ -580,7 +635,7 @@ export default function CreatePostModal({ onClose }: Props) {
                         className="h-full px-3 py-2.5 rounded-xl text-sm outline-none appearance-none pr-7"
                         style={{ background: "var(--bg-card)", border: "1px solid var(--border)", color: "var(--text-1)" }}
                       >
-                        {["£", "$", "€", "₹", "¥"].map(c => <option key={c} value={c}>{c}</option>)}
+                        {["₹", "$", "£", "€", "¥"].map(c => <option key={c} value={c}>{c}</option>)}
                       </select>
                     </div>
                     <input
@@ -593,7 +648,21 @@ export default function CreatePostModal({ onClose }: Props) {
                       style={{ background: "var(--bg-card)", border: "1px solid var(--border)", color: "var(--text-1)" }}
                     />
                   </div>
-                  <p className="text-[10px] mt-1" style={{ color: "var(--text-5)" }}>Set the price buyers will see on your gallery listing</p>
+                  <p className="text-[10px] mt-1" style={{ color: "var(--text-5)" }}>Set the price buyers will see on your gallery listing — checkout is always charged in ₹</p>
+                </div>
+              )}
+
+              {/* Dimensions — gallery posts only */}
+              {type === "gallery" && (
+                <div>
+                  <label className="text-xs font-medium mb-1.5 block" style={{ color: "var(--text-4)" }}>Size / Dimensions</label>
+                  <input
+                    value={dimensions}
+                    onChange={e => setDimensions(e.target.value)}
+                    placeholder={`e.g. 40×60 cm, A3 print, 24×36 in`}
+                    className="w-full px-3 py-2.5 rounded-xl text-sm outline-none"
+                    style={{ background: "var(--bg-card)", border: "1px solid var(--border)", color: "var(--text-1)" }}
+                  />
                 </div>
               )}
             </div>
@@ -740,23 +809,19 @@ export default function CreatePostModal({ onClose }: Props) {
                     if (isVideo && imageFile) {
                       // Videos stored as plain URL (not JSON array)
                       finalImageUrl = await uploadFile(imageFile);
-                    } else if (isGallery) {
-                      // Gallery: single image stored as JSON array with one URL
-                      const uploaded = await uploadFile(imageFile);
-                      finalImageUrl = JSON.stringify([uploaded]);
                     } else {
-                      // Portfolio: cover + optional extra images as JSON array
+                      // Gallery & Portfolio: cover + optional extra images as JSON array
                       const allFiles = [imageFile, ...galleryFiles].filter((f): f is File => !!f);
                       const uploadedUrls = await Promise.all(allFiles.map(uploadFile));
                       finalImageUrl = JSON.stringify(uploadedUrls);
                     }
 
-                    // For gallery posts embed price into description as structured JSON
-                    const descriptionPayload = isGallery && price
-                      ? JSON.stringify({ _price: `${currency}${price}`, _desc: desc })
+                    // For gallery posts embed price + dimensions into description as structured JSON
+                    const descriptionPayload = isGallery && (price || dimensions)
+                      ? JSON.stringify({ _price: price ? `${currency}${price}` : undefined, _dimensions: dimensions || undefined, _desc: desc })
                       : (desc || undefined);
 
-                    await fetch("/api/posts", {
+                    const res = await fetch("/api/posts", {
                       method: "POST",
                       headers: { "Content-Type": "application/json" },
                       body: JSON.stringify({
@@ -767,7 +832,7 @@ export default function CreatePostModal({ onClose }: Props) {
                         title: title || "Untitled",
                         description: descriptionPayload,
                         image_url: finalImageUrl,
-                        category: isGallery ? `gallery:${category || "General"}` : (category || "General"),
+                        category: isGallery ? `gallery:${artworkType[0] || "General"}` : (artworkType[0] || "General"),
                         tags: artworkType,
                         medium: technique ? `${medium} · ${technique}` : (medium || undefined),
                         style: styles.join(", ") || undefined,
@@ -777,7 +842,9 @@ export default function CreatePostModal({ onClose }: Props) {
                         allow_downloads: isGallery ? false : downloads,
                       }),
                     });
+                    const { post: created } = await res.json();
                     onClose();
+                    if (created?.id) router.push(`/feed/${created.id}`);
                   } finally {
                     setPublishing(false);
                   }

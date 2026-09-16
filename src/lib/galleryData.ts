@@ -101,7 +101,7 @@ export const GalleryListings: GalleryListing[] = ARTWORK_TITLES.map((title, i) =
     artistLocation: artist.loc,
     avatar:         artist.avatar,
     price:          PRICES[i],
-    currency:       "£",
+    currency:       "₹",
     category:       CATEGORIES[i],
     medium:         MEDIUMS[i],
     dimensions:     ["40×60 cm", "60×80 cm", "A3 print", "24×36 in", "Digital file"][i % 5],
@@ -142,11 +142,30 @@ export const featuredArtists: FeaturedArtist[] = WATCH_ARTISTS.map((a, i) => ({
   location:     a.loc,
 }));
 
-export const trendingListings = GalleryListings.slice(0, 8);
+// ── Featured work selection ─────────────────────────────────────────
+// "Featured" is a weighted score of artist rating, commission volume, and
+// engagement (likes) — the pieces that rank highest surface first across
+// the hero, editorial grid, and collection promo. Placement order is
+// deterministic: highest score always wins the hero slot.
+function featuredScore(item: GalleryListing): number {
+  return item.rating * 20 + item.commissions * 0.6 + item.likes * 0.03;
+}
 
-// Hero = first item; featured editorial grid = items 1-3; new row = 4-7; collection = item 8; main grid = rest
-export const heroListing      = GalleryListings[0];
-export const featuredGrid     = GalleryListings.slice(1, 4);
-export const newListings       = GalleryListings.slice(4, 8);
-export const collectionFeatured = GalleryListings[8];
-export const mainGrid         = GalleryListings.slice(9, 17);
+const rankedByFeatured = [...GalleryListings].sort((a, b) => featuredScore(b) - featuredScore(a));
+
+export const trendingListings = [...GalleryListings]
+  .sort((a, b) => (b.likes + b.comments * 4) - (a.likes + a.comments * 4))
+  .slice(0, 8);
+
+export const heroListing        = rankedByFeatured[0];
+export const featuredGrid       = rankedByFeatured.slice(1, 4);
+export const collectionFeatured = rankedByFeatured[4];
+
+const featuredIds = new Set([heroListing, ...featuredGrid, collectionFeatured].map(l => l.id));
+
+// "On view" = the most recently listed pieces (highest index = newest),
+// excluding anything already claimed by the featured slots above.
+export const newListings = [...GalleryListings].reverse().filter(l => !featuredIds.has(l.id)).slice(0, 4);
+
+const shownIds = new Set([...featuredIds, ...newListings.map(l => l.id)]);
+export const mainGrid = GalleryListings.filter(l => !shownIds.has(l.id));

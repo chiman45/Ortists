@@ -1,17 +1,34 @@
 import { adminDb } from "@/utils/supabase/admin";
 import { NextRequest, NextResponse } from "next/server";
 
-// Broadcast an event to a Supabase Realtime channel without a WebSocket connection.
-// Works in serverless/edge environments — no persistent connection needed.
-async function realtimeBroadcast(channel: string, event: string, payload: unknown) {
-  const url  = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key  = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!url || !key) return;
-  await fetch(`${url}/realtime/v1/api/broadcast`, {
-    method:  "POST",
-    headers: { "Content-Type": "application/json", "apikey": key, "Authorization": `Bearer ${key}` },
-    body:    JSON.stringify({ messages: [{ topic: `realtime:${channel}`, event, payload }] }),
-  }).catch(() => {});
+// Broadcast via Supabase Realtime REST API using the service role key.
+// This bypasses RLS and requires no persistent WebSocket from the server.
+async function realtimeBroadcast(channelName: string, event: string, payload: unknown) {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !key) { console.warn("[realtime] missing env vars"); return; }
+
+  const res = await fetch(`${url}/realtime/v1/api/broadcast`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "apikey": key,
+      "Authorization": `Bearer ${key}`,
+    },
+    body: JSON.stringify({
+      messages: [{
+        topic: `realtime:${channelName}`,
+        event: "broadcast",        // Phoenix event type — always "broadcast"
+        payload: { event, payload }, // custom event name + data live inside payload
+      }],
+    }),
+  });
+  if (!res.ok) {
+    const body = await res.text().catch(() => "");
+    console.error("[realtime] broadcast failed:", res.status, body);
+  } else {
+    console.log("[realtime] broadcast ok →", channelName, event);
+  }
 }
 
 // GET /api/messages?action=conversations&userId=

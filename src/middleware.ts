@@ -20,6 +20,8 @@ const PUBLIC_PREFIXES = [
   "/sign-in",  // Clerk default redirect target
   "/sign-up",  // Clerk default redirect target
   "/u/",       // public artist profile pages
+  "/gallery",  // marketplace browsing (listings + detail pages) — guests can browse; auth only required to buy
+  "/api/ratings", // public artwork ratings shown on marketplace listings
   "/terms",
   "/privacy",
   "/refund",

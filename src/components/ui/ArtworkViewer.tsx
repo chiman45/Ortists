@@ -13,6 +13,7 @@ export default function ArtworkViewer({ src, alt, onClose }: Props) {
   const lastMouse   = useRef({ x: 0, y: 0 });
   const pinchDist   = useRef<number | null>(null);
   const isPanning   = useRef(false);
+  const stageRef    = useRef<HTMLDivElement>(null);
 
   // Escape key + body scroll lock
   useEffect(() => {
@@ -34,10 +35,20 @@ export default function ArtworkViewer({ src, alt, onClose }: Props) {
   }
 
   // ── Wheel zoom ──────────────────────────────────────────────────────────────
-  function onWheel(e: React.WheelEvent) {
-    e.preventDefault();
-    applyZoom(-e.deltaY * 0.004);
-  }
+  // React's onWheel prop is attached as a passive listener, so preventDefault()
+  // silently fails there — the page scrolls underneath while the image also
+  // zooms. Attaching natively with { passive: false } is the only way to
+  // actually stop the background page from scrolling while zooming.
+  useEffect(() => {
+    const el = stageRef.current;
+    if (!el) return;
+    const handler = (e: WheelEvent) => {
+      e.preventDefault();
+      applyZoom(-e.deltaY * 0.004);
+    };
+    el.addEventListener("wheel", handler, { passive: false });
+    return () => el.removeEventListener("wheel", handler);
+  }, []);
 
   // ── Mouse drag ──────────────────────────────────────────────────────────────
   function onMouseDown(e: React.MouseEvent) {
@@ -156,9 +167,9 @@ export default function ArtworkViewer({ src, alt, onClose }: Props) {
 
       {/* Image stage */}
       <div
+        ref={stageRef}
         className="w-full h-full flex items-center justify-center overflow-hidden select-none"
         style={{ cursor: scale > 1 ? (panning ? "grabbing" : "grab") : "zoom-in" }}
-        onWheel={onWheel}
         onMouseDown={onMouseDown}
         onMouseMove={onMouseMove}
         onMouseUp={onMouseUp}

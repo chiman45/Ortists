@@ -155,6 +155,31 @@ export default function LandingPage() {
             Discover artists. Share ideas. Create extraordinary.
           </p>
 
+          {/* Primary intent CTAs */}
+          <div className="flex flex-wrap items-center justify-center gap-3 mb-8">
+            <Link
+              href="/hiring"
+              className="px-6 py-3 rounded-full text-[13px] font-bold tracking-[0.02em] transition-all duration-200 hover:scale-[1.03]"
+              style={{ background: ACCENT, color: "#fff" }}
+            >
+              I Want to Hire an Artist
+            </Link>
+            <Link
+              href="/login?mode=signup"
+              className="px-6 py-3 rounded-full text-[13px] font-bold tracking-[0.02em] transition-all duration-200 hover:scale-[1.03]"
+              style={{ background: GOLD, color: "#050505" }}
+            >
+              I Want to Work <span style={{ fontWeight: 500, opacity: 0.75 }}>(Join as Artist)</span>
+            </Link>
+            <Link
+              href="/gallery"
+              className="px-6 py-3 rounded-full text-[13px] font-bold tracking-[0.02em] transition-all duration-200 hover:scale-[1.03] hover:bg-white/10"
+              style={{ border: "1px solid rgba(255,255,255,0.3)", color: "#fff" }}
+            >
+              Explore &amp; Buy Art
+            </Link>
+          </div>
+
           {/* Search bar + dropdown */}
           <div ref={searchRef} className="w-full max-w-[540px] mb-6 relative">
             <div
@@ -249,12 +274,6 @@ export default function LandingPage() {
             ))}
           </div>
 
-          {/* Nav links */}
-          <div className="flex flex-wrap items-center justify-center gap-6 sm:gap-10 text-[13px] font-medium" style={{ color: "rgba(255,255,255,0.5)" }}>
-            <Link href="/feed"    className="hover:text-white transition-colors duration-200">Browse Feed →</Link>
-            <Link href="/hiring"  className="hover:text-white transition-colors duration-200">Hire Artists →</Link>
-            <Link href="/gallery" className="hover:text-white transition-colors duration-200">Marketplace →</Link>
-          </div>
         </div>
 
       </section>

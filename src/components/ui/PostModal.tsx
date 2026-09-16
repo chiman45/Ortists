@@ -16,6 +16,18 @@ function parseImages(raw: string): string[] {
   return [raw];
 }
 
+// Gallery posts embed price/dimensions in description as structured JSON.
+function parseDescription(raw: string | null): { text: string; price: string | null; dimensions: string | null } {
+  if (!raw) return { text: "", price: null, dimensions: null };
+  try {
+    const parsed = JSON.parse(raw);
+    if (parsed && typeof parsed === "object" && ("_price" in parsed || "_dimensions" in parsed)) {
+      return { text: parsed._desc ?? "", price: parsed._price ?? null, dimensions: parsed._dimensions ?? null };
+    }
+  } catch { /* not JSON — plain text description */ }
+  return { text: raw, price: null, dimensions: null };
+}
+
 interface Props {
   post: DbPost;
   isOwner: boolean;
@@ -32,8 +44,8 @@ export default function PostModal({ post: initialPost, isOwner, ownerId, current
   const [panY, setPanY] = useState(0);
   const [editing, setEditing] = useState(false);
   const [editTitle, setEditTitle] = useState(initialPost.title);
-  const [editDesc, setEditDesc] = useState(initialPost.description ?? "");
-  const [editCategory, setEditCategory] = useState(initialPost.category ?? "");
+  const [editDesc, setEditDesc] = useState(() => parseDescription(initialPost.description).text);
+  const [editCategory, setEditCategory] = useState((initialPost.category ?? "").replace(/^gallery:/, ""));
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [liked, setLiked] = useState(false);
@@ -48,6 +60,7 @@ export default function PostModal({ post: initialPost, isOwner, ownerId, current
   const lastDist = useRef<number | null>(null);
   const lastPan = useRef<{ x: number; y: number } | null>(null);
   const pointers = useRef<Map<number, { x: number; y: number }>>(new Map());
+  const imagePanelRef = useRef<HTMLDivElement>(null);
 
   function goTo(i: number) { setCarouselIdx(i); resetZoom(); }
   function goPrev() { if (carouselIdx > 0) goTo(carouselIdx - 1); }
@@ -63,6 +76,27 @@ export default function PostModal({ post: initialPost, isOwner, ownerId, current
     return () => document.removeEventListener("keydown", handler);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [onClose, carouselIdx, total]);
+
+  // Lock background scroll while the dialog is open.
+  useEffect(() => {
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => { document.body.style.overflow = prev; };
+  }, []);
+
+  // React's onWheel prop is attached as a passive listener, so preventDefault()
+  // silently fails there — the page scrolls underneath while the artwork also
+  // zooms. Attaching natively with { passive: false } actually stops it.
+  useEffect(() => {
+    const el = imagePanelRef.current;
+    if (!el) return;
+    const wheelHandler = (e: WheelEvent) => {
+      e.preventDefault();
+      setZoom(z => Math.min(5, Math.max(1, z * (e.deltaY > 0 ? 0.88 : 1.14))));
+    };
+    el.addEventListener("wheel", wheelHandler, { passive: false });
+    return () => el.removeEventListener("wheel", wheelHandler);
+  }, []);
 
   // Fetch initial liked/saved state for this viewer
   useEffect(() => {
@@ -116,11 +150,6 @@ export default function PostModal({ post: initialPost, isOwner, ownerId, current
 
   const resetZoom = () => { setZoom(1); setPanX(0); setPanY(0); };
 
-  function handleWheel(e: React.WheelEvent) {
-    e.preventDefault();
-    setZoom(z => Math.min(5, Math.max(1, z * (e.deltaY > 0 ? 0.88 : 1.14))));
-  }
-
   function handlePointerDown(e: React.PointerEvent) {
     pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
     if (pointers.current.size === 1) lastPan.current = { x: e.clientX, y: e.clientY };
@@ -154,10 +183,18 @@ export default function PostModal({ post: initialPost, isOwner, ownerId, current
     setSaving(true);
     setSaveError(null);
     try {
+      const isGalleryPost = (post.category ?? "").startsWith("gallery:");
+      const { price, dimensions } = parseDescription(post.description);
+      const description = (price || dimensions)
+        ? JSON.stringify({ _price: price ?? undefined, _dimensions: dimensions ?? undefined, _desc: editDesc })
+        : editDesc;
       const res = await fetch(`/api/posts/${post.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId: ownerId, title: editTitle, description: editDesc, category: editCategory }),
+        body: JSON.stringify({
+          userId: ownerId, title: editTitle, description,
+          category: isGalleryPost ? `gallery:${editCategory || "General"}` : editCategory,
+        }),
       });
       const data = await res.json();
       if (data.error) { setSaveError(data.error); return; }
@@ -174,14 +211,15 @@ export default function PostModal({ post: initialPost, isOwner, ownerId, current
 
   function cancelEdit() {
     setEditTitle(post.title);
-    setEditDesc(post.description ?? "");
-    setEditCategory(post.category ?? "");
+    setEditDesc(parseDescription(post.description).text);
+    setEditCategory((post.category ?? "").replace(/^gallery:/, ""));
     setEditing(false);
     setSaveError(null);
   }
 
   const src = images[Math.min(carouselIdx, total - 1)];
   const isVid = isVideoUrl(src);
+  const parsedDesc = parseDescription(post.description);
   const imgStyle: React.CSSProperties = {
     maxWidth: "100%",
     maxHeight: "100%",
@@ -210,6 +248,7 @@ export default function PostModal({ post: initialPost, isOwner, ownerId, current
       >
         {/* ── Image panel ── */}
         <div
+          ref={imagePanelRef}
           className="flex-1 relative overflow-hidden flex items-center justify-center"
           style={{
             background: "#060606",
@@ -218,7 +257,6 @@ export default function PostModal({ post: initialPost, isOwner, ownerId, current
             cursor: zoom > 1 ? "grab" : "default",
             touchAction: "none",
           }}
-          onWheel={handleWheel}
           onPointerDown={handlePointerDown}
           onPointerMove={handlePointerMove}
           onPointerUp={handlePointerUp}
@@ -376,7 +414,7 @@ export default function PostModal({ post: initialPost, isOwner, ownerId, current
             ) : post.category ? (
               <span className="inline-block px-3 py-1 rounded-full text-xs font-semibold w-fit"
                 style={{ background: "rgba(124,91,245,0.12)", color: "#9B7CF5", border: "1px solid rgba(124,91,245,0.25)" }}>
-                {post.category}
+                {post.category.replace(/^gallery:/, "")}
               </span>
             ) : null}
 
@@ -389,9 +427,21 @@ export default function PostModal({ post: initialPost, isOwner, ownerId, current
                   className="w-full px-3 py-2.5 rounded-xl text-sm outline-none resize-none"
                   style={{ background: "var(--bg-subtle)", border: "1px solid var(--border)", color: "var(--text-1)" }} />
               </div>
-            ) : post.description ? (
-              <p className="text-sm leading-relaxed" style={{ color: "var(--text-3)" }}>{post.description}</p>
+            ) : parsedDesc.text ? (
+              <p className="text-sm leading-relaxed" style={{ color: "var(--text-3)" }}>{parsedDesc.text}</p>
             ) : null}
+
+            {/* Price / Dimensions — gallery posts only */}
+            {!editing && (parsedDesc.price || parsedDesc.dimensions) && (
+              <div className="flex items-center gap-2 flex-wrap">
+                {parsedDesc.price && (
+                  <span className="text-lg font-bold" style={{ color: "#9B7CF5" }}>{parsedDesc.price}</span>
+                )}
+                {parsedDesc.dimensions && (
+                  <span className="text-xs" style={{ color: "var(--text-5)" }}>{parsedDesc.dimensions}</span>
+                )}
+              </div>
+            )}
 
             {saveError && <p className="text-xs" style={{ color: "#EF4444" }}>{saveError}</p>}
 

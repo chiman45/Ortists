@@ -19,7 +19,18 @@ interface RealPost {
   id: string; title: string; image_url: string; description: string | null;
   author_name: string; author_username: string; author_avatar: string | null;
   likes_count: number; comments_count: number; category: string | null;
+  created_at?: string;
 }
+
+type SortOption = "featured" | "price-asc" | "price-desc" | "rating" | "newest";
+
+const SORT_OPTIONS: { id: SortOption; label: string }[] = [
+  { id: "featured",   label: "Featured" },
+  { id: "newest",     label: "Newest" },
+  { id: "rating",     label: "Top rated" },
+  { id: "price-asc",  label: "Price: Low to High" },
+  { id: "price-desc", label: "Price: High to Low" },
+];
 
 interface RealArtist {
   clerk_id: string; display_name: string | null; username: string | null;
@@ -39,7 +50,7 @@ function parsePostPrice(description: string | null): { price: string | null; des
 
 // ── Shared primitives ────────────────────────────────────────────────
 
-function PricePill({ price, currency = "£" }: { price: number; currency?: string }) {
+function PricePill({ price, currency = "₹" }: { price: number; currency?: string }) {
   return (
     <span
       className="text-xs font-bold px-2.5 py-1 rounded-lg shrink-0"
@@ -50,21 +61,13 @@ function PricePill({ price, currency = "£" }: { price: number; currency?: strin
   );
 }
 
-function StarRow({ rating, commissions, link = true }: { rating: number; commissions: number; link?: boolean }) {
+function StarRow({ rating, commissions }: { rating: number; commissions: number }) {
   return (
     <div className="flex items-center gap-1.5 flex-wrap" style={{ color: "rgba(255,255,255,0.45)", fontSize: 11 }}>
       <Star size={9} fill="#FBBF24" color="#FBBF24" />
       <span>{rating.toFixed(1)}</span>
       <span style={{ color: "rgba(255,255,255,0.25)" }}>·</span>
       <span>{commissions} commissions</span>
-      {link && (
-        <>
-          <span style={{ color: "rgba(255,255,255,0.25)" }}>·</span>
-          <span className="hover:text-white transition-colors cursor-pointer" style={{ color: "rgba(255,255,255,0.55)" }}>
-            View Artist Profile →
-          </span>
-        </>
-      )}
     </div>
   );
 }
@@ -180,6 +183,8 @@ function CommunityCard({ post }: { post: RealPost }) {
 export default function GalleryPage() {
   const [activeCategory, setActiveCategory] = useState("All");
   const [search, setSearch]                 = useState("");
+  const [sortBy, setSortBy]                 = useState<SortOption>("featured");
+  const [showFilters, setShowFilters]       = useState(false);
   const [realPosts, setRealPosts]     = useState<RealPost[]>([]);
   const [realArtists, setRealArtists] = useState<RealArtist[]>([]);
 
@@ -199,7 +204,7 @@ export default function GalleryPage() {
       .catch(() => {});
   }, []);
 
-  const isFiltered = search || activeCategory !== "All";
+  const isFiltered = Boolean(search) || activeCategory !== "All" || sortBy !== "featured";
 
   const filtered = GalleryListings.filter(item => {
     const matchCat    = activeCategory === "All" || item.category === activeCategory;
@@ -217,6 +222,24 @@ export default function GalleryPage() {
       || post.title.toLowerCase().includes(search.toLowerCase())
       || post.author_name.toLowerCase().includes(search.toLowerCase());
     return matchCat && matchSearch;
+  });
+
+  const sortedFiltered = [...filtered].sort((a, b) => {
+    switch (sortBy) {
+      case "price-asc":  return a.price - b.price;
+      case "price-desc": return b.price - a.price;
+      case "rating":     return b.rating - a.rating;
+      case "newest":     return Number(b.id.replace(/\D/g, "")) - Number(a.id.replace(/\D/g, ""));
+      default:           return 0;
+    }
+  });
+
+  const sortedFilteredReal = [...filteredReal].sort((a, b) => {
+    switch (sortBy) {
+      case "rating":  return b.likes_count - a.likes_count;
+      case "newest":  return new Date(b.created_at ?? 0).getTime() - new Date(a.created_at ?? 0).getTime();
+      default:        return 0;
+    }
   });
 
   const totalFiltered = filtered.length + filteredReal.length;
@@ -259,10 +282,42 @@ export default function GalleryPage() {
               </button>
             );
           })}
-          <button className="ml-auto w-8 h-8 rounded-xl flex items-center justify-center shrink-0 transition-opacity hover:opacity-70"
-            style={{ background: "var(--bg-subtle)", border: "1px solid var(--border)", color: "var(--text-4)" }}>
-            <SlidersHorizontal size={14} />
-          </button>
+          <div className="relative ml-auto shrink-0">
+            <button
+              onClick={() => setShowFilters(v => !v)}
+              className="w-8 h-8 rounded-xl flex items-center justify-center transition-opacity hover:opacity-70"
+              style={{
+                background: sortBy !== "featured" ? "rgba(124,91,245,0.18)" : "var(--bg-subtle)",
+                border: `1px solid ${sortBy !== "featured" ? "rgba(124,91,245,0.4)" : "var(--border)"}`,
+                color: sortBy !== "featured" ? "#9B7CF5" : "var(--text-4)",
+              }}>
+              <SlidersHorizontal size={14} />
+            </button>
+            {showFilters && (
+              <>
+                <div className="fixed inset-0 z-10" onClick={() => setShowFilters(false)} />
+                <div
+                  className="absolute right-0 top-10 z-20 w-52 rounded-xl overflow-hidden py-1.5"
+                  style={{ background: "var(--bg-card)", border: "1px solid var(--border)", boxShadow: "0 12px 32px rgba(0,0,0,0.35)" }}
+                >
+                  <p className="px-3 pt-1.5 pb-1 text-[10px] font-bold tracking-widest" style={{ color: "var(--text-5)" }}>SORT BY</p>
+                  {SORT_OPTIONS.map(opt => (
+                    <button
+                      key={opt.id}
+                      onClick={() => { setSortBy(opt.id); setShowFilters(false); }}
+                      className="w-full text-left px-3 py-2 text-xs font-medium transition-colors"
+                      style={{
+                        background: sortBy === opt.id ? "rgba(124,91,245,0.12)" : "transparent",
+                        color: sortBy === opt.id ? "#9B7CF5" : "var(--text-2)",
+                      }}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
         </div>
 
         {/* ── Content ── */}
@@ -271,11 +326,18 @@ export default function GalleryPage() {
           {isFiltered ? (
             /* ── Filtered results (static + community) ── */
             <div className="px-4 md:px-6 py-6">
-              <p className="text-sm mb-5" style={{ color: "var(--text-5)" }}>
-                {totalFiltered} result{totalFiltered !== 1 ? "s" : ""}
-                {search ? ` for "${search}"` : ""}
-                {activeCategory !== "All" ? ` in ${activeCategory}` : ""}
-              </p>
+              <div className="flex items-center justify-between mb-5">
+                <p className="text-sm" style={{ color: "var(--text-5)" }}>
+                  {totalFiltered} result{totalFiltered !== 1 ? "s" : ""}
+                  {search ? ` for "${search}"` : ""}
+                  {activeCategory !== "All" ? ` in ${activeCategory}` : ""}
+                </p>
+                {sortBy !== "featured" && (
+                  <p className="text-xs font-medium" style={{ color: "#9B7CF5" }}>
+                    Sorted by {SORT_OPTIONS.find(o => o.id === sortBy)?.label}
+                  </p>
+                )}
+              </div>
               {totalFiltered === 0 ? (
                 <div className="text-center py-24">
                   <p className="text-3xl mb-3">🎨</p>
@@ -284,8 +346,8 @@ export default function GalleryPage() {
                 </div>
               ) : (
                 <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-5">
-                  {filtered.map(item => <ArtworkCard key={item.id} item={item} />)}
-                  {filteredReal.map(post => <CommunityCard key={post.id} post={post} />)}
+                  {sortedFiltered.map(item => <ArtworkCard key={item.id} item={item} />)}
+                  {sortedFilteredReal.map(post => <CommunityCard key={post.id} post={post} />)}
                 </div>
               )}
             </div>
@@ -382,7 +444,7 @@ export default function GalleryPage() {
                           <p className="text-[10px]" style={{ color: "rgba(255,255,255,0.55)" }}>
                             {item.artistName} · {item.artistLocation}
                           </p>
-                          <StarRow rating={item.rating} commissions={item.commissions} link={false} />
+                          <StarRow rating={item.rating} commissions={item.commissions} />
                         </div>
                       </Link>
                     ))}

@@ -10,8 +10,8 @@ import {
   Search, SlidersHorizontal, Star, X,
 } from "lucide-react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Suspense, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
 // ── Types ─────────────────────────────────────────────────────
@@ -84,6 +84,7 @@ const MAIN_CATEGORIES = [
   "Fine Arts", "Digital Arts", "Sculpture", "Tribal & Indigenous Arts",
   "Wood Arts", "Printmaking", "Resin Arts", "Print Art",
 ];
+
 
 const CATEGORY_DESC: Record<string, string> = {
   "Fine Arts":                "Painting, drawing, illustration & traditional media",
@@ -278,7 +279,7 @@ function ArtistCard({ a, price, onHire }: { a: ArtistProfile; price: number; onH
         <div className="flex items-center justify-between mb-1">
           <span>
             <span className="text-[11px]" style={{ color: "rgba(255,255,255,0.4)" }}>from </span>
-            <span className="text-sm font-bold" style={{ color: "#9B7CF5" }}>${price}</span>
+            <span className="text-sm font-bold" style={{ color: "#9B7CF5" }}>₹{price}</span>
           </span>
           <span className="text-[10px]" style={{ color: "rgba(255,255,255,0.32)" }}>{delivery}</span>
         </div>
@@ -393,7 +394,7 @@ function BrowseArtistCard({ a, price, onHire }: { a: ArtistProfile; price: numbe
         {/* Price + delivery */}
         <div className="flex items-center gap-1.5">
           <span className="text-[11px]" style={{ color: "var(--text-5)" }}>from</span>
-          <span className="text-base font-bold" style={{ color: "var(--text-1)" }}>${price}</span>
+          <span className="text-base font-bold" style={{ color: "var(--text-1)" }}>₹{price}</span>
           <span className="ml-auto flex items-center gap-1 text-[11px]" style={{ color: "var(--text-5)" }}>
             <Clock size={11} />
             {delivery}
@@ -584,7 +585,7 @@ function ProjectCard({ project, onClick, onDelete }: { project: Project; onClick
       <div className="flex flex-wrap gap-x-4 gap-y-1 text-[11px]" style={{ color: "var(--text-5)" }}>
         <span className="flex items-center gap-1">
           <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="2" y="5" width="20" height="16" rx="2"/><path d="M16 3v4M8 3v4M2 9h20"/></svg>
-          ${project.budget.toLocaleString()}
+          ₹{project.budget.toLocaleString()}
         </span>
         <span className="flex items-center gap-1">
           <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
@@ -704,7 +705,7 @@ function IncomingCard({ req, onDecide, onDelete }: { req: IncomingRequest; onDec
       {/* Details */}
       <div className="flex flex-wrap gap-x-4 gap-y-1 text-[11px]" style={{ color: "var(--text-5)" }}>
         {req.budget && (
-          <span>💰 ${Number(req.budget).toLocaleString()}</span>
+          <span>💰 ₹{Number(req.budget).toLocaleString()}</span>
         )}
         {req.deadline && (
           <span>📅 {req.deadline}</span>
@@ -864,7 +865,7 @@ function MyProjectsView({ userId, onSwitchToHire }: { userId: string; onSwitchTo
           },
           { label: "NEEDS REVIEW",      color: "#9B7CF5", primary: String(pendingIncoming.length), sub: "awaiting approval" },
           { label: "ACTIVE PROJECTS",   color: "#60A5FA", primary: String(totalActive),  sub: "in progress"      },
-          { label: "BUDGET COMMITTED",  color: "#10B981", primary: `$${totalBudget.toLocaleString()}`, sub: "across all projects" },
+          { label: "BUDGET COMMITTED",  color: "#10B981", primary: `₹${totalBudget.toLocaleString()}`, sub: "across all projects" },
         ].map((s, i) => (
           <div key={i} className="p-4" style={{ background: "var(--bg-card)", borderRight: i < 3 ? "1px solid var(--border)" : "none" }}>
             <p className="text-[9px] font-bold tracking-widest mb-2" style={{ color: s.color }}>{s.label}</p>
@@ -994,7 +995,7 @@ function MyProjectsView({ userId, onSwitchToHire }: { userId: string; onSwitchTo
                   <div className="p-4 flex flex-col gap-2.5">
                     <div className="flex items-start justify-between gap-2">
                       <p className="text-sm font-bold leading-snug truncate" style={{ color: "var(--text-1)" }}>{p.title}</p>
-                      <span className="text-sm font-bold shrink-0" style={{ color: "#9B7CF5" }}>${p.budget.toLocaleString()}</span>
+                      <span className="text-sm font-bold shrink-0" style={{ color: "#9B7CF5" }}>₹{p.budget.toLocaleString()}</span>
                     </div>
                     <div className="flex items-center gap-2">
                       {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -1172,7 +1173,18 @@ function MyProjectsView({ userId, onSwitchToHire }: { userId: string; onSwitchTo
 
 // ── Main page ──────────────────────────────────────────────────
 
+// useSearchParams() (used below to reflect the landing page's category/
+// search/style selection) requires a Suspense boundary, or `next build`
+// fails prerendering this page entirely.
 export default function HiringPage() {
+  return (
+    <Suspense fallback={null}>
+      <HiringPageInner />
+    </Suspense>
+  );
+}
+
+function HiringPageInner() {
   const { user, isLoaded } = useUser();
 
   const [tab, setTab]                       = useState<"hire" | "projects">("hire");
@@ -1208,6 +1220,33 @@ export default function HiringPage() {
     setActiveCategory(cat);
     setActiveSubcategory("");
     setBrowsePage(0);
+  }
+
+  // Reflects the category/search/style picked on the landing page's Hire
+  // Artists nav (e.g. /hiring?category=Fine+Arts or ?search=Painting).
+  // useSearchParams() is reactive, so this re-applies the filter any time
+  // the query string changes — including a same-route navigation that
+  // wouldn't remount the page (a plain mount-only effect would miss that).
+  // Comparing against the last-applied query string during render (rather
+  // than useEffect) keeps this a single, un-flickered render.
+  const searchParams = useSearchParams();
+  const hireQueryKey = searchParams.toString();
+  const [appliedHireQueryKey, setAppliedHireQueryKey] = useState<string | null>(null);
+  if (hireQueryKey !== appliedHireQueryKey) {
+    setAppliedHireQueryKey(hireQueryKey);
+    const qCategory = searchParams.get("category");
+    const qSearch   = searchParams.get("search");
+    const qStyle    = searchParams.get("style");
+    if (qCategory) {
+      const match = MAIN_CATEGORIES.find(c => c.toLowerCase() === qCategory.toLowerCase());
+      setActiveCategory(match ?? qCategory);
+      setActiveSubcategory("");
+      setBrowsePage(0);
+    } else if (qSearch) {
+      setSearch(qSearch);
+    } else if (qStyle) {
+      setSearch(qStyle);
+    }
   }
 
   useEffect(() => {

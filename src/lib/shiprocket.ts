@@ -100,3 +100,33 @@ export async function trackByAwb(awb: string): Promise<unknown> {
   if (!res.ok) throw new Error(`Shiprocket trackByAwb failed: ${JSON.stringify(data)}`);
   return data;
 }
+
+export interface CourierRate {
+  courier_name:            string;
+  courier_company_id:      number;
+  rate:                    number; // what Shiprocket charges you (₹)
+  estimated_delivery_days: number;
+  is_surface:              boolean;
+  cod:                     boolean;
+}
+
+export async function getRates(params: {
+  pickup_postcode:   string;
+  delivery_postcode: string;
+  weight:            number; // kg
+  cod?:              0 | 1;
+}): Promise<CourierRate[]> {
+  const token = await getToken();
+  const q = new URLSearchParams({
+    pickup_postcode:   params.pickup_postcode,
+    delivery_postcode: params.delivery_postcode,
+    weight:            String(params.weight),
+    cod:               String(params.cod ?? 0),
+  });
+  const res  = await fetch(`${BASE}/courier/serviceability/?${q}`, {
+    headers: { "Authorization": `Bearer ${token}` },
+  });
+  const data = await res.json() as { data?: { available_courier_companies?: CourierRate[] } };
+  if (!res.ok) throw new Error(`Shiprocket getRates failed: ${JSON.stringify(data)}`);
+  return data.data?.available_courier_companies ?? [];
+}

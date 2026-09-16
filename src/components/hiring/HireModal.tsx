@@ -154,7 +154,7 @@ export default function HireModal({ artist, artistClerkId, onClose }: Props) {
             <h2 className="text-2xl font-bold text-white leading-tight">{artist.name}</h2>
             <p className="text-sm" style={{ color: "rgba(255,255,255,0.5)" }}>
               {artist.location}
-              {artist.price ? <> · <span style={{ color: "#10B981" }}>From €{artist.price.toLocaleString()}</span></> : ""}
+              {artist.price ? <> · <span style={{ color: "#10B981" }}>From ₹{artist.price.toLocaleString()}</span></> : ""}
             </p>
           </div>
         </div>
@@ -403,7 +403,7 @@ export default function HireModal({ artist, artistClerkId, onClose }: Props) {
             <SectionLabel label="BUDGET" optional />
             <Field hint="Leave blank and the artist will propose a price">
               <div className="flex items-center gap-2">
-                <span className="text-sm font-medium" style={{ color: "rgba(255,255,255,0.35)" }}>€</span>
+                <span className="text-sm font-medium" style={{ color: "rgba(255,255,255,0.35)" }}>₹</span>
                 <input
                   type="number"
                   value={budget}
