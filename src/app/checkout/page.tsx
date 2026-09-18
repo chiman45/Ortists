@@ -1,7 +1,7 @@
 "use client";
 
 import { useUser }       from "@clerk/nextjs";
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { MapPin, Phone, Plus, Check, ChevronRight, X, Package, Truck } from "lucide-react";
 
@@ -40,7 +40,18 @@ const INDIAN_STATES = [
   "Delhi","Jammu & Kashmir","Ladakh","Chandigarh","Puducherry",
 ];
 
+// useSearchParams() (used below to read the listing/price passed in via the
+// query string) requires a Suspense boundary, or `next build` fails
+// prerendering this page entirely.
 export default function CheckoutPage() {
+  return (
+    <Suspense fallback={null}>
+      <CheckoutPageInner />
+    </Suspense>
+  );
+}
+
+function CheckoutPageInner() {
   const { user } = useUser();
   const router   = useRouter();
   const params   = useSearchParams();

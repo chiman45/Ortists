@@ -3,7 +3,7 @@
 import { SignIn, SignUp } from "@clerk/nextjs";
 import { useUser } from "@clerk/nextjs";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 
 const APPEARANCE = {
   variables: {
@@ -67,7 +67,17 @@ const ART_IMAGES = [
   "https://picsum.photos/seed/art16/600/600",
 ];
 
+// useSearchParams() (used below to read ?mode=signup) requires a Suspense
+// boundary, or `next build` fails prerendering this page entirely.
 export default function LoginPage() {
+  return (
+    <Suspense fallback={null}>
+      <LoginPageInner />
+    </Suspense>
+  );
+}
+
+function LoginPageInner() {
   const { isLoaded, isSignedIn } = useUser();
   const router = useRouter();
   const searchParams = useSearchParams();
