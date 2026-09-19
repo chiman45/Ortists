@@ -1,16 +1,17 @@
 "use client";
 
 import { useNotifications } from "@/hooks/useNotifications";
-import { Briefcase, LayoutGrid, Plus, UserCircle } from "lucide-react";
+import { Briefcase, LayoutGrid, Plus, Store, UserCircle } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 const LEFT_NAV = [
   { icon: LayoutGrid, label: "Feed",   href: "/feed"    },
-  { icon: Briefcase,  label: "Hiring", href: "/hiring"  },
+  { icon: Store,      label: "Gallery", href: "/gallery" },
 ];
 
 const RIGHT_NAV = [
+  { icon: Briefcase,  label: "Hiring",  href: "/hiring"  },
   { icon: UserCircle, label: "Profile", href: "/profile" },
 ];
 
@@ -83,14 +84,18 @@ export default function BottomNav() {
 
       {RIGHT_NAV.map(({ icon: Icon, label, href }) => {
         const active = isActive(href);
+        const badge  = badges[href] ?? 0;
         return (
           <Link
             key={href}
             href={href}
-            className="flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-xl transition-colors"
+            className="relative flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-xl transition-colors"
             style={{ color: active ? "#9B7CF5" : "var(--text-4)" }}
           >
-            <Icon size={21} strokeWidth={active ? 2.2 : 1.8} />
+            <div className="relative">
+              <Icon size={21} strokeWidth={active ? 2.2 : 1.8} />
+              <Badge count={badge} />
+            </div>
             <span className="text-[9px] font-semibold">{label}</span>
           </Link>
         );

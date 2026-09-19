@@ -402,7 +402,7 @@ export default function AboutPage() {
               <div className="col-span-2 md:col-span-1">
                 <div className="flex items-center gap-2.5 mb-4">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src="/login-image/ortists logo1.png" alt="Ortist" className="w-7 h-7 rounded-md object-cover" />
+                  <img src="/login-image/ortists-badge.png" alt="Ortist" className="w-7 h-7 rounded-md object-cover" />
                   <span className="font-bold text-white text-[15px]">Ortist</span>
                 </div>
                 <p className="text-[13px] leading-relaxed" style={{ color: MUTED, maxWidth: 220 }}>

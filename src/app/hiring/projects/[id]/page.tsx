@@ -1207,7 +1207,7 @@ export default function ProjectDetailPage() {
               className="flex items-center gap-1.5 shrink-0 transition-opacity hover:opacity-70"
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/login-image/ortists logo1.png" alt="Ortist" style={{ height: 22, objectFit: "contain" }} />
+              <img src="/login-image/ortists-badge.png" alt="Ortist" style={{ height: 22, objectFit: "contain" }} />
             </button>
             <ChevronRight size={14} style={{ color: "var(--text-6)", flexShrink: 0 }} />
             <p className="text-sm font-semibold truncate" style={{ color: "var(--text-2)" }}>{project.project_title}</p>

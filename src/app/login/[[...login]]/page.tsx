@@ -105,7 +105,7 @@ function LoginPageInner() {
         <div className="text-center">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            src="/login-image/ortists logo1.png"
+            src="/login-image/ortists-badge.png"
             alt="Ortist"
             className="object-contain mx-auto mb-3"
             style={{ width: 80, height: 80, filter: "brightness(1.08) drop-shadow(0 0 18px rgba(255,255,255,0.3)) drop-shadow(0 0 40px rgba(124,91,245,0.5)) drop-shadow(0 0 4px rgba(255,255,255,0.55))" }}
