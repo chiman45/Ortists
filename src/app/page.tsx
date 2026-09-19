@@ -150,11 +150,6 @@ export default function LandingPage() {
             style={{ width: "clamp(180px, 24vw, 280px)", height: "clamp(180px, 24vw, 280px)", objectFit: "contain", marginBottom: "2rem" }}
           />
 
-          {/* Tagline */}
-          <p className="mb-8 text-[15px] sm:text-[17px]" style={{ color: "rgba(255,255,255,0.7)", letterSpacing: "0.01em" }}>
-            Discover artists. Share ideas. Create extraordinary.
-          </p>
-
           {/* Primary intent CTAs */}
           <div className="flex flex-wrap items-center justify-center gap-3 mb-8">
             <Link
