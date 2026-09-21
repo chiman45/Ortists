@@ -199,7 +199,7 @@ export default function LandingPage() {
                   if (e.key === "Enter" && heroSearch.trim()) pickSuggestion(heroSearch.trim());
                   if (e.key === "Escape") setSearchFocused(false);
                 }}
-                placeholder="Search artists, artwork, services or categories..."
+                placeholder="Artists, Gallery, Portrait, Arcylic & Oil Painting, Watercolor, Sculpture"
                 className="flex-1 bg-transparent outline-none text-sm"
                 style={{ color: "#fff" }}
               />
