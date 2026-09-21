@@ -122,7 +122,7 @@ export default function LandingPage() {
       <PublicNav />
 
       {/* ════════════════════════════ HERO ════════════════════════════ */}
-      <section className="relative w-full flex items-center justify-center" style={{ height: "100svh", minHeight: 640 }}>
+      <section className="relative w-full flex items-center justify-center" style={{ minHeight: "100svh" }}>
 
         {/* Static background */}
         <div className="absolute inset-0 overflow-hidden">
