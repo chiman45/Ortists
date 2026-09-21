@@ -150,6 +150,11 @@ export default function LandingPage() {
             style={{ width: "clamp(180px, 24vw, 280px)", height: "clamp(180px, 24vw, 280px)", objectFit: "contain", marginBottom: "2rem" }}
           />
 
+          {/* Tagline */}
+          <p className="mb-8 text-[16px] sm:text-[20px] font-bold uppercase" style={{ color: "#fff", letterSpacing: "0.02em" }}>
+            Where Artists Connect, Showcase &amp; Get Hired
+          </p>
+
           {/* Primary intent CTAs */}
           <div className="flex flex-wrap items-center justify-center gap-3 mb-8">
             <Link
