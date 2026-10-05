@@ -15,11 +15,23 @@ async function realtimeBroadcast(channelName: string, event: string, payload: un
       "apikey": key,
       "Authorization": `Bearer ${key}`,
     },
+    // Same body shape as realtime-js's own REST fallback (RealtimeChannel.send):
+    // the topic is the plain channel name (Realtime adds the "realtime:" prefix
+    // itself) and `event`/`payload` are the custom event name and raw data —
+    // the server wraps them into the Phoenix "broadcast" frame. Pre-wrapping
+    // them here made Supabase accept the request but deliver it to a topic no
+    // client was subscribed to.
+    //
+    // `private` must match how clients subscribe: when the Clerk JWT
+    // integration is on, the chat page joins a private channel (see
+    // utils/supabase/clerk-client.ts) and Realtime only routes broadcasts
+    // flagged private to it. The service role key bypasses the RLS policies.
     body: JSON.stringify({
       messages: [{
-        topic: `realtime:${channelName}`,
-        event: "broadcast",        // Phoenix event type — always "broadcast"
-        payload: { event, payload }, // custom event name + data live inside payload
+        topic: channelName,
+        event,
+        payload,
+        private: process.env.NEXT_PUBLIC_SUPABASE_USE_CLERK_JWT === "true",
       }],
     }),
   });

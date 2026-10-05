@@ -2,15 +2,16 @@
 
 import Sidebar from "@/components/layout/Sidebar";
 import BottomNav from "@/components/layout/BottomNav";
-import { useUser } from "@clerk/nextjs";
+import { useAuth, useUser } from "@clerk/nextjs";
 import {
   Bell, ChevronRight, CheckCircle2, FileText,
   Paperclip, Plus, RefreshCw, Settings, Star, Upload,
 } from "lucide-react";
 import { useRouter, useParams } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { createClient } from "@/utils/supabase/client";
+import { getSupabaseBrowserClient, SUPABASE_CLERK_JWT_ENABLED } from "@/utils/supabase/clerk-client";
+import type { RealtimeChannel } from "@supabase/supabase-js";
 
 // ── Types ────────────────────────────────────────────────────
 
@@ -80,6 +81,112 @@ function fmtBytes(b: number) {
   if (b < 1024) return `${b} B`;
   if (b < 1024 * 1024) return `${(b / 1024).toFixed(1)} KB`;
   return `${(b / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+// ── Realtime: messages · presence · typing ───────────────────
+
+interface RealtimeHandlers {
+  onNewMessage: (m: Message) => void;
+  onMarkRead: (readBy: string) => void;
+}
+
+// One channel per conversation, owned by the page rather than the chat tab,
+// so presence and typing keep working while the user is on Deliverables or
+// References. Presence is keyed by userId, so "is the other person online"
+// is just "is their key in presenceState()".
+function useConversationRealtime(
+  convId: string | null,
+  userId: string,
+  otherUserId: string | null,
+  handlers: RealtimeHandlers,
+) {
+  const [otherOnline, setOtherOnline] = useState(false);
+  const [otherTyping, setOtherTyping] = useState(false);
+  // Clerk session JWT → Supabase access token (see utils/supabase/clerk-client.ts).
+  // Kept in a ref so the channel isn't re-created when Clerk re-renders.
+  const { getToken } = useAuth();
+  const getTokenRef  = useRef(getToken);
+  useEffect(() => { getTokenRef.current = getToken; });
+  const channelRef   = useRef<RealtimeChannel | null>(null);
+  const handlersRef  = useRef(handlers);
+  const typingTimer  = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastTypingAt = useRef(0);
+
+  // Keep the latest handlers reachable from the long-lived channel callbacks
+  // without re-subscribing on every render.
+  useEffect(() => { handlersRef.current = handlers; });
+
+  useEffect(() => {
+    if (!convId || !userId) return;
+    const supabase = getSupabaseBrowserClient(() => getTokenRef.current()); // singleton — one shared socket
+    const topic    = `messages:${convId}`;
+    let disposed   = false;
+
+    // React StrictMode / HMR re-run this effect: the previous run's channel for
+    // this topic may still be mid-teardown on the shared socket. Phoenix allows
+    // one channel per topic per socket, so clear it before joining again.
+    for (const stale of supabase.getChannels()) {
+      if (stale.topic === `realtime:${topic}`) void supabase.removeChannel(stale);
+    }
+
+    // Private channels are authorized by the RLS policies in
+    // supabase/migrations/013_realtime_clerk_jwt.sql (participants only) and
+    // need the Clerk JWT, so they're tied to the same feature flag.
+    const channel = supabase.channel(topic, {
+      config: { presence: { key: userId }, private: SUPABASE_CLERK_JWT_ENABLED },
+    });
+
+    channel
+      .on("broadcast", { event: "new_message" }, ({ payload }) => {
+        handlersRef.current.onNewMessage(payload as Message);
+      })
+      .on("broadcast", { event: "mark_read" }, ({ payload }) => {
+        handlersRef.current.onMarkRead((payload as { readBy: string }).readBy);
+      })
+      .on("broadcast", { event: "typing" }, ({ payload }) => {
+        const p = payload as { userId: string; typing: boolean };
+        if (p.userId === userId) return;
+        if (typingTimer.current) clearTimeout(typingTimer.current);
+        setOtherTyping(p.typing);
+        // Safety net in case the other side never sends typing=false (tab closed mid-typing)
+        if (p.typing) typingTimer.current = setTimeout(() => setOtherTyping(false), 4000);
+      })
+      .on("presence", { event: "sync" }, () => {
+        const state = channel.presenceState();
+        setOtherOnline(!!otherUserId && (state[otherUserId]?.length ?? 0) > 0);
+      })
+      .subscribe(async (status, err) => {
+        if (disposed) return; // callbacks from a channel this effect already tore down
+        if (status === "SUBSCRIBED") {
+          console.log("[realtime] subscribed →", topic);
+          // Re-track on every (re)join so presence survives socket reconnects
+          await channel.track({ userId, online_at: new Date().toISOString() });
+        }
+        if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
+          // Transient (e.g. socket dropped mid-join): realtime-js reconnects with
+          // backoff and rejoins the channel itself, which fires SUBSCRIBED above.
+          console.warn("[realtime] channel", status, "— reconnecting automatically:", err?.message ?? err);
+        }
+      });
+
+    channelRef.current = channel;
+    return () => {
+      disposed = true;
+      channelRef.current = null;
+      void supabase.removeChannel(channel);
+    };
+  }, [convId, userId, otherUserId]);
+
+  const sendTyping = useCallback((typing: boolean) => {
+    const ch = channelRef.current;
+    if (!ch) return;
+    const now = Date.now();
+    if (typing && now - lastTypingAt.current < 1500) return; // throttle per-keystroke spam
+    lastTypingAt.current = typing ? now : 0;
+    ch.send({ type: "broadcast", event: "typing", payload: { userId, typing } });
+  }, [userId]);
+
+  return { otherOnline, otherTyping, sendTyping };
 }
 
 // ── File helpers ─────────────────────────────────────────────
@@ -326,7 +433,7 @@ function FilesSidebar({ messages, onUpload }: {
 
 // ── Right sidebar ─────────────────────────────────────────────
 
-function RightSidebar({ project, isArtist }: { project: HireRequest; isArtist: boolean }) {
+function RightSidebar({ project, isArtist, online }: { project: HireRequest; isArtist: boolean; online: boolean }) {
   const name   = isArtist ? (project.client_name ?? "Client") : project.artist_name;
   const avatar = isArtist ? project.client_avatar : project.artist_avatar;
   const role   = isArtist ? "Client" : "Visual Design · Creative Studio";
@@ -358,7 +465,8 @@ function RightSidebar({ project, isArtist }: { project: HireRequest; isArtist: b
               </div>
           }
           <div className="absolute bottom-0.5 right-0.5 w-3.5 h-3.5 rounded-full border-2"
-            style={{ background: "#10B981", borderColor: "var(--bg)" }} />
+            title={online ? "Online" : "Offline"}
+            style={{ background: online ? "#10B981" : "var(--text-6)", borderColor: "var(--bg)" }} />
         </div>
 
         {/* Name + role */}
@@ -429,15 +537,23 @@ function RightSidebar({ project, isArtist }: { project: HireRequest; isArtist: b
 
 // ── Conversation panel ────────────────────────────────────────
 
-function ConversationPanel({ project, userId, userName, userAvatar, isArtist, onMessagesChange }: {
+function ConversationPanel({
+  project, userId, userName, userAvatar, isArtist,
+  messages, setMessages, otherName, otherAvatar, otherOnline, otherTyping, onTyping,
+}: {
   project: HireRequest;
   userId: string;
   userName: string;
   userAvatar: string;
   isArtist: boolean;
-  onMessagesChange: (msgs: Message[]) => void;
+  messages: Message[];
+  setMessages: React.Dispatch<React.SetStateAction<Message[]>>;
+  otherName: string;
+  otherAvatar: string | null;
+  otherOnline: boolean;
+  otherTyping: boolean;
+  onTyping: (typing: boolean) => void;
 }) {
-  const [messages, setMessages]       = useState<Message[]>([]);
   const [text, setText]               = useState("");
   const [sending, setSending]         = useState(false);
   const [showPlus, setShowPlus]       = useState(false);
@@ -446,71 +562,28 @@ function ConversationPanel({ project, userId, userName, userAvatar, isArtist, on
   const bottomRef                     = useRef<HTMLDivElement>(null);
   const inputRef                      = useRef<HTMLTextAreaElement>(null);
   const fileRef                       = useRef<HTMLInputElement>(null);
+  const typingStopTimer               = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const canChat = project.status === "accepted";
 
-  function updateMessages(msgs: Message[]) {
-    setMessages(msgs);
-  }
-
-  // Keep parent in sync whenever local messages state changes
-  useEffect(() => { onMessagesChange(messages); }, [messages]);
-
-  useEffect(() => {
-    if (!project.conversation_id) return;
-    const convId = project.conversation_id;
-
-    // Initial load
-    fetch(`/api/messages?action=messages&conversationId=${convId}`)
-      .then(r => r.json())
-      .then(({ messages: msgs }) => { if (msgs) updateMessages(msgs); })
-      .catch(() => {});
-
-    fetch("/api/messages", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "mark_read", conversationId: convId, userId }),
-    }).catch(() => {});
-
-    // Broadcast-based Realtime — works without Supabase Auth JWT (Clerk app)
-    // The server fires REST broadcasts after every insert/update, bypassing RLS.
-    const supabase = createClient();
-    const channel = supabase
-      .channel(`messages:${convId}`)
-      .on("broadcast", { event: "new_message" }, ({ payload }) => {
-        const incoming = payload as Message;
-        setMessages(prev => {
-          if (prev.some(m => m.id === incoming.id)) return prev;
-          return [...prev, incoming];
-        });
-        setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: "smooth" }), 50);
-        // Mark messages from the other user as read as soon as they arrive
-        if (incoming.sender_id !== userId) {
-          fetch("/api/messages", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ action: "mark_read", conversationId: convId, userId }),
-          }).catch(() => {});
-        }
-      })
-      .on("broadcast", { event: "mark_read" }, ({ payload }) => {
-        // Someone read the messages — mark all our sent messages as read
-        if ((payload as { readBy: string }).readBy !== userId) {
-          setMessages(prev => prev.map(m => m.sender_id === userId ? { ...m, read: true } : m));
-        }
-      })
-      .subscribe((status, err) => {
-        if (status === "SUBSCRIBED") console.log("[realtime] subscribed →", `messages:${convId}`);
-        if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") console.error("[realtime] subscription failed:", status, err);
-      });
-
-    return () => { supabase.removeChannel(channel); };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [project.conversation_id, userId]);
+  // Realtime subscription, presence and typing live in the page (useConversationRealtime)
+  // so they survive switching tabs; this panel only renders and sends.
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+  }, [messages, otherTyping]);
+
+  // Tell the other side we're typing; auto-clear 2s after the last keystroke.
+  function handleTyping() {
+    onTyping(true);
+    if (typingStopTimer.current) clearTimeout(typingStopTimer.current);
+    typingStopTimer.current = setTimeout(() => onTyping(false), 2000);
+  }
+  function stopTyping() {
+    if (typingStopTimer.current) clearTimeout(typingStopTimer.current);
+    typingStopTimer.current = null;
+    onTyping(false);
+  }
 
   async function uploadFile(file: File) {
     if (!project.conversation_id || !canChat) return;
@@ -528,7 +601,7 @@ function ConversationPanel({ project, userId, userName, userAvatar, isArtist, on
     });
     if (res.ok) {
       const { message } = await res.json();
-      if (message) updateMessages([...messages, message]);
+      if (message) setMessages(prev => prev.some(m => m.id === message.id) ? prev : [...prev, message]);
       setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: "smooth" }), 50);
     }
   }
@@ -538,6 +611,7 @@ function ConversationPanel({ project, userId, userName, userAvatar, isArtist, on
     if (!trimmed || sending || !project.conversation_id || !canChat) return;
     setSending(true);
     setText("");
+    stopTyping();
 
     const optimistic: Message = {
       id: `opt-${Date.now()}`,
@@ -549,7 +623,7 @@ function ConversationPanel({ project, userId, userName, userAvatar, isArtist, on
       read: false,
       created_at: new Date().toISOString(),
     };
-    updateMessages([...messages, optimistic]);
+    setMessages(prev => [...prev, optimistic]);
 
     const res = await fetch("/api/messages", {
       method: "POST",
@@ -589,6 +663,29 @@ function ConversationPanel({ project, userId, userName, userAvatar, isArtist, on
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
+      {/* Chat header — who you're talking to + live presence / typing status */}
+      <div className="shrink-0 flex items-center gap-3 px-5 py-3" style={{ borderBottom: "1px solid var(--border)" }}>
+        <div className="relative shrink-0">
+          <div className="w-9 h-9 rounded-full overflow-hidden flex items-center justify-center text-sm font-bold text-white"
+            style={{ background: "linear-gradient(135deg,#361E7B,#7C5BF5)" }}>
+            {otherAvatar
+              // eslint-disable-next-line @next/next/no-img-element
+              ? <img src={otherAvatar} alt={otherName} className="w-full h-full object-cover" />
+              : otherName[0]?.toUpperCase()}
+          </div>
+          <span
+            className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border-2"
+            style={{ background: otherOnline ? "#10B981" : "var(--text-6)", borderColor: "var(--bg)" }}
+          />
+        </div>
+        <div className="min-w-0">
+          <p className="text-sm font-semibold truncate leading-tight" style={{ color: "var(--text-1)" }}>{otherName}</p>
+          <p className="text-[11px] leading-tight mt-0.5" style={{ color: otherTyping ? "#9B7CF5" : otherOnline ? "#10B981" : "var(--text-5)" }}>
+            {otherTyping ? "typing…" : otherOnline ? "Online" : "Offline"}
+          </p>
+        </div>
+      </div>
+
       {/* Messages */}
       <div className="flex-1 overflow-y-auto px-5 py-4 flex flex-col gap-4" style={{ scrollbarWidth: "thin", scrollbarColor: "rgba(255,255,255,0.08) transparent", minHeight: 0 }}>
         {messages.length === 0 && (
@@ -711,6 +808,25 @@ function ConversationPanel({ project, userId, userName, userAvatar, isArtist, on
             </div>
           </div>
         ))}
+        {/* Typing indicator — WhatsApp-style three bouncing dots from the other side */}
+        {otherTyping && (
+          <div className="flex items-end gap-3">
+            <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold shrink-0 overflow-hidden text-white"
+              style={{ background: "linear-gradient(135deg,#361E7B,#7C5BF5)" }}>
+              {otherAvatar
+                // eslint-disable-next-line @next/next/no-img-element
+                ? <img src={otherAvatar} alt="" className="w-full h-full object-cover" />
+                : otherName[0]?.toUpperCase()}
+            </div>
+            <div className="px-4 py-3 rounded-2xl flex items-center gap-1"
+              style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderBottomLeftRadius: 4 }}>
+              {[0, 1, 2].map(i => (
+                <span key={i} className="w-1.5 h-1.5 rounded-full animate-bounce"
+                  style={{ background: "var(--text-4)", animationDelay: `${i * 150}ms` }} />
+              ))}
+            </div>
+          </div>
+        )}
         <div ref={bottomRef} />
       </div>
 
@@ -731,7 +847,7 @@ function ConversationPanel({ project, userId, userName, userAvatar, isArtist, on
             <textarea
               ref={inputRef}
               value={text}
-              onChange={e => { setText(e.target.value); e.target.style.height = "auto"; e.target.style.height = `${Math.min(e.target.scrollHeight, 100)}px`; }}
+              onChange={e => { setText(e.target.value); handleTyping(); e.target.style.height = "auto"; e.target.style.height = `${Math.min(e.target.scrollHeight, 100)}px`; }}
               onKeyDown={handleKeyDown}
               placeholder="Message or drop a file..."
               rows={1}
@@ -1132,7 +1248,7 @@ export default function ProjectDetailPage() {
   const [notFound, setNotFound]   = useState(false);
   const [activeTab, setActiveTab] = useState<"conversation" | "deliverables" | "references">("conversation");
   const [completing, setCompleting] = useState(false);
-  const [allMessages, setAllMessages] = useState<Message[]>([]);
+  const [messages, setMessages]   = useState<Message[]>([]);
 
   useEffect(() => {
     if (!params.id) return;
@@ -1143,6 +1259,46 @@ export default function ProjectDetailPage() {
   }, [params.id]);
 
   const isArtist = !!project && !!user && project.artist_clerk_id === user.id;
+
+  // The other participant in this conversation
+  const otherUserId = project ? (isArtist ? project.client_id : project.artist_clerk_id) : null;
+  const otherName   = project ? (isArtist ? (project.client_name ?? "Client") : project.artist_name) : "";
+  const otherAvatar = project ? (isArtist ? project.client_avatar : project.artist_avatar) : null;
+  const convId      = project?.conversation_id ?? null;
+  const myId        = user?.id ?? "";
+
+  const { otherOnline, otherTyping, sendTyping } = useConversationRealtime(convId, myId, otherUserId, {
+    onNewMessage: incoming => {
+      setMessages(prev => prev.some(m => m.id === incoming.id) ? prev : [...prev, incoming]);
+      // Mark the other side's message as read the moment it lands on our screen
+      if (incoming.sender_id !== myId && convId) {
+        fetch("/api/messages", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "mark_read", conversationId: convId, userId: myId }),
+        }).catch(() => {});
+      }
+    },
+    onMarkRead: readBy => {
+      if (readBy !== myId) {
+        setMessages(prev => prev.map(m => m.sender_id === myId ? { ...m, read: true } : m));
+      }
+    },
+  });
+
+  // Initial message history + mark everything read on open
+  useEffect(() => {
+    if (!convId || !myId) return;
+    fetch(`/api/messages?action=messages&conversationId=${convId}`)
+      .then(r => r.json())
+      .then(({ messages: msgs }) => { if (msgs) setMessages(msgs); })
+      .catch(() => {});
+    fetch("/api/messages", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "mark_read", conversationId: convId, userId: myId }),
+    }).catch(() => {});
+  }, [convId, myId]);
 
   async function completeProject() {
     if (!project || !user || completing) return;
@@ -1241,7 +1397,7 @@ export default function ProjectDetailPage() {
 
           {/* Left: FILES */}
           <FilesSidebar
-            messages={allMessages}
+            messages={messages}
             onUpload={async () => {}} // upload handled inside ConversationPanel's file ref
           />
 
@@ -1274,20 +1430,26 @@ export default function ProjectDetailPage() {
                   userName={user?.fullName ?? user?.username ?? "You"}
                   userAvatar={user?.imageUrl || `https://i.pravatar.cc/80?u=${user?.id}`}
                   isArtist={isArtist}
-                  onMessagesChange={setAllMessages}
+                  messages={messages}
+                  setMessages={setMessages}
+                  otherName={otherName}
+                  otherAvatar={otherAvatar}
+                  otherOnline={otherOnline}
+                  otherTyping={otherTyping}
+                  onTyping={sendTyping}
                 />
               )}
               {activeTab === "deliverables" && (
                 <DeliverablesTab project={project} />
               )}
               {activeTab === "references" && (
-                <ReferencesTab messages={allMessages} />
+                <ReferencesTab messages={messages} />
               )}
             </div>
           </div>
 
           {/* Right: Artist info */}
-          <RightSidebar project={project} isArtist={isArtist} />
+          <RightSidebar project={project} isArtist={isArtist} online={otherOnline} />
         </div>
       </div>
 
