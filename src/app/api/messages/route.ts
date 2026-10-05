@@ -22,17 +22,20 @@ async function realtimeBroadcast(channelName: string, event: string, payload: un
     // them here made Supabase accept the request but deliver it to a topic no
     // client was subscribed to.
     //
-    // `private` must match how clients subscribe: when the Clerk JWT
-    // integration is on, the chat page joins a private channel (see
-    // utils/supabase/clerk-client.ts) and Realtime only routes broadcasts
-    // flagged private to it. The service role key bypasses the RLS policies.
+    // `private` must match how a client subscribed: Realtime only routes a
+    // broadcast flagged private to private-channel subscribers and vice versa.
+    // With the Clerk JWT integration on, the chat page joins a private channel
+    // (see utils/supabase/clerk-client.ts) but falls back to the public one if
+    // Supabase rejects the JWT (setup incomplete), so we publish both variants;
+    // each client is subscribed to exactly one, and the UI dedupes by message
+    // id anyway. The service role key bypasses the RLS policies.
     body: JSON.stringify({
-      messages: [{
-        topic: channelName,
-        event,
-        payload,
-        private: process.env.NEXT_PUBLIC_SUPABASE_USE_CLERK_JWT === "true",
-      }],
+      messages: process.env.NEXT_PUBLIC_SUPABASE_USE_CLERK_JWT === "true"
+        ? [
+            { topic: channelName, event, payload, private: true },
+            { topic: channelName, event, payload, private: false },
+          ]
+        : [{ topic: channelName, event, payload, private: false }],
     }),
   });
   if (!res.ok) {

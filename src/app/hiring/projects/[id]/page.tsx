@@ -90,6 +90,8 @@ interface RealtimeHandlers {
   onMarkRead: (readBy: string) => void;
 }
 
+const JWT_FALLBACK_KEY = "ortist_rt_jwt_fallback";
+
 // One channel per conversation, owned by the page rather than the chat tab,
 // so presence and typing keep working while the user is on Deliverables or
 // References. Presence is keyed by userId, so "is the other person online"
@@ -102,6 +104,12 @@ function useConversationRealtime(
 ) {
   const [otherOnline, setOtherOnline] = useState(false);
   const [otherTyping, setOtherTyping] = useState(false);
+  // Set when Supabase rejects the Clerk JWT (Third-Party Auth not configured
+  // yet): we then fall back to the public channel instead of retrying a join
+  // that can never succeed. Remembered per tab so later loads skip the wait.
+  const [jwtRejected, setJwtRejected] = useState(() => {
+    try { return sessionStorage.getItem(JWT_FALLBACK_KEY) === "1"; } catch { return false; }
+  });
   // Clerk session JWT → Supabase access token (see utils/supabase/clerk-client.ts).
   // Kept in a ref so the channel isn't re-created when Clerk re-renders.
   const { getToken } = useAuth();
@@ -118,7 +126,8 @@ function useConversationRealtime(
 
   useEffect(() => {
     if (!convId || !userId) return;
-    const supabase = getSupabaseBrowserClient(() => getTokenRef.current()); // singleton — one shared socket
+    const useJwt   = SUPABASE_CLERK_JWT_ENABLED && !jwtRejected;
+    const supabase = getSupabaseBrowserClient(() => getTokenRef.current(), useJwt); // singleton — one shared socket
     const topic    = `messages:${convId}`;
     let disposed   = false;
 
@@ -131,9 +140,9 @@ function useConversationRealtime(
 
     // Private channels are authorized by the RLS policies in
     // supabase/migrations/013_realtime_clerk_jwt.sql (participants only) and
-    // need the Clerk JWT, so they're tied to the same feature flag.
+    // need the Clerk JWT, so they follow the same switch as the client above.
     const channel = supabase.channel(topic, {
-      config: { presence: { key: userId }, private: SUPABASE_CLERK_JWT_ENABLED },
+      config: { presence: { key: userId }, private: useJwt },
     });
 
     channel
@@ -163,9 +172,22 @@ function useConversationRealtime(
           await channel.track({ userId, online_at: new Date().toISOString() });
         }
         if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
+          const reason = String(err?.message ?? err ?? "");
+          // Supabase doesn't trust the Clerk JWT yet (Third-Party Auth / role claim /
+          // migration 013 not done) — the private join can never succeed, so stop
+          // retrying it and reconnect on the public channel instead.
+          if (useJwt && /unauthoriz|permission|jwt|token|claim|signature/i.test(reason)) {
+            console.warn(
+              `[realtime] Supabase rejected the Clerk JWT (${reason}). Falling back to the public channel — ` +
+              "finish the setup described in src/utils/supabase/clerk-client.ts to enable private channels.",
+            );
+            try { sessionStorage.setItem(JWT_FALLBACK_KEY, "1"); } catch { /* storage unavailable */ }
+            setJwtRejected(true); // re-runs this effect with the public client
+            return;
+          }
           // Transient (e.g. socket dropped mid-join): realtime-js reconnects with
           // backoff and rejoins the channel itself, which fires SUBSCRIBED above.
-          console.warn("[realtime] channel", status, "— reconnecting automatically:", err?.message ?? err);
+          console.warn("[realtime] channel", status, "— reconnecting automatically:", reason);
         }
       });
 
@@ -175,7 +197,7 @@ function useConversationRealtime(
       channelRef.current = null;
       void supabase.removeChannel(channel);
     };
-  }, [convId, userId, otherUserId]);
+  }, [convId, userId, otherUserId, jwtRejected]);
 
   const sendTyping = useCallback((typing: boolean) => {
     const ch = channelRef.current;

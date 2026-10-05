@@ -39,8 +39,11 @@ let tokenGetter: TokenGetter | null = null;
  * getter is swapped on each call so a fresh Clerk session is always used.
  * Falls back to the publishable-key client while the flag is off.
  */
-export function getSupabaseBrowserClient(getToken: TokenGetter): SupabaseClient {
-  if (!SUPABASE_CLERK_JWT_ENABLED) return createAnonClient();
+export function getSupabaseBrowserClient(
+  getToken: TokenGetter,
+  enabled: boolean = SUPABASE_CLERK_JWT_ENABLED,
+): SupabaseClient {
+  if (!enabled) return createAnonClient();
   tokenGetter = getToken;
   if (!jwtClient) {
     jwtClient = createSupabaseClient(
