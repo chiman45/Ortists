@@ -4,6 +4,7 @@ import BottomNav from "@/components/layout/BottomNav";
 import MainHeader from "@/components/layout/MainHeader";
 import Sidebar from "@/components/layout/Sidebar";
 import ArtworkCard from "@/components/gallery/ArtworkCard";
+import WallPreview from "@/components/ui/WallPreview";
 import { GalleryListings } from "@/lib/galleryData";
 import type { GalleryListing } from "@/lib/types";
 import { ArrowLeft, Bookmark, Check, Clock, Heart, Package, Share2, Star, X } from "lucide-react";
@@ -369,6 +370,9 @@ export default function GalleryDetailPage({ params }: { params: Promise<{ id: st
 
               {/* Community rating — open to all signed-in visitors */}
               <ArtworkRating artworkId={item.id} />
+
+              {/* See it on a wall — drawn to scale from the listed size */}
+              <WallPreview imageUrl={item.imageUrl} dimensions={item.dimensions} />
 
               {/* Price & CTA */}
               <div

@@ -6,34 +6,44 @@ import {
 } from "lucide-react";
 import { useUser } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
+import { Playfair_Display } from "next/font/google";
 import { useCallback, useRef, useState } from "react";
+
+// Same editorial serif the landing page uses — warmer than the gradient display text
+const playfair = Playfair_Display({ subsets: ["latin"], weight: ["600", "700"], display: "swap" });
 
 const STEPS = ["Type", "Media", "Details", "Options", "Preview"] as const;
 
 const CONTENT_TYPES = [
-  { id: "portfolio", Icon: ImageIcon,  title: "Portfolio Post", desc: "Showcase your artwork — add multiple images in one post, like Instagram." },
-  { id: "gallery",   Icon: Grid2X2,    title: "Gallery Post",   desc: "Share artwork to the gallery with a price tag — add multiple photos of the piece." },
+  { id: "portfolio", Icon: ImageIcon,  title: "Portfolio post", desc: "Share a finished piece or a whole series. It goes on your portfolio and into the feed." },
+  { id: "gallery",   Icon: Grid2X2,    title: "Gallery post",   desc: "List one artwork for sale. Add the main photo plus close-ups, then its title, price and size." },
 ] as const;
+
+// "Other" on every taxonomy lets artists describe work the preset lists miss;
+// the free-text value replaces the literal "Other" when the post is saved.
+const OTHER = "Other";
 
 const ARTWORK_TYPES = [
   "Portrait", "Landscape", "Still Life", "Character Art", "Concept Art",
-  "Illustration", "Fine Art", "Abstract Art", "Decorative Art", "Mural", "Mixed Media",
+  "Illustration", "Fine Art", "Abstract Art", "Decorative Art", "Mural", "Mixed Media", OTHER,
 ];
 
 const PHYSICAL_TECHNIQUES = [
   "Oil", "Acrylic", "Watercolor", "Charcoal", "Ink", "Pencil",
-  "Pastel", "Gouache", "Mixed Media", "Sculpture",
+  "Pastel", "Gouache", "Mixed Media", "Sculpture", OTHER,
 ];
 
 const DIGITAL_TECHNIQUES = [
-  "Digital Painting", "Digital Illustration", "3D", "Vector", "Pixel Art", "Digital Collage",
+  "Digital Painting", "Digital Illustration", "3D", "Vector", "Pixel Art", "Digital Collage", OTHER,
 ];
 
 const STYLES = [
   "Realistic", "Photorealistic", "Semi-Realistic", "Stylized", "Abstract",
   "Impressionistic", "Expressionistic", "Minimalist", "Surreal", "Conceptual",
-  "Cartoon", "Contemporary", "Pop Art", "Geometric", "Line Art", "Folk / Naïve",
+  "Cartoon", "Contemporary", "Pop Art", "Geometric", "Line Art", "Folk / Naïve", OTHER,
 ];
+
+const otherInputStyle = { background: "var(--bg-card)", border: "1px solid var(--border)", color: "var(--text-1)" } as const;
 
 interface Props { onClose: () => void }
 
@@ -148,6 +158,13 @@ export default function CreatePostModal({ onClose }: Props) {
   const [galleryFiles, setGalleryFiles] = useState<File[]>([]);
   const [galleryUrls, setGalleryUrls]   = useState<string[]>([]);
   const [publishing, setPublishing]   = useState(false);
+  // Preview step: which image is showing, and whether the full-post overlay is open
+  const [previewIdx, setPreviewIdx]   = useState(0);
+  const [fullPreview, setFullPreview] = useState(false);
+  const previewImages = isVideo ? [] : [imageUrl, ...galleryUrls].filter((u): u is string => !!u);
+  const safePreviewIdx = Math.min(previewIdx, Math.max(0, previewImages.length - 1));
+  const prevPreview = () => setPreviewIdx(i => (i - 1 + previewImages.length) % previewImages.length);
+  const nextPreview = () => setPreviewIdx(i => (i + 1) % previewImages.length);
   const [dragging, setDragging]       = useState(false);
   const [title, setTitle]           = useState("");
   const [desc, setDesc]             = useState("");
@@ -155,6 +172,10 @@ export default function CreatePostModal({ onClose }: Props) {
   const [medium, setMedium]         = useState("");
   const [technique, setTechnique]   = useState("");
   const [styles, setStyles]         = useState<string[]>([]);
+  // Free-text values shown when "Other" is picked in the matching group
+  const [artworkTypeOther, setArtworkTypeOther] = useState("");
+  const [techniqueOther, setTechniqueOther]     = useState("");
+  const [styleOther, setStyleOther]             = useState("");
   const [location, setLocation]     = useState("");
   const [price, setPrice]           = useState("");
   const [currency, setCurrency]     = useState("₹");
@@ -214,7 +235,8 @@ export default function CreatePostModal({ onClose }: Props) {
   const canContinue = [
     true,
     !!imageUrl,
-    !!title.trim(),
+    // Gallery listings need a title and a price; portfolio titles come from the caption
+    !!title.trim() && (type !== "gallery" || Number(price) > 0),
     true,
     true,
   ][step];
@@ -240,10 +262,10 @@ export default function CreatePostModal({ onClose }: Props) {
 
         {/* Header */}
         <div className="text-center pt-8 pb-4 px-8 shrink-0">
-          <h2 className="text-2xl font-black mb-1" style={{ background: "linear-gradient(90deg,#9B7CF5,#F59E0B)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
-            Create Content
+          <h2 className={`${playfair.className} text-[26px] font-semibold mb-1`} style={{ color: "var(--text-1)", letterSpacing: "-0.01em" }}>
+            New post
           </h2>
-          <p className="text-xs" style={{ color: "var(--text-5)" }}>Share your creative work with the Ortist community</p>
+          <p className="text-[13px]" style={{ color: "var(--text-5)" }}>What have you been working on?</p>
         </div>
 
         {/* Step indicator */}
@@ -276,7 +298,7 @@ export default function CreatePostModal({ onClose }: Props) {
           {/* Step 1: Type */}
           {step === 0 && (
             <div>
-              <h3 className="text-base font-bold text-center mb-4" style={{ color: "var(--text-1)" }}>Choose Content Type</h3>
+              <h3 className="text-base font-bold text-center mb-4" style={{ color: "var(--text-1)" }}>What are you posting?</h3>
               <div className="grid grid-cols-2 gap-3">
                 {CONTENT_TYPES.map(({ id, Icon, title: t, desc: d }) => (
                   <button
@@ -305,7 +327,7 @@ export default function CreatePostModal({ onClose }: Props) {
           {/* Step 2: Media */}
           {step === 1 && (
             <div>
-              <h3 className="text-base font-bold text-center mb-4" style={{ color: "var(--text-1)" }}>Upload Media</h3>
+              <h3 className="text-base font-bold text-center mb-4" style={{ color: "var(--text-1)" }}>Add your images</h3>
 
               {type === "gallery" ? (
                 /* ── Gallery: multiple photos supported ── */
@@ -332,8 +354,8 @@ export default function CreatePostModal({ onClose }: Props) {
                         <div className="w-12 h-12 rounded-full flex items-center justify-center mb-3" style={{ background: "rgba(124,91,245,0.15)" }}>
                           <Upload size={20} style={{ color: "#9B7CF5" }} />
                         </div>
-                        <p className="text-sm font-semibold mb-1" style={{ color: "var(--text-2)" }}>Drop your artwork here</p>
-                        <p className="text-xs" style={{ color: "var(--text-5)" }}>or click to browse · add up to 10 photos</p>
+                        <p className="text-sm font-semibold mb-1" style={{ color: "var(--text-2)" }}>Drag in photos of the artwork</p>
+                        <p className="text-xs" style={{ color: "var(--text-5)" }}>main image first, then close-ups or other angles — up to 10</p>
                       </div>
                     </div>
                   ) : (
@@ -388,7 +410,7 @@ export default function CreatePostModal({ onClose }: Props) {
                   )}
                 </>
               ) : (
-                /* ── Portfolio: cover + carousel (Instagram-style) ── */
+                /* ── Portfolio: cover + additional images of the work ── */
                 <>
                   <input ref={fileRef} type="file" accept="image/*,video/*" className="hidden"
                     onChange={e => { if (e.target.files?.[0]) handleFile(e.target.files[0]); }} />
@@ -413,8 +435,8 @@ export default function CreatePostModal({ onClose }: Props) {
                         <div className="w-12 h-12 rounded-full flex items-center justify-center mb-3" style={{ background: "rgba(124,91,245,0.15)" }}>
                           <Upload size={20} style={{ color: "#9B7CF5" }} />
                         </div>
-                        <p className="text-sm font-semibold mb-1" style={{ color: "var(--text-2)" }}>Drop your media here</p>
-                        <p className="text-xs" style={{ color: "var(--text-5)" }}>or click to browse · images &amp; video supported</p>
+                        <p className="text-sm font-semibold mb-1" style={{ color: "var(--text-2)" }}>Drag your work in here</p>
+                        <p className="text-xs" style={{ color: "var(--text-5)" }}>or click to pick a file — photos and video both work</p>
                       </div>
                     </div>
                   ) : isVideo ? (
@@ -473,7 +495,7 @@ export default function CreatePostModal({ onClose }: Props) {
                       </div>
 
                       <p className="text-[11px] text-center" style={{ color: "var(--text-5)" }}>
-                        {galleryUrls.length + 1}/10 · viewers swipe through all images
+                        {galleryUrls.length + 1} of 10 · the first photo is the main image
                       </p>
                     </div>
                   )}
@@ -485,15 +507,88 @@ export default function CreatePostModal({ onClose }: Props) {
           {/* Step 3: Details */}
           {step === 2 && (
             <div className="flex flex-col gap-4">
-              <h3 className="text-base font-bold text-center mb-1" style={{ color: "var(--text-1)" }}>Add Details</h3>
+              <h3 className="text-base font-bold text-center mb-1" style={{ color: "var(--text-1)" }}>
+                {type === "gallery" ? "About this artwork" : "Tell us about it"}
+              </h3>
+              <p className="text-xs text-center -mt-1" style={{ color: "var(--text-5)" }}>
+                {type === "gallery"
+                  ? "One post, one artwork. Buyers see everything you fill in here."
+                  : "This goes on your portfolio and into the feed."}
+              </p>
 
-              {/* Caption */}
+              {/* Gallery: the artwork's listing details come first — title, price, size */}
+              {type === "gallery" && (
+                <div className="flex flex-col gap-4 p-4 rounded-2xl" style={{ background: "var(--bg-subtle)", border: "1px solid var(--border)" }}>
+                  <div>
+                    <label className="text-xs font-medium mb-1.5 block" style={{ color: "var(--text-4)" }}>
+                      Title <span style={{ color: "rgba(124,91,245,0.7)" }}>*</span>
+                    </label>
+                    <input
+                      value={title}
+                      onChange={e => setTitle(e.target.value.slice(0, 80))}
+                      placeholder="What's the piece called?"
+                      className="w-full px-3 py-2.5 rounded-xl text-sm outline-none"
+                      style={{ background: "var(--bg-card)", border: "1px solid var(--border)", color: "var(--text-1)" }}
+                    />
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-xs font-medium mb-1.5 block" style={{ color: "var(--text-4)" }}>
+                        Price <span style={{ color: "rgba(124,91,245,0.7)" }}>*</span>
+                      </label>
+                      <div className="flex gap-2">
+                        {/* Currency selector — display symbol only; checkout always charges in ₹ via Razorpay */}
+                        <select
+                          value={currency}
+                          onChange={e => setCurrency(e.target.value)}
+                          className="px-3 py-2.5 rounded-xl text-sm outline-none appearance-none pr-7"
+                          style={{ background: "var(--bg-card)", border: "1px solid var(--border)", color: "var(--text-1)" }}
+                        >
+                          {["₹", "$", "£", "€", "¥"].map(c => <option key={c} value={c}>{c}</option>)}
+                        </select>
+                        <input
+                          type="number"
+                          min="0"
+                          value={price}
+                          onChange={e => setPrice(e.target.value)}
+                          placeholder="0.00"
+                          className="flex-1 min-w-0 px-3 py-2.5 rounded-xl text-sm outline-none"
+                          style={{ background: "var(--bg-card)", border: "1px solid var(--border)", color: "var(--text-1)" }}
+                        />
+                      </div>
+                      <p className="text-[10px] mt-1" style={{ color: "var(--text-5)" }}>Payments always go through in ₹.</p>
+                    </div>
+                    <div>
+                      <label className="text-xs font-medium mb-1.5 block" style={{ color: "var(--text-4)" }}>Size</label>
+                      <input
+                        value={dimensions}
+                        onChange={e => setDimensions(e.target.value)}
+                        placeholder="40 × 60 cm, A3 print…"
+                        className="w-full px-3 py-2.5 rounded-xl text-sm outline-none"
+                        style={{ background: "var(--bg-card)", border: "1px solid var(--border)", color: "var(--text-1)" }}
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Caption / description */}
               <div>
-                <label className="text-xs font-medium mb-1.5 block" style={{ color: "var(--text-4)" }}>Caption</label>
+                <label className="text-xs font-medium mb-0.5 block" style={{ color: "var(--text-4)" }}>
+                  {type === "gallery" ? "Description" : "Caption"}
+                </label>
+                <p className="text-[11px] mb-1.5" style={{ color: "var(--text-5)" }}>
+                  {type === "gallery"
+                    ? "What is it, how was it made, anything a buyer should know."
+                    : <>What&apos;s the story behind it? Mention the size too.</>}
+                </p>
                 <textarea
                   value={desc}
-                  onChange={e => { setDesc(e.target.value); setTitle(e.target.value.slice(0, 80)); }}
-                  placeholder="Tell the story behind your work..."
+                  // Portfolio posts have no title field, so the caption doubles as the title
+                  onChange={e => { setDesc(e.target.value); if (type !== "gallery") setTitle(e.target.value.slice(0, 80)); }}
+                  placeholder={type === "gallery"
+                    ? "Original acrylic on stretched canvas, ready to hang. Ships rolled or framed."
+                    : "Started as a sketch on a train to Jaipur and took three weeks to finish. 24 × 36 in, oil on canvas."}
                   rows={4}
                   className="w-full px-3 py-2.5 rounded-xl text-sm outline-none resize-none"
                   style={{ background: "var(--bg-card)", border: "1px solid var(--border)", color: "var(--text-1)" }}
@@ -530,6 +625,15 @@ export default function CreatePostModal({ onClose }: Props) {
                     );
                   })}
                 </div>
+                {artworkType.includes(OTHER) && (
+                  <input
+                    value={artworkTypeOther}
+                    onChange={e => setArtworkTypeOther(e.target.value)}
+                    placeholder="What kind of work is it?"
+                    className="w-full mt-2 px-3 py-2.5 rounded-xl text-sm outline-none"
+                    style={otherInputStyle}
+                  />
+                )}
               </div>
 
               {/* Medium */}
@@ -553,11 +657,11 @@ export default function CreatePostModal({ onClose }: Props) {
                 </div>
                 {medium === "Other" ? (
                   <div>
-                    <label className="text-xs mb-1.5 block" style={{ color: "var(--text-5)" }}>Describe the medium</label>
+                    <label className="text-xs mb-1.5 block" style={{ color: "var(--text-5)" }}>What did you make it with?</label>
                     <input
                       value={technique}
                       onChange={e => setTechnique(e.target.value)}
-                      placeholder="e.g. Embroidery, Photography, Found Objects…"
+                      placeholder="Embroidery, clay, found objects…"
                       className="w-full px-3 py-2.5 rounded-xl text-sm outline-none"
                       style={{ background: "var(--bg-card)", border: "1px solid var(--border)", color: "var(--text-1)" }}
                     />
@@ -581,6 +685,15 @@ export default function CreatePostModal({ onClose }: Props) {
                         </button>
                       ))}
                     </div>
+                    {technique === OTHER && (
+                      <input
+                        value={techniqueOther}
+                        onChange={e => setTechniqueOther(e.target.value)}
+                        placeholder="How did you make it?"
+                        className="w-full mt-2 px-3 py-2.5 rounded-xl text-sm outline-none"
+                        style={otherInputStyle}
+                      />
+                    )}
                   </div>
                 )}
               </div>
@@ -615,63 +728,26 @@ export default function CreatePostModal({ onClose }: Props) {
                     );
                   })}
                 </div>
+                {styles.includes(OTHER) && (
+                  <input
+                    value={styleOther}
+                    onChange={e => setStyleOther(e.target.value)}
+                    placeholder="How would you describe the look?"
+                    className="w-full mt-2 px-3 py-2.5 rounded-xl text-sm outline-none"
+                    style={otherInputStyle}
+                  />
+                )}
               </div>
 
               {/* Location — autocomplete via Nominatim */}
               <LocationField value={location} onChange={setLocation} />
-
-              {/* Price — gallery posts only */}
-              {type === "gallery" && (
-                <div>
-                  <label className="text-xs font-medium mb-1.5 block" style={{ color: "var(--text-4)" }}>
-                    Price <span style={{ color: "rgba(124,91,245,0.7)" }}>*</span>
-                  </label>
-                  <div className="flex gap-2">
-                    {/* Currency selector — display symbol only; checkout always charges in ₹ via Razorpay */}
-                    <div className="relative">
-                      <select
-                        value={currency}
-                        onChange={e => setCurrency(e.target.value)}
-                        className="h-full px-3 py-2.5 rounded-xl text-sm outline-none appearance-none pr-7"
-                        style={{ background: "var(--bg-card)", border: "1px solid var(--border)", color: "var(--text-1)" }}
-                      >
-                        {["₹", "$", "£", "€", "¥"].map(c => <option key={c} value={c}>{c}</option>)}
-                      </select>
-                    </div>
-                    <input
-                      type="number"
-                      min="0"
-                      value={price}
-                      onChange={e => setPrice(e.target.value)}
-                      placeholder="0.00"
-                      className="flex-1 px-3 py-2.5 rounded-xl text-sm outline-none"
-                      style={{ background: "var(--bg-card)", border: "1px solid var(--border)", color: "var(--text-1)" }}
-                    />
-                  </div>
-                  <p className="text-[10px] mt-1" style={{ color: "var(--text-5)" }}>Set the price buyers will see on your gallery listing — checkout is always charged in ₹</p>
-                </div>
-              )}
-
-              {/* Dimensions — gallery posts only */}
-              {type === "gallery" && (
-                <div>
-                  <label className="text-xs font-medium mb-1.5 block" style={{ color: "var(--text-4)" }}>Size / Dimensions</label>
-                  <input
-                    value={dimensions}
-                    onChange={e => setDimensions(e.target.value)}
-                    placeholder={`e.g. 40×60 cm, A3 print, 24×36 in`}
-                    className="w-full px-3 py-2.5 rounded-xl text-sm outline-none"
-                    style={{ background: "var(--bg-card)", border: "1px solid var(--border)", color: "var(--text-1)" }}
-                  />
-                </div>
-              )}
             </div>
           )}
 
           {/* Step 4: Options */}
           {step === 3 && (
             <div className="flex flex-col gap-5">
-              <h3 className="text-base font-bold text-center mb-1" style={{ color: "var(--text-1)" }}>Options</h3>
+              <h3 className="text-base font-bold text-center mb-1" style={{ color: "var(--text-1)" }}>A few settings</h3>
               <div>
                 <label className="text-xs font-medium mb-2 block" style={{ color: "var(--text-4)" }}>Visibility</label>
                 <div className="flex gap-2">
@@ -715,23 +791,40 @@ export default function CreatePostModal({ onClose }: Props) {
           {/* Step 5: Preview */}
           {step === 4 && (
             <div>
-              <h3 className="text-base font-bold text-center mb-4" style={{ color: "var(--text-1)" }}>Preview</h3>
+              <h3 className="text-base font-bold text-center mb-4" style={{ color: "var(--text-1)" }}>One last look</h3>
               <div className="rounded-2xl overflow-hidden" style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}>
-                {type === "gallery" && galleryUrls.length > 0 ? (
-                  <div className="relative">
+                {isVideo && imageUrl ? (
+                  <video src={imageUrl} controls className="w-full object-cover" style={{ maxHeight: 260 }} />
+                ) : previewImages.length > 0 ? (
+                  /* All images of the artwork, with prev/next arrows when there's more than one */
+                  <div className="relative" style={{ background: "#000" }}>
                     {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={galleryUrls[0]} alt="cover" className="w-full object-cover" style={{ maxHeight: 220 }} />
-                    <div className="absolute bottom-2 right-2 flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-bold" style={{ background: "rgba(0,0,0,0.65)", color: "#fff", backdropFilter: "blur(6px)" }}>
-                      <Grid2X2 size={10} /> {galleryUrls.length} photos
-                    </div>
+                    <img src={previewImages[safePreviewIdx]} alt={`Preview ${safePreviewIdx + 1}`} className="w-full object-contain" style={{ maxHeight: 280 }} />
+                    {previewImages.length > 1 && (
+                      <>
+                        <button type="button" onClick={prevPreview} aria-label="Previous image"
+                          className="absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full flex items-center justify-center transition-opacity hover:opacity-80"
+                          style={{ background: "rgba(0,0,0,0.6)", border: "1px solid rgba(255,255,255,0.15)" }}>
+                          <ArrowLeft size={14} color="#fff" />
+                        </button>
+                        <button type="button" onClick={nextPreview} aria-label="Next image"
+                          className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full flex items-center justify-center transition-opacity hover:opacity-80"
+                          style={{ background: "rgba(0,0,0,0.6)", border: "1px solid rgba(255,255,255,0.15)" }}>
+                          <ArrowRight size={14} color="#fff" />
+                        </button>
+                        <div className="absolute top-2 right-2 flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-bold" style={{ background: "rgba(0,0,0,0.65)", color: "#fff", backdropFilter: "blur(6px)" }}>
+                          <Grid2X2 size={10} /> {safePreviewIdx + 1} / {previewImages.length}
+                        </div>
+                        <div className="absolute bottom-2 left-0 right-0 flex justify-center gap-1">
+                          {previewImages.map((_, i) => (
+                            <button key={i} type="button" onClick={() => setPreviewIdx(i)} aria-label={`Image ${i + 1}`}
+                              className="rounded-full transition-all"
+                              style={{ width: i === safePreviewIdx ? 14 : 5, height: 5, background: i === safePreviewIdx ? "#fff" : "rgba(255,255,255,0.45)" }} />
+                          ))}
+                        </div>
+                      </>
+                    )}
                   </div>
-                ) : imageUrl ? (
-                  isVideo ? (
-                    <video src={imageUrl} controls className="w-full object-cover" style={{ maxHeight: 260 }} />
-                  ) : (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={imageUrl} alt="preview" className="w-full object-cover" style={{ maxHeight: 260 }} />
-                  )
                 ) : (
                   <div className="w-full flex items-center justify-center" style={{ height: 180, background: "var(--bg-subtle)" }}>
                     <ImageIcon size={32} style={{ color: "var(--text-5)" }} />
@@ -739,10 +832,15 @@ export default function CreatePostModal({ onClose }: Props) {
                 )}
                 <div className="p-4">
                   <div className="flex items-center gap-2 mb-2">
-                    <div className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold" style={{ background: "linear-gradient(135deg,#361E7B,#7C5BF5)", color: "#fff" }}>Y</div>
+                    <div className="w-7 h-7 rounded-full overflow-hidden flex items-center justify-center text-xs font-bold" style={{ background: "linear-gradient(135deg,#361E7B,#7C5BF5)", color: "#fff" }}>
+                      {user?.imageUrl
+                        // eslint-disable-next-line @next/next/no-img-element
+                        ? <img src={user.imageUrl} alt="" className="w-full h-full object-cover" />
+                        : (user?.firstName?.[0] ?? "Y")}
+                    </div>
                     <div>
-                      <p className="text-xs font-semibold leading-none" style={{ color: "var(--text-1)" }}>Your Name</p>
-                      <p className="text-[10px]" style={{ color: "var(--text-5)" }}>@yourhandle</p>
+                      <p className="text-xs font-semibold leading-none" style={{ color: "var(--text-1)" }}>{user?.fullName ?? user?.username ?? "You"}</p>
+                      <p className="text-[10px]" style={{ color: "var(--text-5)" }}>@{user?.username ?? user?.id.slice(0, 12) ?? "you"}</p>
                     </div>
                   </div>
                   <p className="text-sm font-bold mb-0.5" style={{ color: "var(--text-1)" }}>{title || "Your post title"}</p>
@@ -754,15 +852,107 @@ export default function CreatePostModal({ onClose }: Props) {
                       </span>
                     ))}
                   </div>
-                  <button className="w-full py-2.5 rounded-xl text-sm font-semibold text-white" style={{ background: "#7C5BF5", pointerEvents: "none", opacity: 0.85 }}>
+                  <button
+                    type="button"
+                    onClick={() => setFullPreview(true)}
+                    className="w-full py-2.5 rounded-xl text-sm font-semibold text-white transition-opacity hover:opacity-85"
+                    style={{ background: "#7C5BF5" }}
+                  >
                     View Full Post
                   </button>
-                  <p className="text-[10px] text-center mt-2" style={{ color: "var(--text-5)" }}>Preview — publish to make it live</p>
+                  <p className="text-[10px] text-center mt-2" style={{ color: "var(--text-5)" }}>
+                    Nothing&apos;s posted yet — hit Publish when it looks right
+                  </p>
                 </div>
               </div>
             </div>
           )}
         </div>
+
+        {/* Full post preview — exactly what gets published, opened from "View Full Post" */}
+        {fullPreview && (
+          <div
+            className="fixed inset-0 z-70 flex items-center justify-center p-3 md:p-6"
+            style={{ background: "rgba(0,0,0,0.9)", backdropFilter: "blur(12px)" }}
+            onClick={e => { if (e.target === e.currentTarget) setFullPreview(false); }}
+          >
+            <div className="w-full flex flex-col md:flex-row rounded-2xl overflow-hidden"
+              style={{ maxWidth: 980, maxHeight: "92vh", background: "var(--bg-card)", border: "1px solid var(--border)" }}>
+              {/* Images */}
+              <div className="flex-1 relative flex items-center justify-center" style={{ background: "#060606", minHeight: 280, maxHeight: "60vh" }}>
+                {isVideo && imageUrl ? (
+                  <video src={imageUrl} controls className="max-w-full max-h-full" />
+                ) : previewImages.length > 0 ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={previewImages[safePreviewIdx]} alt={title || "Artwork"} className="max-w-full max-h-full object-contain" style={{ maxHeight: "60vh" }} />
+                ) : null}
+                {previewImages.length > 1 && (
+                  <>
+                    <button type="button" onClick={prevPreview} aria-label="Previous image"
+                      className="absolute left-3 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full flex items-center justify-center hover:opacity-80"
+                      style={{ background: "rgba(0,0,0,0.6)", border: "1px solid rgba(255,255,255,0.15)" }}>
+                      <ArrowLeft size={16} color="#fff" />
+                    </button>
+                    <button type="button" onClick={nextPreview} aria-label="Next image"
+                      className="absolute right-3 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full flex items-center justify-center hover:opacity-80"
+                      style={{ background: "rgba(0,0,0,0.6)", border: "1px solid rgba(255,255,255,0.15)" }}>
+                      <ArrowRight size={16} color="#fff" />
+                    </button>
+                    <div className="absolute top-3 left-3 px-2.5 py-1 rounded-full text-[11px] font-bold text-white" style={{ background: "rgba(0,0,0,0.65)" }}>
+                      {safePreviewIdx + 1} / {previewImages.length}
+                    </div>
+                  </>
+                )}
+              </div>
+
+              {/* Details */}
+              <div className="w-full md:w-[320px] shrink-0 flex flex-col" style={{ borderLeft: "1px solid var(--border)" }}>
+                <div className="flex items-center gap-2 px-4 py-3.5" style={{ borderBottom: "1px solid var(--border)" }}>
+                  <p className="flex-1 text-sm font-bold truncate" style={{ color: "var(--text-1)" }}>{title || "Untitled"}</p>
+                  <button type="button" onClick={() => setFullPreview(false)} aria-label="Close preview"
+                    className="w-7 h-7 rounded-lg flex items-center justify-center hover:opacity-70" style={{ color: "var(--text-4)" }}>
+                    <X size={15} />
+                  </button>
+                </div>
+                <div className="flex-1 overflow-y-auto px-4 py-4 flex flex-col gap-4" style={{ scrollbarWidth: "none" }}>
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 rounded-full overflow-hidden flex items-center justify-center text-xs font-bold text-white" style={{ background: "linear-gradient(135deg,#361E7B,#7C5BF5)" }}>
+                      {user?.imageUrl
+                        // eslint-disable-next-line @next/next/no-img-element
+                        ? <img src={user.imageUrl} alt="" className="w-full h-full object-cover" />
+                        : (user?.firstName?.[0] ?? "Y")}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-xs font-semibold truncate" style={{ color: "var(--text-1)" }}>{user?.fullName ?? user?.username ?? "You"}</p>
+                      {location && <p className="text-[10px] truncate" style={{ color: "var(--text-5)" }}>{location}</p>}
+                    </div>
+                  </div>
+                  {desc && <p className="text-sm leading-relaxed whitespace-pre-wrap" style={{ color: "var(--text-3)" }}>{desc}</p>}
+                  {type === "gallery" && price && (
+                    <p className="text-lg font-bold" style={{ color: "#9B7CF5" }}>{currency}{price}{dimensions ? <span className="text-xs font-normal ml-2" style={{ color: "var(--text-5)" }}>{dimensions}</span> : null}</p>
+                  )}
+                  {(artworkType.length > 0 || styles.length > 0) && (
+                    <div className="flex flex-wrap gap-1.5">
+                      {[...artworkType, ...styles].map(t => (
+                        <span key={t} className="px-2.5 py-0.5 rounded-full text-[10px] font-medium" style={{ background: "rgba(124,91,245,0.15)", color: "#9B7CF5" }}>
+                          {t === OTHER ? (artworkType.includes(t) ? artworkTypeOther || t : styleOther || t) : t}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                  {medium && (
+                    <p className="text-xs" style={{ color: "var(--text-5)" }}>
+                      Medium: <strong style={{ color: "var(--text-3)" }}>{medium}{technique ? ` · ${technique === OTHER ? techniqueOther || technique : technique}` : ""}</strong>
+                    </p>
+                  )}
+                  <p className="text-[11px]" style={{ color: "var(--text-5)" }}>
+                    That&apos;s how it&apos;ll look to everyone else. Close this and hit Publish when you&apos;re happy with it.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Footer nav */}
         <div className="flex items-center gap-3 px-8 py-5 shrink-0" style={{ borderTop: "1px solid var(--border)" }}>
@@ -816,6 +1006,13 @@ export default function CreatePostModal({ onClose }: Props) {
                       finalImageUrl = JSON.stringify(uploadedUrls);
                     }
 
+                    // Swap any "Other" pick for the artist's own description (dropped if left blank)
+                    const swapOther = (list: string[], custom: string) =>
+                      list.flatMap(v => v !== OTHER ? [v] : custom.trim() ? [custom.trim()] : []);
+                    const finalTypes     = swapOther(artworkType, artworkTypeOther);
+                    const finalStyles    = swapOther(styles, styleOther);
+                    const finalTechnique = technique === OTHER ? techniqueOther.trim() : technique;
+
                     // For gallery posts embed price + dimensions into description as structured JSON
                     const descriptionPayload = isGallery && (price || dimensions)
                       ? JSON.stringify({ _price: price ? `${currency}${price}` : undefined, _dimensions: dimensions || undefined, _desc: desc })
@@ -832,10 +1029,10 @@ export default function CreatePostModal({ onClose }: Props) {
                         title: title || "Untitled",
                         description: descriptionPayload,
                         image_url: finalImageUrl,
-                        category: isGallery ? `gallery:${artworkType[0] || "General"}` : (artworkType[0] || "General"),
-                        tags: artworkType,
-                        medium: technique ? `${medium} · ${technique}` : (medium || undefined),
-                        style: styles.join(", ") || undefined,
+                        category: isGallery ? `gallery:${finalTypes[0] || "General"}` : (finalTypes[0] || "General"),
+                        tags: finalTypes,
+                        medium: finalTechnique ? `${medium} · ${finalTechnique}` : (medium || undefined),
+                        style: finalStyles.join(", ") || undefined,
                         location: location || undefined,
                         visibility,
                         allow_comments: comments,

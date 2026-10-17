@@ -29,6 +29,7 @@ function loadRazorpayScript(): Promise<boolean> {
 }
 import MasonryGrid from "@/components/feed/MasonryGrid";
 import ArtworkViewer from "@/components/ui/ArtworkViewer";
+import WallPreview from "@/components/ui/WallPreview";
 import { firstImage } from "@/lib/imageUrl";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -185,7 +186,11 @@ export default function FeedPostPage({ params }: { params: Promise<{ id: string 
           name: "Ortist",
           description: title || "Artwork purchase",
           image: "/logo.jpeg",
-          prefill: { email: user?.emailAddresses?.[0]?.emailAddress },
+          // Phone-signup users have no email; Razorpay accepts either/both.
+          prefill: {
+            email:   user?.primaryEmailAddress?.emailAddress ?? undefined,
+            contact: user?.primaryPhoneNumber?.phoneNumber ?? undefined,
+          },
           theme: { color: "#7C5BF5" },
           handler: async (r: { razorpay_payment_id: string; razorpay_order_id: string; razorpay_signature: string }) => {
             const vRes = await fetch("/api/verify-payment", {
@@ -429,6 +434,8 @@ export default function FeedPostPage({ params }: { params: Promise<{ id: string 
                               <span className="text-xs" style={{ color: "var(--text-5)" }}>· {descDimensions}</span>
                             )}
                           </div>
+                          {/* See it on a wall — drawn to scale from the listed size */}
+                          {!isVideo && <WallPreview imageUrl={img} dimensions={descDimensions} />}
                           {payDone ? (
                             <div className="w-full py-2.5 rounded-xl font-semibold text-sm text-center"
                               style={{ background: "rgba(16,185,129,0.15)", color: "#10B981", border: "1px solid rgba(16,185,129,0.3)" }}>

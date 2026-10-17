@@ -317,7 +317,7 @@ export default function Sidebar() {
                 {user?.fullName ?? user?.username ?? "Artist"}
               </p>
               <p className="text-[10px] truncate" style={{ color: "var(--text-5)" }}>
-                {user?.primaryEmailAddress?.emailAddress ?? ""}
+                {user?.primaryEmailAddress?.emailAddress ?? user?.primaryPhoneNumber?.phoneNumber ?? ""}
               </p>
             </div>
           </div>

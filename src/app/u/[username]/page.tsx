@@ -57,7 +57,7 @@ export default function UserProfilePage({ params }: { params: Promise<{ username
       setProfile(found);
 
       // Fetch posts
-      const postsRes = await fetch(`/api/posts?userId=${found.clerk_id}`);
+      const postsRes = await fetch(`/api/posts?userId=${found.clerk_id}&limit=200`); // API defaults to 12
       const { posts: userPosts } = await postsRes.json();
       setPosts(userPosts ?? []);
 

@@ -104,7 +104,7 @@ export default function ProfilePage() {
       .then(({ profile: p }) => { if (p) setProfile(p); });
 
     // Load own posts
-    fetch(`/api/posts?userId=${user.id}`)
+    fetch(`/api/posts?userId=${user.id}&limit=200`) // API defaults to 12 — would hide older portfolio work
       .then(r => r.json())
       .then(({ posts }) => { if (posts) setDbPosts(posts); });
 

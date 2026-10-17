@@ -4,7 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 // POST /api/profile/sync — create or sync basic clerk data
 export async function POST(req: NextRequest) {
   const body = await req.json();
-  const { clerk_id, display_name, username, avatar_url } = body;
+  const { clerk_id, display_name, username, avatar_url, phone } = body;
 
   if (!clerk_id) {
     return NextResponse.json({ error: "clerk_id required" }, { status: 400 });
@@ -12,18 +12,22 @@ export async function POST(req: NextRequest) {
 
   const { data: existing } = await adminDb
     .from("profiles")
-    .select("clerk_id")
+    .select("clerk_id, phone")
     .eq("clerk_id", clerk_id)
     .maybeSingle();
 
   if (existing) {
-    // Don't overwrite anything — display_name, username, avatar_url
-    // are all managed by the user via the Edit Profile modal
+    // Don't overwrite display_name, username, avatar_url — the user manages
+    // those via Edit Profile. Only backfill a missing phone from Clerk's
+    // verified number (e.g. an email user who later added a phone).
+    if (phone && !existing.phone) {
+      await adminDb.from("profiles").update({ phone }).eq("clerk_id", clerk_id);
+    }
   } else {
     // First time: seed all fields from Clerk
     await adminDb
       .from("profiles")
-      .insert({ clerk_id, display_name, username, avatar_url });
+      .insert({ clerk_id, display_name, username, avatar_url, phone: phone || null });
   }
 
   const { data: profile } = await adminDb

@@ -28,6 +28,16 @@ function parseDescription(raw: string | null): { text: string; price: string | n
   return { text: raw, price: null, dimensions: null };
 }
 
+const CURRENCIES = ["₹", "$", "£", "€", "¥"];
+
+// "₹987" → { symbol: "₹", amount: "987" }; defaults to ₹ when unset
+function splitPrice(price: string | null): { symbol: string; amount: string } {
+  if (!price) return { symbol: "₹", amount: "" };
+  const m = price.match(/^([^\d.]*)([\d.]*)$/);
+  const symbol = m?.[1]?.trim() || "₹";
+  return { symbol: CURRENCIES.includes(symbol) ? symbol : "₹", amount: m?.[2] ?? "" };
+}
+
 interface Props {
   post: DbPost;
   isOwner: boolean;
@@ -46,6 +56,11 @@ export default function PostModal({ post: initialPost, isOwner, ownerId, current
   const [editTitle, setEditTitle] = useState(initialPost.title);
   const [editDesc, setEditDesc] = useState(() => parseDescription(initialPost.description).text);
   const [editCategory, setEditCategory] = useState((initialPost.category ?? "").replace(/^gallery:/, ""));
+  // Gallery listings: price is stored as "<symbol><amount>" — split so each can be edited
+  const [editCurrency, setEditCurrency] = useState(() => splitPrice(parseDescription(initialPost.description).price).symbol);
+  const [editPrice, setEditPrice] = useState(() => splitPrice(parseDescription(initialPost.description).price).amount);
+  const [editDimensions, setEditDimensions] = useState(() => parseDescription(initialPost.description).dimensions ?? "");
+  const isGalleryPost = (initialPost.category ?? "").startsWith("gallery:");
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [liked, setLiked] = useState(false);
@@ -183,10 +198,14 @@ export default function PostModal({ post: initialPost, isOwner, ownerId, current
     setSaving(true);
     setSaveError(null);
     try {
-      const isGalleryPost = (post.category ?? "").startsWith("gallery:");
-      const { price, dimensions } = parseDescription(post.description);
-      const description = (price || dimensions)
-        ? JSON.stringify({ _price: price ?? undefined, _dimensions: dimensions ?? undefined, _desc: editDesc })
+      // Gallery listings keep price/size inside the description JSON (see parseDescription)
+      const amount = editPrice.trim();
+      const description = isGalleryPost
+        ? JSON.stringify({
+            _price:      amount ? `${editCurrency}${amount}` : undefined,
+            _dimensions: editDimensions.trim() || undefined,
+            _desc:       editDesc,
+          })
         : editDesc;
       const res = await fetch(`/api/posts/${post.id}`, {
         method: "PATCH",
@@ -210,9 +229,14 @@ export default function PostModal({ post: initialPost, isOwner, ownerId, current
   }
 
   function cancelEdit() {
+    const parsed = parseDescription(post.description);
+    const { symbol, amount } = splitPrice(parsed.price);
     setEditTitle(post.title);
-    setEditDesc(parseDescription(post.description).text);
+    setEditDesc(parsed.text);
     setEditCategory((post.category ?? "").replace(/^gallery:/, ""));
+    setEditCurrency(symbol);
+    setEditPrice(amount);
+    setEditDimensions(parsed.dimensions ?? "");
     setEditing(false);
     setSaveError(null);
   }
@@ -427,7 +451,34 @@ export default function PostModal({ post: initialPost, isOwner, ownerId, current
                   className="w-full px-3 py-2.5 rounded-xl text-sm outline-none resize-none"
                   style={{ background: "var(--bg-subtle)", border: "1px solid var(--border)", color: "var(--text-1)" }} />
               </div>
-            ) : parsedDesc.text ? (
+            ) : null}
+
+            {/* Price / Size editing — gallery listings only */}
+            {editing && isGalleryPost ? (
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-[10px] font-semibold uppercase tracking-wider mb-1.5 block" style={{ color: "var(--text-5)" }}>Price</label>
+                  <div className="flex gap-1.5">
+                    <select value={editCurrency} onChange={e => setEditCurrency(e.target.value)}
+                      className="px-2 py-2 rounded-xl text-sm outline-none appearance-none"
+                      style={{ background: "var(--bg-subtle)", border: "1px solid var(--border)", color: "var(--text-1)" }}>
+                      {CURRENCIES.map(c => <option key={c} value={c}>{c}</option>)}
+                    </select>
+                    <input type="number" min="0" value={editPrice} onChange={e => setEditPrice(e.target.value)}
+                      placeholder="0.00"
+                      className="flex-1 min-w-0 px-3 py-2 rounded-xl text-sm outline-none"
+                      style={{ background: "var(--bg-subtle)", border: "1px solid var(--border)", color: "var(--text-1)" }} />
+                  </div>
+                </div>
+                <div>
+                  <label className="text-[10px] font-semibold uppercase tracking-wider mb-1.5 block" style={{ color: "var(--text-5)" }}>Size</label>
+                  <input value={editDimensions} onChange={e => setEditDimensions(e.target.value)}
+                    placeholder="40 × 60 cm"
+                    className="w-full px-3 py-2 rounded-xl text-sm outline-none"
+                    style={{ background: "var(--bg-subtle)", border: "1px solid var(--border)", color: "var(--text-1)" }} />
+                </div>
+              </div>
+            ) : !editing && parsedDesc.text ? (
               <p className="text-sm leading-relaxed" style={{ color: "var(--text-3)" }}>{parsedDesc.text}</p>
             ) : null}
 
