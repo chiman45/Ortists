@@ -1,9 +1,11 @@
 "use client";
 
 import { useNotifications } from "@/hooks/useNotifications";
+import CreatePostModal from "@/components/create/CreatePostModal";
 import { Briefcase, LayoutGrid, Plus, Store, UserCircle } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useState } from "react";
 
 const LEFT_NAV = [
   { icon: LayoutGrid, label: "Feed",   href: "/feed"    },
@@ -30,6 +32,8 @@ function Badge({ count }: { count: number }) {
 export default function BottomNav() {
   const pathname = usePathname();
   const { unreadMessages, newLikes } = useNotifications();
+  // Same Portfolio / Gallery create flow the desktop sidebar opens
+  const [createOpen, setCreateOpen] = useState(false);
 
   const badges: Record<string, number> = {
     "/feed":   newLikes,
@@ -41,6 +45,7 @@ export default function BottomNav() {
   }
 
   return (
+    <>
     <nav
       className="lg:hidden fixed bottom-0 left-0 right-0 z-50 flex items-center justify-between px-2 py-2"
       style={{
@@ -69,9 +74,11 @@ export default function BottomNav() {
         );
       })}
 
-      {/* Centre add button */}
-      <Link
-        href="/upload"
+      {/* Centre create button — opens the Portfolio / Gallery chooser */}
+      <button
+        type="button"
+        onClick={() => setCreateOpen(true)}
+        aria-label="Create post"
         className="shrink-0 mx-1 flex items-center justify-center w-12 h-12 rounded-2xl -mt-4 transition-all hover:scale-[1.06] active:scale-95"
         style={{
           background: "linear-gradient(135deg, #361E7B, #7C5BF5)",
@@ -80,7 +87,7 @@ export default function BottomNav() {
         }}
       >
         <Plus size={22} strokeWidth={2.5} />
-      </Link>
+      </button>
 
       {RIGHT_NAV.map(({ icon: Icon, label, href }) => {
         const active = isActive(href);
@@ -101,5 +108,8 @@ export default function BottomNav() {
         );
       })}
     </nav>
+
+    {createOpen && <CreatePostModal onClose={() => setCreateOpen(false)} />}
+    </>
   );
 }
