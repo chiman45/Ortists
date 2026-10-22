@@ -301,7 +301,7 @@ export default function FeedPage() {
                   <Search size={28} style={{ color: "#7C5BF5" }} />
                 </div>
                 <p className="text-sm font-semibold" style={{ color: "var(--text-2)" }}>
-                  Search Ortist
+                  Search Ortists
                 </p>
                 <p className="text-xs text-center max-w-xs" style={{ color: "var(--text-5)" }}>
                   Find artists by name, tag, or location. Find posts by title or category.

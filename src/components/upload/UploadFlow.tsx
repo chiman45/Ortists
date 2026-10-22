@@ -295,7 +295,7 @@ export default function UploadFlow() {
 
             <button onClick={publish} disabled={publishing || !preview}
               className="w-full flex items-center justify-center gap-2 py-3.5 bg-linear-to-r from-violet-500 to-purple-600 text-white font-semibold rounded-xl hover:shadow-lg hover:shadow-purple-200 transition-all text-sm disabled:opacity-60">
-              {publishing ? <><Loader2 size={16} className="animate-spin" /> Publishing…</> : "Publish to Ortist"}
+              {publishing ? <><Loader2 size={16} className="animate-spin" /> Publishing…</> : "Publish to Ortists"}
             </button>
           </div>
         )}
@@ -307,7 +307,7 @@ export default function UploadFlow() {
               <Check size={36} strokeWidth={2.5} className="text-white" />
             </div>
             <h2 className="text-2xl font-bold text-gray-900 mb-2">Published!</h2>
-            <p className="text-gray-400 text-sm mb-8">Your work is now live on Ortist</p>
+            <p className="text-gray-400 text-sm mb-8">Your work is now live on Ortists</p>
 
             {preview && (
               <div className="w-32 h-32 rounded-2xl overflow-hidden mb-8 shadow-lg">

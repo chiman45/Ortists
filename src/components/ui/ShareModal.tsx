@@ -111,7 +111,7 @@ const CHANNELS: Channel[] = [
   },
 ];
 
-export default function ShareModal({ url, title = "Check this out on Ortist!", onClose }: ShareModalProps) {
+export default function ShareModal({ url, title = "Check this out on Ortists!", onClose }: ShareModalProps) {
   const [copied, setCopied] = useState(false);
 
   function copyLink() {

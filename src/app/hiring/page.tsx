@@ -1318,7 +1318,7 @@ function HiringPageInner() {
 
   return (
     <div
-      className="flex min-h-screen"
+      className="flex min-h-screen overflow-x-hidden"
       style={{
         background: "radial-gradient(ellipse 70% 50% at 5% 40%, rgba(54,30,123,0.18) 0%, transparent 55%), radial-gradient(ellipse 50% 40% at 95% 15%, rgba(124,91,245,0.08) 0%, transparent 50%), var(--bg)",
       }}
@@ -1584,7 +1584,7 @@ function HiringPageInner() {
                   return (
                     <section className="px-4 md:px-8">
                       {/* Section header */}
-                      <div className="flex items-center justify-between mb-5">
+                      <div className="flex flex-wrap items-center justify-between gap-3 mb-5">
                         <div>
                           <h2 className="text-xl font-bold" style={{ color: "var(--text-1)" }}>Browse All Artists</h2>
                           <p className="text-sm mt-0.5" style={{ color: "var(--text-5)" }}>

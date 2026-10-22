@@ -145,7 +145,7 @@ function SectionPanel({ id, s, stats, statsLoading, theme, setTheme, updatePriva
         <Row label="Activity Status" desc="Show others when you were last active">
           <Toggle on={s.privacy.activityStatus} onChange={v => updatePrivacy("activityStatus", v)} />
         </Row>
-        <Row label="Data Sharing" desc="Allow anonymised usage analytics to improve Ortist">
+        <Row label="Data Sharing" desc="Allow anonymised usage analytics to improve Ortists">
           <Toggle on={s.privacy.dataSharing} onChange={v => updatePrivacy("dataSharing", v)} />
         </Row>
       </Card>
@@ -175,7 +175,7 @@ function SectionPanel({ id, s, stats, statsLoading, theme, setTheme, updatePriva
       <Card>
         <SectionTitle>Email</SectionTitle>
         <Row label="Weekly Digest" desc="A summary of your activity every week"><Toggle on={s.notifs.emailDigest} onChange={v => updateNotifs("emailDigest", v)} /></Row>
-        <Row label="Marketing & Updates" desc="News about Ortist features and offers"><Toggle on={s.notifs.marketing} onChange={v => updateNotifs("marketing", v)} /></Row>
+        <Row label="Marketing & Updates" desc="News about Ortists features and offers"><Toggle on={s.notifs.marketing} onChange={v => updateNotifs("marketing", v)} /></Row>
       </Card>
     </div>
   );
@@ -249,7 +249,7 @@ function SectionPanel({ id, s, stats, statsLoading, theme, setTheme, updatePriva
     <div className="flex flex-col gap-3">
       {[
         { icon: MessageSquare, color: "#9B7CF5", q: "How do I post artwork?", a: "Click the purple + Create Post button in the sidebar. You can upload an image and add a title, description, and category." },
-        { icon: FileText, color: "#10B981", q: "How do I get hired on Ortist?", a: "Keep your profile up to date, mark yourself as available, and post high-quality work. Clients can send you a Hire request directly from your posts or profile." },
+        { icon: FileText, color: "#10B981", q: "How do I get hired on Ortists?", a: "Keep your profile up to date, mark yourself as available, and post high-quality work. Clients can send you a Hire request directly from your posts or profile." },
         { icon: Shield, color: "#F59E0B", q: "How do I delete my account?", a: "Go to Privacy in these settings and click Delete Account. Type DELETE to confirm. This action permanently removes all your data." },
         { icon: HelpCircle, color: "#f43f5e", q: "Why can't I see my story views?", a: "Story views are only visible to you as the owner. Tap the eye icon at the bottom of your story to see who has viewed it." },
         { icon: MessageSquare, color: "#60A5FA", q: "How do commissions work?", a: "Clients can hire you from your profile or any of your posts. You will receive their brief in the Hiring section and can accept or decline from there." },

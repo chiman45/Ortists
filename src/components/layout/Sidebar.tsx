@@ -87,11 +87,11 @@ export default function Sidebar() {
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src="/logo.jpeg"
-              alt="Ortist"
+              alt="Ortists"
               style={{ height: 42, width: 42, objectFit: "cover", borderRadius: 11 }}
             />
             <span className="text-[16px] font-bold tracking-tight" style={{ color: "var(--text-1)" }}>
-              Ortist
+              Ortists
             </span>
           </Link>
           <button
@@ -110,7 +110,7 @@ export default function Sidebar() {
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src="/logo.jpeg"
-              alt="Ortist"
+              alt="Ortists"
               style={{ height: 44, width: 44, objectFit: "cover", borderRadius: 12 }}
             />
           </Link>

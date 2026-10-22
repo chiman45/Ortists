@@ -5,6 +5,8 @@ import { ChevronRight, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import type { Artist } from "@/lib/hiringData";
+import WallPreview from "@/components/ui/WallPreview";
+import { CUSTOM_INCHES, POPULAR_SIZES, SQUARE_SIZES, framePrice, sizeLabel } from "@/lib/canvasSizes";
 
 interface Props {
   artist: Artist;
@@ -51,6 +53,10 @@ export default function HireModal({ artist, artistClerkId, onClose }: Props) {
   const [refInput, setRefInput]       = useState("");
   const [references, setReferences]   = useState<string[]>([]);
   const [budget, setBudget]           = useState("");
+  // Canvas size (inches). Listed sizes come from the price sheet; custom = any W × H.
+  const [sizeW, setSizeW]             = useState<number | null>(null);
+  const [sizeH, setSizeH]             = useState<number | null>(null);
+  const [showSquare, setShowSquare]   = useState(false);
   const [activeTab, setActiveTab]     = useState<"portfolio" | "reviews">("portfolio");
   const [loading, setLoading]         = useState(false);
   const [error, setError]             = useState("");
@@ -73,7 +79,10 @@ export default function HireModal({ artist, artistClerkId, onClose }: Props) {
     setLoading(true);
     setError("");
     try {
-      const fullDesc = [brief, description, deliverables ? `Deliverables: ${deliverables}` : "", references.length ? `References:\n${references.join("\n")}` : ""].filter(Boolean).join("\n\n");
+      const sizeLine = sizeW && sizeH
+        ? `Canvas size: ${sizeLabel(sizeW, sizeH)} (floating frame ₹${framePrice(sizeW, sizeH).price.toLocaleString("en-IN")}${framePrice(sizeW, sizeH).exact ? "" : ", approx."})`
+        : "";
+      const fullDesc = [brief, description, sizeLine, deliverables ? `Deliverables: ${deliverables}` : "", references.length ? `References:\n${references.join("\n")}` : ""].filter(Boolean).join("\n\n");
       const res = await fetch("/api/hire-requests", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -361,6 +370,111 @@ export default function HireModal({ artist, artistClerkId, onClose }: Props) {
               })}
             </div>
           </div>
+
+          {/* CANVAS SIZE */}
+          {(() => {
+            const sizes = showSquare ? SQUARE_SIZES : POPULAR_SIZES;
+            const isPicked = (w: number, h: number) => sizeW === w && sizeH === h;
+            const frame = sizeW && sizeH ? framePrice(sizeW, sizeH) : null;
+            const isListed = !!(sizeW && sizeH) && [...POPULAR_SIZES, ...SQUARE_SIZES].some(s => s.w === sizeW && s.h === sizeH);
+            const estimate = frame ? (artist.price || 0) + frame.price : null;
+            const pill = (active: boolean) => ({
+              background: active ? "rgba(124,91,245,0.18)" : "rgba(255,255,255,0.04)",
+              border:     `1px solid ${active ? "rgba(124,91,245,0.5)" : "rgba(255,255,255,0.1)"}`,
+              color:      active ? "#9B7CF5" : "rgba(255,255,255,0.55)",
+            });
+            const selectStyle = {
+              background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.12)",
+              color: "rgba(255,255,255,0.82)", colorScheme: "dark" as const,
+            };
+            return (
+              <div className="flex flex-col gap-3">
+                <div className="flex items-center justify-between">
+                  <SectionLabel label="CANVAS SIZE" optional />
+                  <button
+                    onClick={() => setShowSquare(v => !v)}
+                    className="text-[11px] font-semibold transition-opacity hover:opacity-70"
+                    style={{ color: "#9B7CF5" }}
+                  >
+                    {showSquare ? "Popular sizes" : "Square sizes"}
+                  </button>
+                </div>
+                <div className="hire-field px-4 py-3 flex flex-col gap-3">
+                  <div className="flex flex-wrap gap-2">
+                    {sizes.map(s => (
+                      <button
+                        key={`${s.w}x${s.h}`}
+                        onClick={() => { setSizeW(s.w); setSizeH(s.h); }}
+                        className="px-4 py-2 rounded-full text-xs font-medium transition-all hover:opacity-80"
+                        style={pill(isPicked(s.w, s.h))}
+                        title={s.note}
+                      >
+                        {sizeLabel(s.w, s.h)}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Custom size */}
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-xs font-semibold" style={{ color: "rgba(255,255,255,0.45)" }}>Custom:</span>
+                    <select value={sizeW ?? ""} onChange={e => setSizeW(Number(e.target.value) || null)}
+                      className="px-3 py-1.5 rounded-full text-xs outline-none" style={selectStyle}>
+                      <option value="">W</option>
+                      {CUSTOM_INCHES.map(n => <option key={n} value={n}>{n}&quot;</option>)}
+                    </select>
+                    <span className="text-xs" style={{ color: "rgba(255,255,255,0.35)" }}>×</span>
+                    <select value={sizeH ?? ""} onChange={e => setSizeH(Number(e.target.value) || null)}
+                      className="px-3 py-1.5 rounded-full text-xs outline-none" style={selectStyle}>
+                      <option value="">H</option>
+                      {CUSTOM_INCHES.map(n => <option key={n} value={n}>{n}&quot;</option>)}
+                    </select>
+                    {sizeW && sizeH && (
+                      <button onClick={() => { setSizeW(null); setSizeH(null); }} className="text-[11px]" style={{ color: "rgba(255,255,255,0.3)" }}>
+                        Clear
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Price for the chosen size */}
+                  {sizeW && sizeH && frame && (
+                    <div className="flex flex-col gap-2 pt-2" style={{ borderTop: "1px solid rgba(255,255,255,0.07)" }}>
+                      <div className="flex items-center justify-between text-xs">
+                        <span style={{ color: "rgba(255,255,255,0.45)" }}>Artist&apos;s starting price</span>
+                        <span className="font-semibold text-white">₹{(artist.price || 0).toLocaleString("en-IN")}</span>
+                      </div>
+                      <div className="flex items-center justify-between text-xs">
+                        <span style={{ color: "rgba(255,255,255,0.45)" }}>
+                          Floating frame · {sizeLabel(sizeW, sizeH)}{frame.exact ? "" : " (approx.)"}
+                        </span>
+                        <span className="font-semibold text-white">₹{frame.price.toLocaleString("en-IN")}</span>
+                      </div>
+                      <div className="flex items-center justify-between text-sm pt-1">
+                        <span className="font-semibold" style={{ color: "rgba(255,255,255,0.7)" }}>Estimated from</span>
+                        <span className="font-bold" style={{ color: "#10B981" }}>₹{(estimate ?? 0).toLocaleString("en-IN")}</span>
+                      </div>
+                      {!isListed && (
+                        <p className="text-[11px]" style={{ color: "rgba(255,255,255,0.3)" }}>
+                          Custom size — the artist will confirm the final price in their proposal.
+                        </p>
+                      )}
+                      <button
+                        onClick={() => setBudget(String(estimate ?? ""))}
+                        className="self-start text-[11px] font-semibold px-3 py-1.5 rounded-lg transition-all hover:opacity-80"
+                        style={{ background: "rgba(124,91,245,0.15)", color: "#9B7CF5", border: "1px solid rgba(124,91,245,0.3)" }}
+                      >
+                        Use as my budget
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                {/* How it'd look on a wall at that size */}
+                {sizeW && sizeH && (
+                  <WallPreview imageUrl={heroImg} dimensions={`${sizeW} x ${sizeH} in`} />
+                )}
+              </div>
+            );
+          })()}
 
           {/* REFERENCES */}
           <div className="flex flex-col gap-3">

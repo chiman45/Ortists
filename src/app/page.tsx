@@ -173,8 +173,8 @@ export default function LandingPage() {
             </Link>
             <Link
               href="/gallery"
-              className="px-6 py-3 rounded-full text-[13px] font-bold tracking-[0.02em] transition-all duration-200 hover:scale-[1.03] hover:bg-white/10"
-              style={{ border: "1px solid rgba(255,255,255,0.3)", color: "#fff" }}
+              className="px-6 py-3 rounded-full text-[13px] font-bold tracking-[0.02em] transition-all duration-200 hover:scale-[1.03]"
+              style={{ background: "#2563EB", color: "#fff" }}
             >
               Explore &amp; Buy Art
             </Link>

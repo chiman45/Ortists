@@ -215,7 +215,7 @@ export default function FeatureHighlight() {
           badge="Portfolio"
           heading="Showcase your art"
           headingAccent="to thousands."
-          description="Your gallery is your brand. Ortist gives every artist a beautiful, auto-organised masonry portfolio that buyers and collectors actively browse every day."
+          description="Your gallery is your brand. Ortists gives every artist a beautiful, auto-organised masonry portfolio that buyers and collectors actively browse every day."
           bullets={[
             "Auto-arranged masonry layout — no design work needed",
             "Tags, captions, and categories for maximum discovery",
@@ -235,7 +235,7 @@ export default function FeatureHighlight() {
           badge="Commissions"
           heading="Turn your art"
           headingAccent="into income."
-          description="Clients discover your work, send a brief, and you agree on scope and price — all inside Ortist. No third-party platforms, no lost messages."
+          description="Clients discover your work, send a brief, and you agree on scope and price — all inside Ortists. No third-party platforms, no lost messages."
           bullets={[
             "Structured commission requests with budget ranges",
             "Built-in messaging thread per project",

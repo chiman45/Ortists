@@ -42,7 +42,7 @@ export default function BottomNav() {
 
   return (
     <nav
-      className="lg:hidden fixed bottom-0 left-0 right-0 z-50 flex items-center justify-around px-3 py-2"
+      className="lg:hidden fixed bottom-0 left-0 right-0 z-50 flex items-center justify-between px-2 py-2"
       style={{
         background: "var(--bg-nav)",
         backdropFilter: "blur(28px)",
@@ -57,7 +57,7 @@ export default function BottomNav() {
           <Link
             key={href}
             href={href}
-            className="relative flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-xl transition-colors"
+            className="relative flex-1 min-w-0 flex flex-col items-center gap-0.5 px-1 py-1.5 rounded-xl transition-colors"
             style={{ color: active ? "#9B7CF5" : "var(--text-4)" }}
           >
             <div className="relative">
@@ -72,7 +72,7 @@ export default function BottomNav() {
       {/* Centre add button */}
       <Link
         href="/upload"
-        className="flex items-center justify-center w-12 h-12 rounded-2xl -mt-4 transition-all hover:scale-[1.06] active:scale-95"
+        className="shrink-0 mx-1 flex items-center justify-center w-12 h-12 rounded-2xl -mt-4 transition-all hover:scale-[1.06] active:scale-95"
         style={{
           background: "linear-gradient(135deg, #361E7B, #7C5BF5)",
           boxShadow: "0 0 22px rgba(54,30,123,0.60)",
@@ -89,7 +89,7 @@ export default function BottomNav() {
           <Link
             key={href}
             href={href}
-            className="relative flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-xl transition-colors"
+            className="relative flex-1 min-w-0 flex flex-col items-center gap-0.5 px-1 py-1.5 rounded-xl transition-colors"
             style={{ color: active ? "#9B7CF5" : "var(--text-4)" }}
           >
             <div className="relative">

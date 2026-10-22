@@ -1242,7 +1242,7 @@ export default function ProfilePage() {
       {shareOpen && (
         <ShareModal
           url={shareUrl}
-          title={`${profile?.display_name ?? profile?.username ?? "Artist"} on Ortist`}
+          title={`${profile?.display_name ?? profile?.username ?? "Artist"} on Ortists`}
           onClose={() => setShareOpen(false)}
         />
       )}

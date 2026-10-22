@@ -183,7 +183,7 @@ export default function FeedPostPage({ params }: { params: Promise<{ id: string 
           amount: priceNum * 100,
           currency: "INR",
           order_id,
-          name: "Ortist",
+          name: "Ortists",
           description: title || "Artwork purchase",
           image: "/logo.jpeg",
           // Phone-signup users have no email; Razorpay accepts either/both.

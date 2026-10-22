@@ -3,13 +3,14 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import ProfileSync from "@/components/layout/ProfileSync";
+import PhoneGate from "@/components/layout/PhoneGate";
 import { ClerkProvider } from "@clerk/nextjs";
 import { Toaster } from "sonner";
 
 const inter = Inter({ subsets: ["latin"], display: "swap" });
 
 export const metadata: Metadata = {
-  title: "Ortist — Designer Community",
+  title: "Ortists — Designer Community",
   description: "A social platform for designers to share work and get hired",
   icons: {
     icon: "/login-image/ortists-badge.png",
@@ -29,6 +30,7 @@ export default function RootLayout({
         <body className={`${inter.className} min-h-full`}>
           <ThemeProvider>
             <ProfileSync />
+            <PhoneGate />
             {children}
             <Toaster richColors position="top-right" closeButton />
           </ThemeProvider>

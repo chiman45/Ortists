@@ -16,9 +16,10 @@ export default function ProfileSync() {
         display_name: user.fullName ?? user.firstName ?? "Artist",
         username:     user.username ?? user.id.slice(0, 12),
         avatar_url:   user.imageUrl,
-        // Verified in Clerk via SMS OTP for phone signups; seeds profiles.phone
-        // so checkout/delivery never has to ask for it again.
-        phone:        user.primaryPhoneNumber?.phoneNumber ?? user.phoneNumbers[0]?.phoneNumber ?? null,
+        // Entered on our sign-up form (stored in Clerk unsafeMetadata), then
+        // kept on profiles.phone — unique per account. PhoneGate asks anyone
+        // who still has none (e.g. Google sign-ups). Login stays email-only.
+        phone:        (user.unsafeMetadata as { phone?: string } | undefined)?.phone ?? null,
       }),
     });
   }, [user, isLoaded]);

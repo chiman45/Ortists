@@ -58,7 +58,7 @@ export default function AuthPromptModal({ onClose }: Props) {
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src="/login-image/ortists-badge.png"
-            alt="Ortist"
+            alt="Ortists"
             className="w-14 h-14 object-contain mb-3"
             style={{ filter: "drop-shadow(0 0 12px rgba(124,91,245,0.5))" }}
           />

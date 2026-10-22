@@ -22,6 +22,7 @@ const PUBLIC_PREFIXES = [
   "/u/",       // public artist profile pages
   "/gallery",  // marketplace browsing (listings + detail pages) — guests can browse; auth only required to buy
   "/api/ratings", // public artwork ratings shown on marketplace listings
+  "/api/profile/phone", // phone-availability check during sign-up (no session yet)
   "/terms",
   "/privacy",
   "/refund",

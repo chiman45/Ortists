@@ -118,7 +118,7 @@ const ARTIST_BROWSE = [
   { label: "New Talent",       href: "/hiring?filter=new",         Icon: Sparkles,   color: "#06B6D4", desc: "Newly joined artists" },
   { label: "Top Rated",        href: "/hiring?filter=top",         Icon: Star,       color: "#10B981", desc: "Highest community ratings" },
   { label: "Commissions Open", href: "/hiring?filter=commissions", Icon: Briefcase,  color: "#F43F5E", desc: "Ready to take your project" },
-  { label: "Featured Artists", href: "/hiring?filter=featured",    Icon: Award,      color: "#8B5CF6", desc: "Curated by Ortist team" },
+  { label: "Featured Artists", href: "/hiring?filter=featured",    Icon: Award,      color: "#8B5CF6", desc: "Curated by Ortists team" },
 ] as const;
 
 const ARTIST_STYLES = [

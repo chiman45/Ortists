@@ -30,7 +30,7 @@ const VALUES = [
   {
     label: "Community",
     color: GOLD,
-    desc: "Great art doesn't happen in isolation. Ortist connects artists with collectors, collaborators, and clients worldwide.",
+    desc: "Great art doesn't happen in isolation. Ortists connects artists with collectors, collaborators, and clients worldwide.",
     icon: "M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zm13 10v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75",
   },
   {
@@ -136,7 +136,7 @@ export default function AboutPage() {
             className="text-[18px] leading-[1.85]"
             style={{ color: "rgba(255,255,255,0.48)", maxWidth: 480 }}
           >
-            Ortist was born from a simple frustration — talented creators with no platform worthy of their work. We built the one we always wished existed.
+            Ortists was born from a simple frustration — talented creators with no platform worthy of their work. We built the one we always wished existed.
           </p>
         </div>
       </section>
@@ -170,10 +170,10 @@ export default function AboutPage() {
               A Platform That<br />Respects the Craft
             </h2>
             <p className="text-[17px] leading-[1.85] mb-6" style={{ color: MUTED }}>
-              Too many platforms treat art as content. We treat it as craft. Ortist is designed to give every creator the tools, audience, and income they deserve — without algorithmic noise drowning out the work.
+              Too many platforms treat art as content. We treat it as craft. Ortists is designed to give every creator the tools, audience, and income they deserve — without algorithmic noise drowning out the work.
             </p>
             <p className="text-[17px] leading-[1.85]" style={{ color: MUTED }}>
-              From painters to photographers, illustrators to sculptors — if you make things, Ortist was built for you.
+              From painters to photographers, illustrators to sculptors — if you make things, Ortists was built for you.
             </p>
           </RevealFade>
         </div>
@@ -354,7 +354,7 @@ export default function AboutPage() {
               <em style={{ color: ACCENT, fontStyle: "italic" }}>a real home.</em>
             </h2>
             <p className="text-[17px] leading-[1.85] mb-12" style={{ color: MUTED }}>
-              Join 12,400+ artists already building their presence on Ortist.
+              Join 12,400+ artists already building their presence on Ortists.
             </p>
             <div className="flex items-center justify-center gap-4 flex-wrap">
               <Link
@@ -402,8 +402,8 @@ export default function AboutPage() {
               <div className="col-span-2 md:col-span-1">
                 <div className="flex items-center gap-2.5 mb-4">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src="/login-image/ortists-badge.png" alt="Ortist" className="w-7 h-7 rounded-md object-cover" />
-                  <span className="font-bold text-white text-[15px]">Ortist</span>
+                  <img src="/login-image/ortists-badge.png" alt="Ortists" className="w-7 h-7 rounded-md object-cover" />
+                  <span className="font-bold text-white text-[15px]">Ortists</span>
                 </div>
                 <p className="text-[13px] leading-relaxed" style={{ color: MUTED, maxWidth: 220 }}>
                   A creative ecosystem for artists to showcase, connect, and thrive.
@@ -450,7 +450,7 @@ export default function AboutPage() {
             style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}
           >
             <p className="text-xs" style={{ color: "rgba(255,255,255,0.22)" }}>
-              © {new Date().getFullYear()} Ortist. All rights reserved.
+              © {new Date().getFullYear()} Ortists. All rights reserved.
             </p>
             <p className="text-xs" style={{ color: "rgba(255,255,255,0.22)" }}>
               Built for creators, by creators.

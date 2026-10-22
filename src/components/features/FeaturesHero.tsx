@@ -88,7 +88,7 @@ export default function FeaturesHero() {
         {/* Sub */}
         <FadeLine delay={0.55}>
           <p className="text-lg leading-relaxed max-w-2xl mx-auto" style={{ color: "var(--text-4)" }}>
-            Ortist gives you a full creative career toolkit — from portfolio to commissions, Gallery to messaging — all in one beautifully dark canvas.
+            Ortists gives you a full creative career toolkit — from portfolio to commissions, Gallery to messaging — all in one beautifully dark canvas.
           </p>
         </FadeLine>
       </div>

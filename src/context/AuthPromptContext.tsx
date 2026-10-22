@@ -78,7 +78,7 @@ function LoginPromptModal({ onClose }: { onClose: () => void }) {
           >
             <Image
               src="/logo.jpeg"
-              alt="Ortist"
+              alt="Ortists"
               width={80}
               height={80}
               className="w-full h-full object-cover"
@@ -90,7 +90,7 @@ function LoginPromptModal({ onClose }: { onClose: () => void }) {
             className="text-2xl font-bold text-center mb-1"
             style={{ color: "#fff", letterSpacing: "-0.02em" }}
           >
-            Welcome to Ortist
+            Welcome to Ortists
           </p>
           <p className="text-sm text-center mb-7 leading-snug" style={{ color: "rgba(255,255,255,0.45)" }}>
             The creative space for artists and art lovers.

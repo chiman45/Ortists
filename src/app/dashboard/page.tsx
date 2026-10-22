@@ -102,7 +102,7 @@ export default function DashboardPage() {
             <h1 className="text-xl font-bold" style={{ color: "var(--text-1)" }}>
               Hi, {firstName} 👋
             </h1>
-            <p className="text-sm" style={{ color: "var(--text-6)" }}>Welcome back to Ortist ✨</p>
+            <p className="text-sm" style={{ color: "var(--text-6)" }}>Welcome back to Ortists ✨</p>
           </div>
           <div className="flex items-center gap-1 sm:gap-2">
             <button
