@@ -1,4 +1,5 @@
 import { GalleryListing, FeaturedArtist } from "./types";
+import { withPlatformFee } from "./pricing";
 
 export const GALLERY_CATEGORIES = [
   "All", "Oil Painting", "Digital Art", "Typography",
@@ -100,7 +101,7 @@ export const GalleryListings: GalleryListing[] = ARTWORK_TITLES.map((title, i) =
     artistName:     artist.name,
     artistLocation: artist.loc,
     avatar:         artist.avatar,
-    price:          PRICES[i],
+    price:          withPlatformFee(PRICES[i]), // PRICES are artist prices; buyers see fee-inclusive
     currency:       "₹",
     category:       CATEGORIES[i],
     medium:         MEDIUMS[i],

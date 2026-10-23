@@ -5,6 +5,7 @@ import MainHeader from "@/components/layout/MainHeader";
 import Sidebar from "@/components/layout/Sidebar";
 import HireModal from "@/components/hire/HireModal";
 import { ARTISTS } from "@/lib/hiringData";
+import { withPlatformFee } from "@/lib/pricing";
 import { Heart, Bookmark, MapPin, MessageCircle, Star, Users, TrendingUp, Clock, UserPlus } from "lucide-react";
 import Link from "next/link";
 import { use, useState } from "react";
@@ -221,7 +222,7 @@ export default function ArtistProfilePage({ params }: { params: Promise<{ id: st
                 </p>
               </div>
               {[
-                { label: "Starting from:", value: `₹${artist.price.toLocaleString()}` },
+                { label: "Starting from:", value: `₹${withPlatformFee(artist.price).toLocaleString()}` },
                 { label: "Response time:", value: "Within 24 hours" },
                 { label: "Location:",      value: artist.location },
               ].map(({ label, value }) => (
@@ -277,7 +278,7 @@ export default function ArtistProfilePage({ params }: { params: Promise<{ id: st
               className="w-full py-3 rounded-2xl text-sm font-bold text-white transition-opacity hover:opacity-85"
               style={{ background: "linear-gradient(135deg,#361E7B,#7C5BF5)", boxShadow: "0 4px 20px rgba(124,91,245,0.35)" }}
             >
-              Hire {artist.name.split(" ")[0]} · ₹{artist.price.toLocaleString()}
+              Hire {artist.name.split(" ")[0]} · ₹{withPlatformFee(artist.price).toLocaleString()}
             </button>
           </div>
 

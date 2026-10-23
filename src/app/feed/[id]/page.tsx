@@ -30,6 +30,7 @@ function loadRazorpayScript(): Promise<boolean> {
 import MasonryGrid from "@/components/feed/MasonryGrid";
 import ArtworkViewer from "@/components/ui/ArtworkViewer";
 import WallPreview from "@/components/ui/WallPreview";
+import { buyerPriceAmount, buyerPriceLabel } from "@/lib/pricing";
 import { firstImage } from "@/lib/imageUrl";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -162,7 +163,8 @@ export default function FeedPostPage({ params }: { params: Promise<{ id: string 
       } catch { /* not JSON */ }
     }
     if (!currentDescPrice) return;
-    const priceNum = parseInt(currentDescPrice.replace(/[^0-9]/g, ""), 10);
+    // Charge the buyer-facing amount (artist price + platform fee)
+    const priceNum = buyerPriceAmount(currentDescPrice) ?? 0;
     if (!priceNum || priceNum < 1) { setPayError("Invalid price."); return; }
     setPayError(null);
     setPaying(true);
@@ -429,7 +431,7 @@ export default function FeedPostPage({ params }: { params: Promise<{ id: string 
                       {descPrice && (
                         <div className="flex flex-col gap-2">
                           <div className="flex items-baseline gap-1.5">
-                            <span className="text-2xl font-bold" style={{ color: "#9B7CF5" }}>{descPrice}</span>
+                            <span className="text-2xl font-bold" style={{ color: "#9B7CF5" }}>{buyerPriceLabel(descPrice) ?? descPrice}</span>
                             {descDimensions && (
                               <span className="text-xs" style={{ color: "var(--text-5)" }}>· {descDimensions}</span>
                             )}

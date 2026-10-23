@@ -74,6 +74,11 @@ export async function POST(req: NextRequest) {
       project_title:       body.project_title,
       project_description: body.project_description ?? null,
       budget:              body.budget ?? null,
+      // Canvas size + framing choice (migration 015); NULL when the client didn't pick a size
+      canvas_width_in:     body.canvas_width_in ?? null,
+      canvas_height_in:    body.canvas_height_in ?? null,
+      with_frame:          typeof body.with_frame === "boolean" ? body.with_frame : null,
+      frame_price:         body.frame_price ?? null,
       deadline:            body.deadline ?? null,
       status:              "pending",
       progress:            0,

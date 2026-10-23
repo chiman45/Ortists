@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
+import { withPlatformFee } from "@/lib/pricing";
 import { Suspense, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
@@ -61,8 +62,11 @@ interface ArtistProfile {
 
 // ── Helpers ───────────────────────────────────────────────────
 
+// Client-facing starting price: the artist's base price with the platform fee
+// already included (see lib/pricing.ts) — never shown as a separate line.
 function estimatePrice(a: ArtistProfile): number {
-  return Math.round((80 + a.rating * 60 + Math.min(a.followers_count, 5000) * 0.02) / 10) * 10;
+  const artistBase = Math.round((80 + a.rating * 60 + Math.min(a.followers_count, 5000) * 0.02) / 10) * 10;
+  return withPlatformFee(artistBase);
 }
 
 function parseLocation(loc: string | null): { city: string; country: string } {
@@ -1232,11 +1236,16 @@ function HiringPageInner() {
   const searchParams = useSearchParams();
   const hireQueryKey = searchParams.toString();
   const [appliedHireQueryKey, setAppliedHireQueryKey] = useState<string | null>(null);
+  // Deep link from a feed post's Hire button: /hiring?hire=<artist clerk id>.
+  // Resolved to an ArtistProfile once the artist list has loaded (below).
+  const [pendingHireId, setPendingHireId] = useState<string | null>(null);
   if (hireQueryKey !== appliedHireQueryKey) {
     setAppliedHireQueryKey(hireQueryKey);
     const qCategory = searchParams.get("category");
     const qSearch   = searchParams.get("search");
     const qStyle    = searchParams.get("style");
+    const qHire     = searchParams.get("hire");
+    if (qHire) setPendingHireId(qHire);
     if (qCategory) {
       const match = MAIN_CATEGORIES.find(c => c.toLowerCase() === qCategory.toLowerCase());
       setActiveCategory(match ?? qCategory);
@@ -1256,6 +1265,14 @@ function HiringPageInner() {
       .then(({ profiles }: { profiles: ArtistProfile[] }) => { setArtists(profiles ?? []); setLoadingArtists(false); })
       .catch(() => setLoadingArtists(false));
   }, []);
+
+  // Open the commission form for a deep-linked artist as soon as profiles arrive
+  // (render-time adjustment, same pattern as the query sync above).
+  if (pendingHireId && !loadingArtists) {
+    const linked = artists.find(a => a.clerk_id === pendingHireId);
+    setPendingHireId(null);
+    if (linked && linked.clerk_id !== user?.id) setHireTarget(linked);
+  }
 
   const categories = ["All", ...Array.from(new Set(artists.map(a => a.tag).filter(Boolean))).sort()];
 

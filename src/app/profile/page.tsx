@@ -7,6 +7,7 @@ import ProfileSkeleton from "@/components/ui/skeletons/ProfileSkeleton";
 import { type Post as DbPost } from "@/lib/db/posts";
 import { type Profile } from "@/lib/db/profiles";
 import PostModal from "@/components/ui/PostModal";
+import SizePricingEditor from "@/components/profile/SizePricingEditor";
 import ShareModal from "@/components/ui/ShareModal";
 import { useUser } from "@clerk/nextjs";
 import {
@@ -39,6 +40,7 @@ interface EditForm {
   tag: string;
   available: boolean;
   response_time: string;
+  size_prices: Record<string, number>;
 }
 
 type EditSection = "Basic Info" | "Portfolio" | "Services" | "Availability" | "Pricing" | "Preferences";
@@ -79,7 +81,7 @@ export default function ProfilePage() {
   const [editSection, setEditSection]   = useState<EditSection>("Basic Info");
   const [editForm, setEditForm]         = useState<EditForm>({
     display_name: "", username: "", bio: "", location: "",
-    tag: "Artist", available: true, response_time: "Within 24 hours",
+    tag: "Artist", available: true, response_time: "Within 24 hours", size_prices: {},
   });
   const [openPostModal, setOpenPostModal] = useState<DbPost | null>(null);
   const [postMenu, setPostMenu]           = useState<string | null>(null);
@@ -153,6 +155,7 @@ export default function ProfilePage() {
       tag:           profile?.tag ?? "Artist",
       available:     profile?.available ?? true,
       response_time: profile?.response_time ?? "Within 24 hours",
+      size_prices:   profile?.size_prices ?? {},
     });
     setAvatarPreview(null);
     setBannerPreview(null);
@@ -215,6 +218,7 @@ export default function ProfilePage() {
           tag:           editForm.tag,
           available:     editForm.available,
           response_time: editForm.response_time,
+          size_prices:   editForm.size_prices,
           ...(avatarPreview ? { avatar_url: avatarPreview } : {}),
           ...(bannerPreview ? { banner_url: bannerPreview } : {}),
         }),
@@ -1198,8 +1202,16 @@ export default function ProfilePage() {
                   </div>
                 )}
 
+                {/* ── Pricing: artist sets a price per canvas size ── */}
+                {editSection === "Pricing" && (
+                  <SizePricingEditor
+                    value={editForm.size_prices}
+                    onChange={next => setEditForm(f => ({ ...f, size_prices: next }))}
+                  />
+                )}
+
                 {/* ── Other sections placeholder ── */}
-                {(editSection === "Portfolio" || editSection === "Pricing" || editSection === "Preferences") && (
+                {(editSection === "Portfolio" || editSection === "Preferences") && (
                   <div className="flex flex-col items-center justify-center py-16 gap-3">
                     <div className="w-14 h-14 rounded-2xl flex items-center justify-center"
                       style={{ background: "rgba(124,91,245,0.1)", border: "1px solid rgba(124,91,245,0.2)" }}>

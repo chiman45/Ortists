@@ -49,25 +49,6 @@ const APPEARANCE = {
   },
 };
 
-const ART_IMAGES = [
-  "https://picsum.photos/seed/art1/600/600",
-  "https://picsum.photos/seed/art2/600/600",
-  "https://picsum.photos/seed/art3/600/600",
-  "https://picsum.photos/seed/art4/600/600",
-  "https://picsum.photos/seed/art5/600/600",
-  "https://picsum.photos/seed/art6/600/600",
-  "https://picsum.photos/seed/art7/600/600",
-  "https://picsum.photos/seed/art8/600/600",
-  "https://picsum.photos/seed/art9/600/600",
-  "https://picsum.photos/seed/art10/600/600",
-  "https://picsum.photos/seed/art11/600/600",
-  "https://picsum.photos/seed/art12/600/600",
-  "https://picsum.photos/seed/art13/600/600",
-  "https://picsum.photos/seed/art14/600/600",
-  "https://picsum.photos/seed/art15/600/600",
-  "https://picsum.photos/seed/art16/600/600",
-];
-
 // useSearchParams() (used below to read ?mode=signup) requires a Suspense
 // boundary, or `next build` fails prerendering this page entirely.
 export default function LoginPage() {
@@ -100,7 +81,7 @@ function LoginPageInner() {
 
       {/* ── Left: Auth panel ── */}
       <div
-        className="flex flex-col w-full lg:w-110 shrink-0 items-center justify-center px-6 py-10 overflow-y-auto gap-5"
+        className="flex flex-col w-full items-center justify-center px-6 py-10 overflow-y-auto gap-5"
         style={{ background: "#151515" }}
       >
         {/* Brand */}
@@ -157,26 +138,6 @@ function LoginPageInner() {
         </div>
       </div>
 
-      {/* ── Right: art grid ── */}
-      <div
-        className="hidden lg:grid flex-1"
-        style={{
-          gridTemplateColumns: "repeat(4, 1fr)",
-          gridTemplateRows: "repeat(4, 1fr)",
-          gap: 3,
-          height: "100dvh",
-        }}
-      >
-        {ART_IMAGES.map((src, i) => (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            key={i}
-            src={src}
-            alt=""
-            style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
-          />
-        ))}
-      </div>
     </div>
   );
 }

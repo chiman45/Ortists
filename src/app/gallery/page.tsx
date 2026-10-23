@@ -10,6 +10,7 @@ import {
 import type { GalleryListing } from "@/lib/types";
 import { Search, SlidersHorizontal, Star, ChevronRight, ArrowRight, Heart } from "lucide-react";
 import { parseImageUrls } from "@/lib/imageUrl";
+import { buyerPriceLabel } from "@/lib/pricing";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
@@ -136,7 +137,8 @@ function ArtworkCard({ item, className = "" }: { item: GalleryListing; className
 function CommunityCard({ post }: { post: RealPost }) {
   const urls  = parseImageUrls(post.image_url);
   const cover = urls[0] ?? "";
-  const { price } = parsePostPrice(post.description);
+  // Buyer-facing price (artist price + platform fee, fee never itemised)
+  const price = buyerPriceLabel(parsePostPrice(post.description).price);
   return (
     <Link href={`/feed/${post.id}`} className="group block">
       <div className="relative overflow-hidden rounded-xl" style={{ aspectRatio: "3/4" }}>

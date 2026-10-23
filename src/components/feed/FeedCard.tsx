@@ -4,7 +4,7 @@ import { Post } from "@/lib/types";
 import { type Post as DbPost } from "@/lib/db/posts";
 import Avatar from "@/components/ui/Avatar";
 import AuthPromptModal from "@/components/ui/AuthPromptModal";
-import { Heart, MessageCircle } from "lucide-react";
+import { Briefcase, Heart, MessageCircle } from "lucide-react";
 import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 import { useUser } from "@clerk/nextjs";
@@ -231,6 +231,23 @@ export default function FeedCard({ post, dbPost, priority = false }: FeedCardPro
           <MessageCircle size={13} />
           <span>{post.comments}</span>
         </div>
+        {/* Hire this artist straight from the feed (hidden on your own posts) */}
+        {post.userId && !isOwn && (
+          <button
+            onClick={e => {
+              e.preventDefault();
+              e.stopPropagation();
+              if (!user) { setPromptOpen(true); return; }
+              router.push(`/hiring?hire=${encodeURIComponent(post.userId)}`);
+            }}
+            className="flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold text-white shrink-0 transition-all hover:opacity-90 active:scale-95"
+            style={{ background: "linear-gradient(135deg,#361E7B,#7C5BF5)" }}
+            title={`Hire ${post.username}`}
+          >
+            <Briefcase size={11} />
+            Hire
+          </button>
+        )}
       </div>
     </div>
 

@@ -327,3 +327,13 @@ html.ocean .skeleton-shimmer {
   .profile-btn-inline { display: flex !important; align-items: center; gap: 0.5rem; margin-left: auto; }
   .profile-btn-row    { display: none !important; }
 }
+
+/* Native <select> dropdown lists don't inherit the control's colours: browsers
+   paint the popup white while the text inherits the theme's light colour,
+   leaving options invisible (white-on-white). Give every option the theme's
+   solid background + text colour so dropdowns are readable in all themes. */
+select option,
+select optgroup {
+  background-color: var(--bg);
+  color: var(--text-1);
+}

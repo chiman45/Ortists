@@ -18,9 +18,10 @@ import { useUser } from "@clerk/nextjs";
 function PurchaseModal({ item, onClose }: { item: GalleryListing; onClose: () => void }) {
   const router  = useRouter();
 
+  // item.price already includes the platform fee (see galleryData) — it's never
+  // shown as its own line.
   const sym     = "₹";
   const artwork = item.price;
-  const fee     = Math.round(artwork * 0.05);
 
   function goToCheckout() {
     const params = new URLSearchParams({
@@ -86,7 +87,6 @@ function PurchaseModal({ item, onClose }: { item: GalleryListing; onClose: () =>
           <div className="flex flex-col">
             {[
               { label: "Artwork",          val: `${sym}${artwork.toLocaleString()}` },
-              { label: "Platform fee (5%)", val: `${sym}${fee}` },
               ...(item.physical ? [{ label: "Delivery", val: "Calculated at checkout" }] : []),
             ].map(row => (
               <div key={row.label} className="flex justify-between py-3 text-sm" style={{ borderBottom: "1px solid rgba(255,255,255,0.07)", color: "rgba(255,255,255,0.55)" }}>

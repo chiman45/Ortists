@@ -12,6 +12,8 @@ export interface Profile {
   tag: string;
   available: boolean;
   response_time: string;
+  /** Artist's price per canvas size, keyed "shape:WxH" (see lib/canvasSizes). */
+  size_prices?: Record<string, number> | null;
   followers_count: number;
   following_count: number;
   total_likes: number;

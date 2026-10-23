@@ -3,6 +3,7 @@
 import { type Post as DbPost } from "@/lib/db/posts";
 import { Bookmark, Check, Heart, Pencil, RotateCcw, X, ZoomIn, ZoomOut } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { buyerPriceLabel } from "@/lib/pricing";
 
 const isVideoUrl = (u: string) => /\.(mp4|webm|mov|avi|mkv|ogv)(\?|$)/i.test(u);
 
@@ -485,8 +486,11 @@ export default function PostModal({ post: initialPost, isOwner, ownerId, current
             {/* Price / Dimensions — gallery posts only */}
             {!editing && (parsedDesc.price || parsedDesc.dimensions) && (
               <div className="flex items-center gap-2 flex-wrap">
+                {/* The artist sees their own price; everyone else sees it with the platform fee included */}
                 {parsedDesc.price && (
-                  <span className="text-lg font-bold" style={{ color: "#9B7CF5" }}>{parsedDesc.price}</span>
+                  <span className="text-lg font-bold" style={{ color: "#9B7CF5" }}>
+                    {isOwner ? parsedDesc.price : (buyerPriceLabel(parsedDesc.price) ?? parsedDesc.price)}
+                  </span>
                 )}
                 {parsedDesc.dimensions && (
                   <span className="text-xs" style={{ color: "var(--text-5)" }}>{parsedDesc.dimensions}</span>
