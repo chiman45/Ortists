@@ -24,6 +24,7 @@ const PUBLIC_PREFIXES = [
   "/api/ratings", // public artwork ratings shown on marketplace listings
   "/api/profile/phone", // phone-availability check during sign-up (no session yet)
   "/terms",
+  "/artist-platform-terms",
   "/privacy",
   "/refund",
   "/shipping",

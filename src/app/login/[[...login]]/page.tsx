@@ -130,7 +130,7 @@ function LoginPageInner() {
             />
           ) : pathname?.endsWith("/sso-callback") ? (
             // Returning from Google during sign-up (see SignUpForm.google)
-            <AuthenticateWithRedirectCallback signUpForceRedirectUrl="/feed" signInForceRedirectUrl="/feed" />
+            <AuthenticateWithRedirectCallback signUpForceRedirectUrl="/welcome" signInForceRedirectUrl="/feed" />
           ) : (
             // Email + phone + password on one form (Clerk's prebuilt <SignUp> has no phone field)
             <SignUpForm />

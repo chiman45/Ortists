@@ -89,7 +89,8 @@ export default function SignUpForm() {
       if (signUp.status === "complete") {
         const done = await signUp.finalize();
         if (done.error) { setError(msg(done.error, "Could not sign you in. Please try logging in.")); return; }
-        router.push("/feed");
+        // Agreements come next, on their own screen (/welcome)
+        router.push("/welcome");
       } else {
         setError("Verification isn't complete yet — please check the code and try again.");
       }
@@ -105,7 +106,7 @@ export default function SignUpForm() {
     setError(null);
     const res = await signUp.sso({
       strategy: "oauth_google",
-      redirectUrl: "/feed",
+      redirectUrl: "/welcome",
       redirectCallbackUrl: "/login/sso-callback?mode=signup",
     });
     if (res.error) setError(msg(res.error, "Google sign-up failed. Please try again."));
@@ -159,6 +160,7 @@ export default function SignUpForm() {
         <h2 className="text-lg font-bold text-white">Create your account</h2>
         <p className="text-sm mt-1" style={{ color: "rgba(255,255,255,0.45)" }}>Welcome! Please fill in the details to get started.</p>
       </div>
+
 
       <button
         onClick={google}

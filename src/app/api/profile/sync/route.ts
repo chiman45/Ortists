@@ -5,7 +5,11 @@ import { NextRequest, NextResponse } from "next/server";
 // POST /api/profile/sync — create or sync basic clerk data
 export async function POST(req: NextRequest) {
   const body = await req.json();
-  const { clerk_id, display_name, username, avatar_url, phone } = body;
+  const { clerk_id, display_name, username, avatar_url, phone, role, agreement_version, agreements_accepted_at } = body;
+  // Consent recorded at sign-up (only trusted shapes are stored)
+  const consent = (role === "artist" || role === "client") && typeof agreement_version === "string"
+    ? { role, agreement_version, agreements_accepted_at: agreements_accepted_at ?? new Date().toISOString() }
+    : null;
 
   if (!clerk_id) {
     return NextResponse.json({ error: "clerk_id required" }, { status: 400 });
@@ -26,7 +30,7 @@ export async function POST(req: NextRequest) {
 
   const { data: existing } = await adminDb
     .from("profiles")
-    .select("clerk_id, phone")
+    .select("clerk_id, phone, agreement_version")
     .eq("clerk_id", clerk_id)
     .maybeSingle();
 
@@ -36,11 +40,14 @@ export async function POST(req: NextRequest) {
     if (safePhone && !existing.phone) {
       await adminDb.from("profiles").update({ phone: safePhone }).eq("clerk_id", clerk_id);
     }
+    if (consent && !existing.agreement_version) {
+      await adminDb.from("profiles").update(consent).eq("clerk_id", clerk_id);
+    }
   } else {
     // First time: seed all fields from Clerk
     await adminDb
       .from("profiles")
-      .insert({ clerk_id, display_name, username, avatar_url, phone: safePhone });
+      .insert({ clerk_id, display_name, username, avatar_url, phone: safePhone, ...(consent ?? {}) });
   }
 
   const { data: profile } = await adminDb

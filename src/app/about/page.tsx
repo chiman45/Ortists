@@ -123,20 +123,20 @@ export default function AboutPage() {
 
         <div className="relative z-10 w-full max-w-[1440px] mx-auto px-8 md:px-14 lg:px-20 pb-28 md:pb-40">
           <p className="text-[11px] font-semibold tracking-[0.32em] uppercase mb-7" style={{ color: GOLD }}>
-            ✦ &nbsp;Our Story
+            ✦ &nbsp;About ORTISTS
           </p>
           <h1
             className={`${playfair.className} mb-8 leading-[1.05]`}
             style={{ fontSize: "clamp(48px, 7vw, 96px)", fontWeight: 700, maxWidth: 820 }}
           >
-            Built for Artists.<br />
-            <em style={{ color: ACCENT, fontStyle: "italic" }}>By Artists.</em>
+            A Platform for Artists,<br />
+            <em style={{ color: ACCENT, fontStyle: "italic" }}>Art Lovers and Original Art</em>
           </h1>
           <p
             className="text-[18px] leading-[1.85]"
             style={{ color: "rgba(255,255,255,0.48)", maxWidth: 480 }}
           >
-            Ortists was born from a simple frustration — talented creators with no platform worthy of their work. We built the one we always wished existed.
+            ORTISTS is a platform created to bring artists and art lovers closer together. We believe every artist has a story to tell through their art, and every artist deserves an opportunity to share their work with the world.
           </p>
         </div>
       </section>
@@ -167,13 +167,52 @@ export default function AboutPage() {
               className={`${playfair.className} mb-8 leading-[1.08]`}
               style={{ fontSize: "clamp(34px, 4.2vw, 58px)", fontWeight: 700 }}
             >
-              A Platform That<br />Respects the Craft
+              Recognised, Hired<br />and Earning
             </h2>
             <p className="text-[17px] leading-[1.85] mb-6" style={{ color: MUTED }}>
-              Too many platforms treat art as content. We treat it as craft. Ortists is designed to give every creator the tools, audience, and income they deserve — without algorithmic noise drowning out the work.
+              Through ORTISTS, artists can showcase their portfolios, sell their original artwork, and receive opportunities to work on commissioned projects. Art lovers and clients can discover artists, hire them for custom artwork, and buy original handmade art.
+            </p>
+            <p className="text-[17px] leading-[1.85] mb-6" style={{ color: MUTED }}>
+              Our aim is to make it easier for artists to get recognised, find work and earn through their creativity, while helping people discover art that connects with them. We want artists to spend more time doing what they love — creating art — while ORTISTS helps them connect with opportunities.
             </p>
             <p className="text-[17px] leading-[1.85]" style={{ color: MUTED }}>
-              From painters to photographers, illustrators to sculptors — if you make things, Ortists was built for you.
+              Our vision is simple: to give art and artists a place to grow, connect and reach the world.
+            </p>
+          </RevealFade>
+        </div>
+      </section>
+
+      <Divider />
+
+      {/* ADVISORY PANEL + PROMISE */}
+      <section className="py-28 md:py-36 px-8 md:px-14 lg:px-20">
+        <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-16 lg:gap-24">
+          <RevealFade>
+            <p className="text-[11px] font-semibold tracking-[0.26em] uppercase mb-6" style={{ color: GOLD }}>
+              Our Artist Advisory Panel
+            </p>
+            <h2 className={`${playfair.className} mb-8 leading-[1.08]`} style={{ fontSize: "clamp(30px, 3.6vw, 48px)", fontWeight: 700 }}>
+              Built with artists
+            </h2>
+            <p className="text-[17px] leading-[1.85] mb-6" style={{ color: MUTED }}>
+              Artists are at the heart of ORTISTS. We believe a platform built for artists should also learn from artists.
+            </p>
+            <p className="text-[17px] leading-[1.85] mb-6" style={{ color: MUTED }}>
+              Our Artist Advisory Panel will bring together experienced artists who can share their knowledge, perspectives and guidance to help ORTISTS grow in the right direction.
+            </p>
+            <p className="text-[17px] leading-[1.85]" style={{ color: MUTED }}>
+              Their insights will help us better understand artists&apos; needs and build a platform that respects creativity, supports opportunities and celebrates original art.
+            </p>
+          </RevealFade>
+          <RevealFade delay={0.18}>
+            <p className="text-[11px] font-semibold tracking-[0.26em] uppercase mb-6" style={{ color: ACCENT }}>
+              Our Promise
+            </p>
+            <h2 className={`${playfair.className} mb-8 leading-[1.08]`} style={{ fontSize: "clamp(30px, 3.6vw, 48px)", fontWeight: 700 }}>
+              With artists, for artists
+            </h2>
+            <p className="text-[17px] leading-[1.85]" style={{ color: MUTED }}>
+              We are building ORTISTS with artists, for artists — with the goal of making art more accessible and creating meaningful opportunities for the creative community.
             </p>
           </RevealFade>
         </div>

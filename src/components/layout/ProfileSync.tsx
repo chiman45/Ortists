@@ -20,6 +20,10 @@ export default function ProfileSync() {
         // kept on profiles.phone — unique per account. PhoneGate asks anyone
         // who still has none (e.g. Google sign-ups). Login stays email-only.
         phone:        (user.unsafeMetadata as { phone?: string } | undefined)?.phone ?? null,
+        // Role + agreement acceptance captured on the sign-up form
+        role:                   (user.unsafeMetadata as { role?: string })?.role ?? null,
+        agreement_version:      (user.unsafeMetadata as { agreementVersion?: string })?.agreementVersion ?? null,
+        agreements_accepted_at: (user.unsafeMetadata as { agreementsAcceptedAt?: string })?.agreementsAcceptedAt ?? null,
       }),
     });
   }, [user, isLoaded]);

@@ -2,25 +2,34 @@
 
 import { useUser } from "@clerk/nextjs";
 import { Phone } from "lucide-react";
+import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { AGREEMENT_VERSION } from "@/lib/agreements";
+
+// Pages where the gate must not interrupt: the agreements screen itself,
+// auth, and the legal documents people open from it.
+const EXEMPT = ["/welcome", "/login", "/sign-in", "/sign-up", "/terms", "/client-agreement", "/artists-agreement", "/artist-platform-terms", "/privacy"];
 
 /**
- * Required phone number on signup — our own field, not Clerk's.
- *
- * Clerk handles email + password (and that's the only way to log in); the
- * phone is stored on `profiles.phone`, unique per account (migration 014).
- * This gate shows a blocking modal to any signed-in user whose profile has no
- * phone yet, so every account — artist or client — ends up with one.
+ * Account-completion gate, run on every page after login:
+ *  - Agreements not accepted (current AGREEMENT_VERSION) → send to the
+ *    full-screen /welcome agreements step. Covers Google sign-ups, older
+ *    accounts, and everyone again whenever the documents change.
+ *  - No phone number (our own field, unique per account) → ask for it here.
  */
 export default function PhoneGate() {
   const { user, isLoaded } = useUser();
+  const pathname = usePathname() ?? "";
+  const router = useRouter();
+  const exempt = EXEMPT.some(p => pathname === p || pathname.startsWith(p + "/"));
+
   const [needsPhone, setNeedsPhone] = useState(false);
-  const [phone, setPhone]     = useState("");
-  const [saving, setSaving]   = useState(false);
-  const [error, setError]     = useState<string | null>(null);
+  const [phone, setPhone]   = useState("");
+  const [saving, setSaving] = useState(false);
+  const [error, setError]   = useState<string | null>(null);
 
   useEffect(() => {
-    if (!isLoaded || !user) return;
+    if (!isLoaded || !user || exempt) return;
     let cancelled = false;
     // ProfileSync creates the row on first login; wait for it before checking.
     const check = () =>
@@ -29,14 +38,15 @@ export default function PhoneGate() {
         .then(({ profile }) => {
           if (cancelled) return;
           if (!profile) { setTimeout(check, 1500); return; }
+          if (profile.agreement_version !== AGREEMENT_VERSION) { router.replace("/welcome"); return; }
           setNeedsPhone(!profile.phone);
         })
         .catch(() => {});
     check();
     return () => { cancelled = true; };
-  }, [isLoaded, user]);
+  }, [isLoaded, user, exempt, router]);
 
-  if (!needsPhone || !user) return null;
+  if (!needsPhone || !user || exempt) return null;
 
   async function save() {
     const trimmed = phone.trim();
@@ -61,12 +71,12 @@ export default function PhoneGate() {
 
   return (
     <div
-      className="fixed inset-0 z-[80] flex items-center justify-center p-4"
+      className="fixed inset-0 z-80 flex items-center justify-center p-4"
       style={{ background: "rgba(0,0,0,0.75)", backdropFilter: "blur(8px)" }}
     >
       <div
         className="w-full rounded-2xl p-7"
-        style={{ maxWidth: 400, background: "var(--bg-card)", border: "1px solid var(--border)", boxShadow: "0 24px 64px rgba(0,0,0,0.5)" }}
+        style={{ maxWidth: 400, background: "var(--bg)", border: "1px solid var(--border)", boxShadow: "0 24px 64px rgba(0,0,0,0.5)" }}
       >
         <div className="flex items-center gap-3 mb-2">
           <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: "rgba(124,91,245,0.15)" }}>
