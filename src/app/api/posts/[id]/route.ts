@@ -40,7 +40,8 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
     adminDb.from("comments").delete().eq("post_id", id),
   ]);
 
-  await adminDb.from("posts").delete().eq("id", id);
+  const { error } = await adminDb.from("posts").delete().eq("id", id);
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ ok: true });
 }
 

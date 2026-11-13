@@ -279,7 +279,12 @@ export default function ProfilePage() {
   async function handleDeletePost(id: string) {
     if (!user) return;
     setDeleting(true);
-    await fetch(`/api/posts/${id}?userId=${user.id}`, { method: "DELETE" }).catch(() => {});
+    const res = await fetch(`/api/posts/${id}?userId=${user.id}`, { method: "DELETE" }).catch(() => null);
+    if (!res?.ok) {
+      setDeleting(false);
+      window.alert("Couldn't delete this post — please try again.");
+      return;
+    }
     setDbPosts(posts => posts.filter(p => p.id !== id));
     setDeleteConfirm(null);
     setDeleting(false);
@@ -482,7 +487,8 @@ export default function ProfilePage() {
                         {/* Three-dot menu */}
                         <button
                           onClick={e => { e.stopPropagation(); setPostMenu(menuOpen ? null : post.id); }}
-                          className="absolute top-2 right-2 w-7 h-7 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity z-10"
+                          className="absolute top-2 right-2 w-7 h-7 rounded-full flex items-center justify-center opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity z-10"
+                          aria-label="Post options"
                           style={{ background: "rgba(0,0,0,0.65)", backdropFilter: "blur(8px)" }}
                         >
                           <MoreVertical size={13} color="#fff" />
@@ -771,7 +777,8 @@ export default function ProfilePage() {
                         {/* Three-dot menu */}
                         <button
                           onClick={e => { e.stopPropagation(); setPostMenu(menuOpen ? null : post.id); }}
-                          className="absolute top-2 right-2 w-7 h-7 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity z-10"
+                          className="absolute top-2 right-2 w-7 h-7 rounded-full flex items-center justify-center opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity z-10"
+                          aria-label="Post options"
                           style={{ background: "rgba(0,0,0,0.65)", backdropFilter: "blur(8px)" }}
                         >
                           <MoreVertical size={13} color="#fff" />
