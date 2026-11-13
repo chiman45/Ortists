@@ -1,8 +1,8 @@
 "use client";
 
-import { useUser } from "@clerk/nextjs";
+import { useClerk, useUser } from "@clerk/nextjs";
 import { useNotifications } from "@/hooks/useNotifications";
-import { Bell, CheckCheck, Settings, X } from "lucide-react";
+import { Bell, CheckCheck, LogOut, Settings, X } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 
@@ -121,6 +121,7 @@ function NotifIcon({ n }: { n: Notification }) {
 
 export default function MainHeader({ children }: { children?: React.ReactNode }) {
   const { user }            = useUser();
+  const { signOut }         = useClerk();
   const [open, setOpen]     = useState(false);
   const [tab, setTab]       = useState<Tab>("all");
   const [notifs, setNotifs] = useState<Notification[]>([]);
@@ -193,6 +194,19 @@ export default function MainHeader({ children }: { children?: React.ReactNode })
         >
           <Settings size={19} strokeWidth={1.8} />
         </Link>
+
+        {/* Logout beside Settings — on mobile the sidebar (and its account menu) is hidden */}
+        {user && (
+          <button
+            onClick={() => { if (window.confirm("Log out of Ortists?")) signOut({ redirectUrl: "/login" }); }}
+            className="p-2 rounded-xl transition-opacity hover:opacity-70 flex"
+            style={{ background: "var(--bg-subtle)", color: "var(--text-icon)" }}
+            aria-label="Log out"
+            title="Log out"
+          >
+            <LogOut size={19} strokeWidth={1.8} />
+          </button>
+        )}
 
         <div className="relative" ref={ref}>
           <button

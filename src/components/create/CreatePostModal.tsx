@@ -8,6 +8,7 @@ import { useUser } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
 import { Playfair_Display } from "next/font/google";
 import { useCallback, useRef, useState } from "react";
+import { uploadMedia } from "@/lib/uploadMedia";
 
 // Same editorial serif the landing page uses — warmer than the gradient display text
 const playfair = Playfair_Display({ subsets: ["latin"], weight: ["600", "700"], display: "swap" });
@@ -158,6 +159,7 @@ export default function CreatePostModal({ onClose }: Props) {
   const [galleryFiles, setGalleryFiles] = useState<File[]>([]);
   const [galleryUrls, setGalleryUrls]   = useState<string[]>([]);
   const [publishing, setPublishing]   = useState(false);
+  const [publishError, setPublishError] = useState<string | null>(null);
   // Preview step: which image is showing, and whether the full-post overlay is open
   const [previewIdx, setPreviewIdx]   = useState(0);
   const [fullPreview, setFullPreview] = useState(false);
@@ -954,6 +956,13 @@ export default function CreatePostModal({ onClose }: Props) {
           </div>
         )}
 
+        {publishError && step === STEPS.length - 1 && (
+          <div className="mx-8 mb-0 mt-2 px-4 py-2.5 rounded-xl text-xs shrink-0" role="alert"
+            style={{ background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.35)", color: "#F87171" }}>
+            Couldn&apos;t publish: {publishError}
+          </div>
+        )}
+
         {/* Footer nav */}
         <div className="flex items-center gap-3 px-8 py-5 shrink-0" style={{ borderTop: "1px solid var(--border)" }}>
           {step > 0 ? (
@@ -980,21 +989,17 @@ export default function CreatePostModal({ onClose }: Props) {
                 style={{ background: "#7C5BF5" }}
                 disabled={publishing}
                 onClick={async () => {
-                  if (!user) return;
+                  if (!user) { setPublishError("You're signed out — please log in again."); return; }
                   const isGallery = type === "gallery";
-                  if (!imageFile) return;
+                  if (!imageFile) { setPublishError("Please add an image first."); return; }
                   setPublishing(true);
+                  setPublishError(null);
                   try {
                     let finalImageUrl = imageUrl ?? "";
 
-                    async function uploadFile(file: File): Promise<string> {
-                      const form = new FormData();
-                      form.append("file", file);
-                      form.append("bucket", "post-media");
-                      const res = await fetch("/api/upload", { method: "POST", body: form });
-                      const { url } = await res.json();
-                      return url as string;
-                    }
+                    // Direct-to-storage upload: big phone photos used to exceed the
+                    // server's body limit here and the post failed silently.
+                    const uploadFile = (file: File) => uploadMedia(file, "post-media");
 
                     if (isVideo && imageFile) {
                       // Videos stored as plain URL (not JSON array)
@@ -1039,9 +1044,13 @@ export default function CreatePostModal({ onClose }: Props) {
                         allow_downloads: isGallery ? false : downloads,
                       }),
                     });
-                    const { post: created } = await res.json();
+                    const data = await res.json().catch(() => ({}));
+                    if (!res.ok || !data.post) throw new Error(data.error ?? `Could not save your post (${res.status}).`);
+                    const created = data.post;
                     onClose();
                     if (created?.id) router.push(`/feed/${created.id}`);
+                  } catch (err) {
+                    setPublishError(err instanceof Error ? err.message : "Something went wrong — please try again.");
                   } finally {
                     setPublishing(false);
                   }
@@ -1051,6 +1060,15 @@ export default function CreatePostModal({ onClose }: Props) {
               </button>
             </div>
           ) : (
+            <>
+            {!canContinue && step === 2 && (
+              // Say why Continue is disabled — artists were getting stuck here
+              <p className="text-[11px] ml-auto text-right" style={{ color: "var(--text-5)" }}>
+                {type === "gallery"
+                  ? (!title.trim() ? "Add a title to continue" : "Add a price to continue")
+                  : "Write a caption to continue"}
+              </p>
+            )}
             <button
               onClick={() => canContinue && setStep(s => s + 1)}
               disabled={!canContinue}
@@ -1059,6 +1077,7 @@ export default function CreatePostModal({ onClose }: Props) {
             >
               Continue <ArrowRight size={14} />
             </button>
+            </>
           )}
         </div>
       </div>
