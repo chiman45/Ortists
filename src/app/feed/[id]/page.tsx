@@ -89,16 +89,21 @@ export default function FeedPostPage({ params }: { params: Promise<{ id: string 
             });
           });
 
-        // Related posts (fire and forget)
-        if (p.category) {
-          fetch(`/api/posts?category=${encodeURIComponent(p.category)}&limit=9`)
-            .then(r => r.json())
-            .then(({ posts: rp }: { posts: Post[] }) => {
-              setRelatedPosts((rp ?? [])
-                .filter((rp: Post) => rp.id !== id)
-                .slice(0, 8));
-            }).catch(() => {});
-        }
+        // Related posts, loaded once (no endless loading on this page — it kept
+        // firing when the phone keyboard opened and showed a loader under the image).
+        // Same category first, topped up with the latest posts if there are few.
+        const sameCat = p.category
+          ? fetch(`/api/posts?category=${encodeURIComponent(p.category)}&limit=24`).then(r => r.json()).then(d => (d.posts ?? []) as Post[])
+          : Promise.resolve([] as Post[]);
+        sameCat.then(async list => {
+          let more = list.filter(rp => rp.id !== id);
+          if (more.length < 8) {
+            const latest: Post[] = await fetch(`/api/posts?limit=24`).then(r => r.json()).then(d => d.posts ?? []);
+            const seen = new Set(more.map(rp => rp.id));
+            more = [...more, ...latest.filter(rp => rp.id !== id && !seen.has(rp.id))];
+          }
+          setRelatedPosts(more.slice(0, 24));
+        }).catch(() => {});
       }
       setComments(commentData.comments ?? []);
       setLoading(false);
@@ -583,7 +588,7 @@ export default function FeedPostPage({ params }: { params: Promise<{ id: string 
                     <h2 className="text-base font-bold" style={{ color: "var(--text-1)" }}>More like this</h2>
                     <Link href="/feed" className="text-sm font-semibold transition-opacity hover:opacity-70" style={{ color: "#9B7CF5" }}>Browse all →</Link>
                   </div>
-                  <MasonryGrid posts={relatedPosts} loadFromDb={true} category={cat ?? undefined} columns="columns-2" />
+                  <MasonryGrid posts={relatedPosts} loadFromDb={false} category={cat ?? undefined} columns="columns-2" />
                 </div>
 
               </div>{/* end row */}
@@ -594,7 +599,7 @@ export default function FeedPostPage({ params }: { params: Promise<{ id: string 
                   <h2 className="text-base font-bold" style={{ color: "var(--text-1)" }}>More like this</h2>
                   <Link href="/feed" className="text-sm font-semibold transition-opacity hover:opacity-70" style={{ color: "#9B7CF5" }}>Browse all →</Link>
                 </div>
-                <MasonryGrid posts={relatedPosts} loadFromDb={true} category={cat ?? undefined} columns="columns-2 sm:columns-3" />
+                <MasonryGrid posts={relatedPosts} loadFromDb={false} category={cat ?? undefined} columns="columns-2 sm:columns-3" />
               </div>
 
             </div>{/* end px wrapper */}
