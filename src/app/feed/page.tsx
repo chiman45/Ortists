@@ -97,17 +97,17 @@ export default function FeedPage() {
     fetch("/api/posts?limit=48&offset=0")
       .then(r => r.json())
       .then(({ posts }: { posts: Post[] }) => {
-        const arr = posts ?? [];
-        // Fisher-Yates shuffle so order differs on every visit
-        for (let i = arr.length - 1; i > 0; i--) {
-          const j = Math.floor(Math.random() * (i + 1));
-          [arr[i], arr[j]] = [arr[j], arr[i]];
-        }
-        setDbPosts(arr);
+        // API already returns newest first — keep that order so new work shows at the top
+        setDbPosts(posts ?? []);
         setLoading(false);
       })
       .catch(() => setLoading(false));
   }, [query]);
+
+  // Latest = newest first (API order); Popular = most liked, ties broken by newest
+  const shownPosts = activeTab === "Popular"
+    ? [...dbPosts].sort((a, b) => (b.likes_count ?? 0) - (a.likes_count ?? 0))
+    : dbPosts;
 
   // Search
   useEffect(() => {
@@ -183,7 +183,7 @@ export default function FeedPage() {
             <FeedGridSkeleton count={12} />
           ) : (
             <MasonryGrid
-              posts={loading ? [] : dbPosts}
+              posts={loading ? [] : shownPosts}
               category={null}
               loadFromDb={true}
             />
