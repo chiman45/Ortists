@@ -11,6 +11,7 @@ import { useUser } from "@clerk/nextjs";
 import { ArrowLeft, Bookmark, Check, Heart, Loader2, MessageCircle, Send, Share2, ShoppingBag, UserPlus } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import AuthPromptModal from "@/components/ui/AuthPromptModal";
 import { use, useEffect, useRef, useState } from "react";
 
 // ── Razorpay ──────────────────────────────────────────────────────
@@ -56,6 +57,8 @@ export default function FeedPostPage({ params }: { params: Promise<{ id: string 
   const [payError, setPayError]       = useState<string | null>(null);
   const [relatedPosts, setRelatedPosts] = useState<Post[]>([]);
   const [shared, setShared]           = useState(false);
+  const [likePending, setLikePending] = useState(false);
+  const [authPrompt, setAuthPrompt]   = useState(false); // guest tried to like/comment/etc.
   const commentInputRef               = useRef<HTMLInputElement>(null);
 
   const mockPost = allPosts.find(p => p.id === id) ?? allPosts[0];
@@ -138,19 +141,34 @@ export default function FeedPostPage({ params }: { params: Promise<{ id: string 
   }
 
   async function handleLike() {
-    if (!user || !isUUID) { setLiked(l => !l); setLikeCount(c => liked ? Math.max(0, c - 1) : c + 1); return; }
-    const action = liked ? "unlike" : "like";
-    setLiked(!liked);
-    setLikeCount(c => liked ? Math.max(0, c - 1) : c + 1);
-    await fetch(`/api/posts/${id}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action, userId: user.id }),
-    });
+    if (!isUUID) { setLiked(l => !l); setLikeCount(c => liked ? Math.max(0, c - 1) : c + 1); return; }
+    if (!user) { setAuthPrompt(true); return; }
+    if (likePending) return; // ignore double taps while the last one is saving
+    const wasLiked = liked;
+    setLikePending(true);
+    setLiked(!wasLiked);
+    setLikeCount(c => wasLiked ? Math.max(0, c - 1) : c + 1);
+    try {
+      const res = await fetch(`/api/posts/${id}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: wasLiked ? "unlike" : "like", userId: user.id }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error);
+      if (typeof data.likes_count === "number") setLikeCount(data.likes_count);
+    } catch {
+      // Didn't save — put the heart back how it was
+      setLiked(wasLiked);
+      setLikeCount(c => wasLiked ? c + 1 : Math.max(0, c - 1));
+    } finally {
+      setLikePending(false);
+    }
   }
 
   async function handleSave() {
-    if (!user || !isUUID) { setSaved(s => !s); return; }
+    if (!isUUID) { setSaved(s => !s); return; }
+    if (!user) { setAuthPrompt(true); return; }
     const action = saved ? "unsave" : "save";
     setSaved(!saved);
     await fetch(`/api/posts/${id}`, {
@@ -161,7 +179,8 @@ export default function FeedPostPage({ params }: { params: Promise<{ id: string 
   }
 
   async function handleFollow() {
-    if (!user || !post?.user_id) return;
+    if (!user) { setAuthPrompt(true); return; }
+    if (!post?.user_id) return;
     const wasFollowing = following;
     setFollowing(!wasFollowing);
     const res = await fetch("/api/follows", {
@@ -173,6 +192,7 @@ export default function FeedPostPage({ params }: { params: Promise<{ id: string 
   }
 
   async function handleBuyNow() {
+    if (!user) { setAuthPrompt(true); return; }
     if (paying) return;
     let currentDescPrice: string | null = null;
     if (post?.description) {
@@ -237,6 +257,7 @@ export default function FeedPostPage({ params }: { params: Promise<{ id: string 
 
   async function submitComment() {
     if (!commentText.trim()) return;
+    if (isUUID && !user) { setAuthPrompt(true); return; }
     if (!isUUID || !user) {
       setComments(prev => [{
         id: String(Date.now()), user_id: user?.id ?? "anon",
@@ -585,6 +606,7 @@ export default function FeedPostPage({ params }: { params: Promise<{ id: string 
       {viewerOpen && (
         <ArtworkViewer src={img} alt={title} onClose={() => setViewerOpen(false)} />
       )}
+      {authPrompt && <AuthPromptModal onClose={() => setAuthPrompt(false)} />}
     </div>
   );
 }

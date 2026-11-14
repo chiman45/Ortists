@@ -86,21 +86,31 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     .eq("id", id)
     .single();
 
+  // Recount from the likes table instead of +1/-1, so double taps and
+  // races can never leave the shown number out of step with real likes.
+  async function syncLikeCount() {
+    const { count } = await adminDb
+      .from("likes").select("user_id", { count: "exact", head: true }).eq("post_id", id);
+    const likes_count = count ?? 0;
+    await adminDb.from("posts").update({ likes_count }).eq("id", id);
+    return likes_count;
+  }
+
   if (action === "like") {
     // Guard: skip if already liked (prevents duplicate rows)
     const { data: existing } = await adminDb
       .from("likes").select("user_id").eq("post_id", id).eq("user_id", userId).maybeSingle();
-    if (existing) return NextResponse.json({ ok: true });
+    if (existing) return NextResponse.json({ ok: true, liked: true, likes_count: await syncLikeCount() });
 
-    await adminDb.from("likes").insert({ post_id: id, user_id: userId });
+    const { error: likeErr } = await adminDb.from("likes").insert({ post_id: id, user_id: userId });
+    if (likeErr) return NextResponse.json({ error: likeErr.message }, { status: 500 });
+    const likes_count = await syncLikeCount();
+
     if (post) {
-      await Promise.all([
-        adminDb.from("posts").update({ likes_count: post.likes_count + 1 }).eq("id", id),
-        adminDb.from("user_interactions").insert({
-          user_id: userId, post_id: id, action_type: "like",
-          category: post.category ?? null, tags: post.tags ?? [],
-        }),
-      ]);
+      await adminDb.from("user_interactions").insert({
+        user_id: userId, post_id: id, action_type: "like",
+        category: post.category ?? null, tags: post.tags ?? [],
+      });
     }
     // Notify post owner (not self-likes)
     if (post?.user_id && post.user_id !== userId) {
@@ -116,17 +126,18 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         post_id:      id,
       });
     }
+    return NextResponse.json({ ok: true, liked: true, likes_count });
   } else if (action === "unlike") {
-    await adminDb.from("likes").delete().eq("post_id", id).eq("user_id", userId);
-    if (post) {
-      await adminDb.from("posts").update({ likes_count: Math.max(0, post.likes_count - 1) }).eq("id", id);
-    }
+    const { error: unlikeErr } = await adminDb.from("likes").delete().eq("post_id", id).eq("user_id", userId);
+    if (unlikeErr) return NextResponse.json({ error: unlikeErr.message }, { status: 500 });
+    const likes_count = await syncLikeCount();
     // Remove the interaction record on unlike
     await adminDb.from("user_interactions")
       .delete()
       .eq("user_id", userId)
       .eq("post_id", id)
       .eq("action_type", "like");
+    return NextResponse.json({ ok: true, liked: false, likes_count });
   } else if (action === "save") {
     await adminDb.from("saves").insert({ post_id: id, user_id: userId });
     if (post) {

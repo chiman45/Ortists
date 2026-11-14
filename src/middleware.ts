@@ -20,6 +20,7 @@ const PUBLIC_PREFIXES = [
   "/sign-in",  // Clerk default redirect target
   "/sign-up",  // Clerk default redirect target
   "/u/",       // public artist profile pages
+  "/feed/",    // single post pages — shared links open without login
   "/gallery",  // marketplace browsing (listings + detail pages) — guests can browse; auth only required to buy
   "/api/ratings", // public artwork ratings shown on marketplace listings
   "/api/profile/phone", // phone-availability check during sign-up (no session yet)
@@ -32,15 +33,25 @@ const PUBLIC_PREFIXES = [
   "/client-agreement",
 ];
 
-function isPublic(pathname: string): boolean {
+// Read-only APIs a guest needs to view a shared post or profile.
+// Only GET is public here — liking, commenting, following etc. still need login.
+const PUBLIC_GET_PREFIXES = [
+  "/api/posts/",     // single post
+  "/api/comments",   // comments on a post
+  "/api/follows",    // follower counts / lists
+  "/api/search",
+];
+
+function isPublic(pathname: string, method: string): boolean {
   if (PUBLIC_EXACT.has(pathname)) return true;
+  if (method === "GET" && PUBLIC_GET_PREFIXES.some(p => pathname.startsWith(p))) return true;
   return PUBLIC_PREFIXES.some(p => pathname.startsWith(p));
 }
 
 export default clerkMiddleware(async (auth, request: NextRequest) => {
   const { pathname } = request.nextUrl;
 
-  if (isPublic(pathname)) {
+  if (isPublic(pathname, request.method)) {
     return updateSession(request);
   }
 

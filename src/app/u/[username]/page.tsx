@@ -11,7 +11,7 @@ import { useUser } from "@clerk/nextjs";
 import { ArrowLeft, Bookmark, Briefcase, Heart, MapPin, Star, Users, UserPlus, TrendingUp, X } from "lucide-react";
 import Link from "next/link";
 import { use, useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import AuthPromptModal from "@/components/ui/AuthPromptModal";
 import { firstImage } from "@/lib/imageUrl";
 
 const isVideoUrl = (u: string) => /\.(mp4|webm|mov|avi|mkv|ogv)(\?|$)/i.test(u);
@@ -29,9 +29,9 @@ export default function UserProfilePage({ params }: { params: Promise<{ username
   // Decode %40 → @ then strip leading @ so /u/@Piyush and /u/%40Piyush both resolve correctly
   const username = decodeURIComponent(rawUsername).replace(/^@+/, "");
   const { user } = useUser();
-  const router = useRouter();
 
   const [profile, setProfile]         = useState<Profile | null>(null);
+  const [authPrompt, setAuthPrompt]   = useState(false); // guest tried to follow/hire
   const [posts, setPosts]             = useState<DbPost[]>([]);
   const [following, setFollowing]     = useState(false);
   const [loading, setLoading]         = useState(true);
@@ -83,7 +83,8 @@ export default function UserProfilePage({ params }: { params: Promise<{ username
   }
 
   async function handleFollow() {
-    if (!user || !profile || followPending) return;
+    if (!user) { setAuthPrompt(true); return; }
+    if (!profile || followPending) return;
     setFollowPending(true);
     const wasFollowing = following;
     // Optimistic update
@@ -117,7 +118,7 @@ export default function UserProfilePage({ params }: { params: Promise<{ username
   }
 
   function handleHire() {
-    if (!user) { router.push("/login?redirect=" + encodeURIComponent(`/u/${username}`)); return; }
+    if (!user) { setAuthPrompt(true); return; }
     setHireOpen(true);
   }
 
@@ -555,6 +556,7 @@ export default function UserProfilePage({ params }: { params: Promise<{ username
           </div>
         </div>
       )}
+    {authPrompt && <AuthPromptModal onClose={() => setAuthPrompt(false)} />}
     </div>
   );
 }

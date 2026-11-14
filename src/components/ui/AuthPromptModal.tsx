@@ -20,12 +20,12 @@ export default function AuthPromptModal({ onClose }: Props) {
 
   function handleSignIn() {
     onClose();
-    openSignIn({ forceRedirectUrl: "/feed" });
+    openSignIn({ forceRedirectUrl: window.location.pathname + window.location.search });
   }
 
   function handleSignUp() {
     onClose();
-    openSignUp({ forceRedirectUrl: "/feed" });
+    openSignUp({ forceRedirectUrl: window.location.pathname + window.location.search });
   }
 
   return (

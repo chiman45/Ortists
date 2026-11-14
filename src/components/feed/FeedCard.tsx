@@ -51,7 +51,7 @@ export default function FeedCard({ post, dbPost, priority = false }: FeedCardPro
 
   function handleCardClick(e: React.MouseEvent) {
     if ((e.target as HTMLElement).closest("button")) return;
-    if (!user) { setPromptOpen(true); return; }
+    // Guests can look at posts; login is asked only when they like, comment, etc.
     router.push(`/feed/${post.id}`);
   }
 
@@ -61,24 +61,25 @@ export default function FeedCard({ post, dbPost, priority = false }: FeedCardPro
     if (!user) { setPromptOpen(true); return; }
     if (!isUUID(post.id) || pending) return;
     setPending(true);
-    if (liked) {
-      setLiked(false);
-      setCount(c => Math.max(0, c - 1));
-      await fetch(`/api/posts/${post.id}`, {
+    const wasLiked = liked;
+    setLiked(!wasLiked);
+    setCount(c => wasLiked ? Math.max(0, c - 1) : c + 1);
+    try {
+      const res = await fetch(`/api/posts/${post.id}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "unlike", userId: user.id }),
+        body: JSON.stringify({ action: wasLiked ? "unlike" : "like", userId: user.id }),
       });
-    } else {
-      setLiked(true);
-      setCount(c => c + 1);
-      await fetch(`/api/posts/${post.id}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "like", userId: user.id }),
-      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error);
+      if (typeof data.likes_count === "number") setCount(data.likes_count);
+    } catch {
+      // Didn't save — put the heart back how it was
+      setLiked(wasLiked);
+      setCount(c => wasLiked ? c + 1 : Math.max(0, c - 1));
+    } finally {
+      setPending(false);
     }
-    setPending(false);
   }
 
   return (

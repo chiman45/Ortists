@@ -131,11 +131,14 @@ export default function PostModal({ post: initialPost, isOwner, ownerId, current
     setPost(p => ({ ...p, likes_count: p.likes_count + (wasLiked ? -1 : 1) }));
     setActionPending(true);
     try {
-      await fetch(`/api/posts/${post.id}`, {
+      const res = await fetch(`/api/posts/${post.id}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: wasLiked ? "unlike" : "like", userId: currentUserId }),
       });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error);
+      if (typeof data.likes_count === "number") setPost(p => ({ ...p, likes_count: data.likes_count }));
     } catch {
       setLiked(wasLiked);
       setPost(p => ({ ...p, likes_count: p.likes_count + (wasLiked ? 1 : -1) }));
