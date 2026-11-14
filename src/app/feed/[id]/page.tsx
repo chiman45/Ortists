@@ -8,10 +8,10 @@ import { type Comment } from "@/lib/db/comments";
 import { type Post } from "@/lib/db/posts";
 import { allPosts } from "@/lib/mockData";
 import { useUser } from "@clerk/nextjs";
-import { ArrowLeft, Bookmark, Heart, Loader2, MessageCircle, Send, Share2, ShoppingBag, UserPlus } from "lucide-react";
+import { ArrowLeft, Bookmark, Check, Heart, Loader2, MessageCircle, Send, Share2, ShoppingBag, UserPlus } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { use, useEffect, useState } from "react";
+import { use, useEffect, useRef, useState } from "react";
 
 // ── Razorpay ──────────────────────────────────────────────────────
 // Loaded from the CDN at runtime; no bundled type declarations, so we
@@ -55,6 +55,8 @@ export default function FeedPostPage({ params }: { params: Promise<{ id: string 
   const [payDone, setPayDone]         = useState(false);
   const [payError, setPayError]       = useState<string | null>(null);
   const [relatedPosts, setRelatedPosts] = useState<Post[]>([]);
+  const [shared, setShared]           = useState(false);
+  const commentInputRef               = useRef<HTMLInputElement>(null);
 
   const mockPost = allPosts.find(p => p.id === id) ?? allPosts[0];
   const related  = allPosts.filter(p => p.id !== mockPost.id && p.category === mockPost.category).slice(0, 8);
@@ -117,6 +119,23 @@ export default function FeedPostPage({ params }: { params: Promise<{ id: string 
       .then(r => r.json())
       .then(({ following: f }) => setFollowing(f));
   }, [user, post?.user_id, isUUID]);
+
+  // Native share sheet on phones (WhatsApp, Instagram…); copy link elsewhere
+  async function handleShare() {
+    const url = window.location.href;
+    const title = post?.title || "Artwork on Ortists";
+    try {
+      if (navigator.share) {
+        await navigator.share({ title, text: author ? `${title} by ${author.name}` : title, url });
+      } else {
+        await navigator.clipboard.writeText(url);
+        setShared(true);
+        setTimeout(() => setShared(false), 2000);
+      }
+    } catch {
+      // user closed the share sheet — nothing to do
+    }
+  }
 
   async function handleLike() {
     if (!user || !isUUID) { setLiked(l => !l); setLikeCount(c => liked ? Math.max(0, c - 1) : c + 1); return; }
@@ -345,13 +364,26 @@ export default function FeedPostPage({ params }: { params: Promise<{ id: string 
                         <Heart size={15} fill={liked ? "#f43f5e" : "none"} stroke={liked ? "#f43f5e" : "currentColor"} />
                         {likeCount}
                       </button>
-                      <button className="w-9 h-9 rounded-full flex items-center justify-center transition-all hover:opacity-70"
+                      <button
+                        onClick={() => {
+                          commentInputRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+                          commentInputRef.current?.focus({ preventScroll: true });
+                        }}
+                        aria-label="Comment" title="Comment"
+                        className="w-9 h-9 rounded-full flex items-center justify-center transition-all hover:opacity-70"
                         style={{ background: "var(--bg-subtle)", border: "1px solid var(--border)", color: "var(--text-3)" }}>
                         <MessageCircle size={15} />
                       </button>
-                      <button className="w-9 h-9 rounded-full flex items-center justify-center transition-all hover:opacity-70"
-                        style={{ background: "var(--bg-subtle)", border: "1px solid var(--border)", color: "var(--text-3)" }}>
-                        <Share2 size={15} />
+                      <button
+                        onClick={handleShare}
+                        aria-label="Share" title={shared ? "Link copied!" : "Share"}
+                        className="w-9 h-9 rounded-full flex items-center justify-center transition-all hover:opacity-70"
+                        style={{
+                          background: shared ? "rgba(16,185,129,0.12)" : "var(--bg-subtle)",
+                          border: `1px solid ${shared ? "rgba(16,185,129,0.3)" : "var(--border)"}`,
+                          color: shared ? "#10B981" : "var(--text-3)",
+                        }}>
+                        {shared ? <Check size={15} /> : <Share2 size={15} />}
                       </button>
                       <div className="flex-1" />
                       {/* Save */}
@@ -479,6 +511,7 @@ export default function FeedPostPage({ params }: { params: Promise<{ id: string 
                             <img src={user.imageUrl} alt="you" className="w-7 h-7 rounded-full object-cover shrink-0" />
                           )}
                           <input
+                            ref={commentInputRef}
                             value={commentText}
                             onChange={e => setCommentText(e.target.value)}
                             onKeyDown={e => e.key === "Enter" && submitComment()}
