@@ -1,6 +1,5 @@
 import { adminDb } from "@/utils/supabase/admin";
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@clerk/nextjs/server";
 
 // Characters allowed in search: letters, numbers, spaces, hyphens, underscores, dots, @
 const ALLOWED_RE = /^[\w\s\-_.@#]{1,100}$/;
@@ -28,12 +27,7 @@ function sanitize(input: string | null): string | null {
 
 // GET /api/search?q=&type=posts|accounts|all
 export async function GET(req: NextRequest) {
-  // Require authentication
-  const { userId } = await auth();
-  if (!userId) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
+  // Open to guests: shared-link visitors can explore. Only public fields are returned.
   const { searchParams } = new URL(req.url);
   const raw  = searchParams.get("q");
   const type = searchParams.get("type") ?? "all"; // "posts" | "accounts" | "all"

@@ -1,5 +1,24 @@
 import { adminDb } from "@/utils/supabase/admin";
 import { NextRequest, NextResponse } from "next/server";
+import { DEFAULT_REACTION, isReaction, reactionMeta, type ReactionCounts } from "@/lib/reactions";
+
+// Until migration 018 adds likes.reaction, fall back to plain likes.
+const missingReactionCol = (e: { message?: string } | null) => !!e && /reaction/i.test(e.message ?? "");
+
+/** Reaction totals for a post, e.g. { like: 4, funny: 1 }. */
+async function reactionCounts(postId: string): Promise<ReactionCounts> {
+  const { data, error } = await adminDb.from("likes").select("reaction").eq("post_id", postId);
+  if (error) {
+    const { count } = await adminDb.from("likes").select("user_id", { count: "exact", head: true }).eq("post_id", postId);
+    return count ? { like: count } : {};
+  }
+  const out: ReactionCounts = {};
+  for (const r of data ?? []) {
+    const k = isReaction(r.reaction) ? r.reaction : DEFAULT_REACTION;
+    out[k] = (out[k] ?? 0) + 1;
+  }
+  return out;
+}
 
 // PATCH /api/posts/[id] — owner-only edit (title, description, category)
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -59,23 +78,27 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
 
   let liked = false;
   let saved = false;
+  let reaction: string | null = null;
 
   if (userId) {
-    const [{ data: likeRow }, { data: saveRow }] = await Promise.all([
-      adminDb.from("likes").select("user_id").eq("post_id", id).eq("user_id", userId).maybeSingle(),
+    const [likeRes, { data: saveRow }] = await Promise.all([
+      adminDb.from("likes").select("*").eq("post_id", id).eq("user_id", userId).maybeSingle(),
       adminDb.from("saves").select("user_id").eq("post_id", id).eq("user_id", userId).maybeSingle(),
     ]);
-    liked = !!likeRow;
+    liked = !!likeRes.data;
+    reaction = liked ? (isReaction(likeRes.data?.reaction) ? likeRes.data.reaction : DEFAULT_REACTION) : null;
     saved = !!saveRow;
   }
 
-  return NextResponse.json({ post, liked, saved });
+  const reactions = await reactionCounts(id);
+  return NextResponse.json({ post, liked, saved, reaction, reactions });
 }
 
 // POST /api/posts/[id] — like/unlike/save/unsave
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const { action, userId } = await req.json();
+  const { action, userId, reaction: rawReaction } = await req.json();
+  const reaction = isReaction(rawReaction) ? rawReaction : DEFAULT_REACTION;
 
   if (!userId) return NextResponse.json({ error: "userId required" }, { status: 400 });
 
@@ -100,9 +123,18 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     // Guard: skip if already liked (prevents duplicate rows)
     const { data: existing } = await adminDb
       .from("likes").select("user_id").eq("post_id", id).eq("user_id", userId).maybeSingle();
-    if (existing) return NextResponse.json({ ok: true, liked: true, likes_count: await syncLikeCount() });
+    if (existing) {
+      // Already reacted — switching reaction (e.g. ❤️ → 😂) just updates the row
+      const { error: upErr } = await adminDb.from("likes").update({ reaction })
+        .eq("post_id", id).eq("user_id", userId);
+      if (upErr && !missingReactionCol(upErr)) return NextResponse.json({ error: upErr.message }, { status: 500 });
+      return NextResponse.json({ ok: true, liked: true, reaction, likes_count: await syncLikeCount(), reactions: await reactionCounts(id) });
+    }
 
-    const { error: likeErr } = await adminDb.from("likes").insert({ post_id: id, user_id: userId });
+    let { error: likeErr } = await adminDb.from("likes").insert({ post_id: id, user_id: userId, reaction });
+    if (missingReactionCol(likeErr)) {
+      ({ error: likeErr } = await adminDb.from("likes").insert({ post_id: id, user_id: userId }));
+    }
     if (likeErr) return NextResponse.json({ error: likeErr.message }, { status: 500 });
     const likes_count = await syncLikeCount();
 
@@ -121,12 +153,14 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         actor_name:   liker?.display_name ?? null,
         actor_avatar: liker?.avatar_url ?? null,
         type:         "like",
-        text:         `${liker?.display_name ?? "Someone"} liked your artwork`,
+        text:         reaction === DEFAULT_REACTION
+          ? `${liker?.display_name ?? "Someone"} liked your artwork`
+          : `${liker?.display_name ?? "Someone"} reacted ${reactionMeta(reaction).emoji} to your artwork`,
         sub_text:     post.title ?? null,
         post_id:      id,
       });
     }
-    return NextResponse.json({ ok: true, liked: true, likes_count });
+    return NextResponse.json({ ok: true, liked: true, reaction, likes_count, reactions: await reactionCounts(id) });
   } else if (action === "unlike") {
     const { error: unlikeErr } = await adminDb.from("likes").delete().eq("post_id", id).eq("user_id", userId);
     if (unlikeErr) return NextResponse.json({ error: unlikeErr.message }, { status: 500 });
@@ -137,7 +171,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       .eq("user_id", userId)
       .eq("post_id", id)
       .eq("action_type", "like");
-    return NextResponse.json({ ok: true, liked: false, likes_count });
+    return NextResponse.json({ ok: true, liked: false, reaction: null, likes_count, reactions: await reactionCounts(id) });
   } else if (action === "save") {
     await adminDb.from("saves").insert({ post_id: id, user_id: userId });
     if (post) {

@@ -1,9 +1,10 @@
 "use client";
 
 import { type Post as DbPost } from "@/lib/db/posts";
-import { Bookmark, Check, Heart, Pencil, RotateCcw, X, ZoomIn, ZoomOut } from "lucide-react";
+import { Bookmark, Check, Pencil, RotateCcw, X, ZoomIn, ZoomOut } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { buyerPriceLabel } from "@/lib/pricing";
+import ReactionButton from "@/components/ui/ReactionButton";
 
 const isVideoUrl = (u: string) => /\.(mp4|webm|mov|avi|mkv|ogv)(\?|$)/i.test(u);
 
@@ -64,7 +65,6 @@ export default function PostModal({ post: initialPost, isOwner, ownerId, current
   const isGalleryPost = (initialPost.category ?? "").startsWith("gallery:");
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
-  const [liked, setLiked] = useState(false);
   const [saved, setSaved] = useState(false);
   const [actionPending, setActionPending] = useState(false);
 
@@ -119,33 +119,10 @@ export default function PostModal({ post: initialPost, isOwner, ownerId, current
     if (!currentUserId) return;
     fetch(`/api/posts/${initialPost.id}?userId=${currentUserId}`)
       .then(r => r.json())
-      .then(d => { setLiked(d.liked ?? false); setSaved(d.saved ?? false); })
+      .then(d => { setSaved(d.saved ?? false); })
       .catch(() => {});
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialPost.id, currentUserId]);
 
-  async function toggleLike() {
-    if (!currentUserId || actionPending) return;
-    const wasLiked = liked;
-    setLiked(!wasLiked);
-    setPost(p => ({ ...p, likes_count: p.likes_count + (wasLiked ? -1 : 1) }));
-    setActionPending(true);
-    try {
-      const res = await fetch(`/api/posts/${post.id}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: wasLiked ? "unlike" : "like", userId: currentUserId }),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.error);
-      if (typeof data.likes_count === "number") setPost(p => ({ ...p, likes_count: data.likes_count }));
-    } catch {
-      setLiked(wasLiked);
-      setPost(p => ({ ...p, likes_count: p.likes_count + (wasLiked ? 1 : -1) }));
-    } finally {
-      setActionPending(false);
-    }
-  }
 
   async function toggleSave() {
     if (!currentUserId || actionPending) return;
@@ -505,19 +482,13 @@ export default function PostModal({ post: initialPost, isOwner, ownerId, current
 
             {/* Stats */}
             <div className="flex items-center gap-3 py-3" style={{ borderTop: "1px solid var(--border)" }}>
-              <button
-                onClick={toggleLike}
-                disabled={!currentUserId}
-                className="flex items-center gap-1.5 text-sm transition-all hover:scale-110 active:scale-95 disabled:cursor-default"
-                title={currentUserId ? (liked ? "Unlike" : "Like") : "Sign in to like"}
-              >
-                <Heart
-                  size={16}
-                  fill={liked ? "#EF4444" : "none"}
-                  style={{ color: liked ? "#EF4444" : "var(--text-4)", transition: "color 0.15s, fill 0.15s" }}
-                />
-                <span className="font-semibold" style={{ color: liked ? "#EF4444" : "var(--text-2)" }}>{post.likes_count}</span>
-              </button>
+              <ReactionButton
+                postId={post.id}
+                userId={currentUserId}
+                initialCount={post.likes_count}
+                onNeedLogin={() => {}}
+                size="sm"
+              />
               <button
                 onClick={toggleSave}
                 disabled={!currentUserId}

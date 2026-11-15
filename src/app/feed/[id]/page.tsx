@@ -12,6 +12,7 @@ import { ArrowLeft, Bookmark, Check, Heart, Loader2, MessageCircle, Send, Share2
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import AuthPromptModal from "@/components/ui/AuthPromptModal";
+import ReactionButton from "@/components/ui/ReactionButton";
 import { use, useEffect, useRef, useState } from "react";
 
 // ── Razorpay ──────────────────────────────────────────────────────
@@ -378,7 +379,15 @@ export default function FeedPostPage({ params }: { params: Promise<{ id: string 
 
                     {/* Top action bar */}
                     <div className="flex items-center gap-2 px-5 pt-4 pb-3" style={{ borderBottom: "1px solid var(--border)" }}>
-                      <button
+                      {isUUID ? (
+                        <ReactionButton
+                          postId={id}
+                          userId={user?.id}
+                          initialCount={likeCount}
+                          onNeedLogin={() => setAuthPrompt(true)}
+                        />
+                      ) : (
+                        <button
                         onClick={handleLike}
                         className="flex items-center gap-1.5 text-sm font-semibold px-3 py-2 rounded-full transition-all hover:opacity-80"
                         style={{
@@ -390,6 +399,7 @@ export default function FeedPostPage({ params }: { params: Promise<{ id: string 
                         <Heart size={15} fill={liked ? "#f43f5e" : "none"} stroke={liked ? "#f43f5e" : "currentColor"} />
                         {likeCount}
                       </button>
+                      )}
                       <button
                         onClick={() => {
                           commentInputRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });

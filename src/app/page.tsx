@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useUser } from "@clerk/nextjs";
 import { useEffect, useRef, useState } from "react";
 import { Playfair_Display } from "next/font/google";
 import PublicNav from "@/components/layout/PublicNav";
@@ -89,6 +90,12 @@ const ALL_SUGGESTIONS = [
 
 export default function LandingPage() {
   const router = useRouter();
+  const { isLoaded, isSignedIn } = useUser();
+
+  // Already logged in (session still valid) → straight to the app, no "Login" screen
+  useEffect(() => {
+    if (isLoaded && isSignedIn) router.replace("/feed");
+  }, [isLoaded, isSignedIn, router]);
   const [heroSearch,   setHeroSearch]   = useState("");
   const [searchFocused, setSearchFocused] = useState(false);
   const searchRef = useRef<HTMLDivElement>(null);

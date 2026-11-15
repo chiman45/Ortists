@@ -4,9 +4,10 @@ import { Post } from "@/lib/types";
 import { type Post as DbPost } from "@/lib/db/posts";
 import Avatar from "@/components/ui/Avatar";
 import AuthPromptModal from "@/components/ui/AuthPromptModal";
-import { Briefcase, Heart, MessageCircle } from "lucide-react";
+import { Briefcase, MessageCircle } from "lucide-react";
+import ReactionButton from "@/components/ui/ReactionButton";
 import Image from "next/image";
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { useUser } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
 
@@ -16,7 +17,6 @@ interface FeedCardProps {
   priority?: boolean;
 }
 
-function fmt(n: number) { return n >= 1000 ? `${(n / 1000).toFixed(1)}k` : String(n); }
 const isUUID = (s: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s);
 const isVideoUrl = (url: string) => /\.(mp4|webm|mov|avi|mkv|ogv)(\?|$)/i.test(url);
 
@@ -29,57 +29,16 @@ function parseGallery(raw: string): string[] | null {
 export default function FeedCard({ post, dbPost, priority = false }: FeedCardProps) {
   const { user } = useUser();
   const router = useRouter();
-  const [liked, setLiked]           = useState(false);
-  const [count, setCount]           = useState(post.likes);
-  const [pending, setPending]       = useState(false);
   const [promptOpen, setPromptOpen] = useState(false);
   const [carouselIdx, setCarouselIdx] = useState(0);
   const touchStartX = useRef<number | null>(null);
 
   const isOwn = !!user && !!post.userId && post.userId === user.id;
 
-  useEffect(() => {
-    if (!user || !isUUID(post.id)) return;
-    fetch(`/api/posts/${post.id}?userId=${user.id}`)
-      .then(r => r.json())
-      .then(({ liked: alreadyLiked, post: p }) => {
-        setLiked(!!alreadyLiked);
-        if (p?.likes_count !== undefined) setCount(p.likes_count);
-      })
-      .catch(() => {});
-  }, [post.id, user]);
-
   function handleCardClick(e: React.MouseEvent) {
     if ((e.target as HTMLElement).closest("button")) return;
     // Guests can look at posts; login is asked only when they like, comment, etc.
     router.push(`/feed/${post.id}`);
-  }
-
-  async function handleLike(e: React.MouseEvent) {
-    e.preventDefault();
-    e.stopPropagation();
-    if (!user) { setPromptOpen(true); return; }
-    if (!isUUID(post.id) || pending) return;
-    setPending(true);
-    const wasLiked = liked;
-    setLiked(!wasLiked);
-    setCount(c => wasLiked ? Math.max(0, c - 1) : c + 1);
-    try {
-      const res = await fetch(`/api/posts/${post.id}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: wasLiked ? "unlike" : "like", userId: user.id }),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.error);
-      if (typeof data.likes_count === "number") setCount(data.likes_count);
-    } catch {
-      // Didn't save — put the heart back how it was
-      setLiked(wasLiked);
-      setCount(c => wasLiked ? c + 1 : Math.max(0, c - 1));
-    } finally {
-      setPending(false);
-    }
   }
 
   return (
@@ -219,15 +178,17 @@ export default function FeedCard({ post, dbPost, priority = false }: FeedCardPro
         <span className="text-sm font-medium flex-1 truncate min-w-0" style={{ color: "var(--text-2)" }}>
           {post.username}
         </span>
-        <button
-          onClick={handleLike}
-          disabled={pending}
-          className="flex items-center gap-1 text-xs transition-colors shrink-0 disabled:opacity-60"
-          style={{ color: liked ? "#f43f5e" : "var(--text-5)" }}
-        >
-          <Heart size={13} fill={liked ? "currentColor" : "none"} />
-          <span>{fmt(count)}</span>
-        </button>
+        {/* Tap = ❤️, hold = pick a reaction (stops the card from opening) */}
+        <span onClick={e => e.stopPropagation()} className="shrink-0">
+          <ReactionButton
+            postId={post.id}
+            userId={user?.id}
+            initialCount={post.likes}
+            onNeedLogin={() => setPromptOpen(true)}
+            size="sm"
+            autoLoad={!!user && isUUID(post.id)}
+          />
+        </span>
         <div className="flex items-center gap-1 text-xs shrink-0" style={{ color: "var(--text-5)" }}>
           <MessageCircle size={13} />
           <span>{post.comments}</span>
