@@ -8,7 +8,7 @@ import { type Post as DbPost } from "@/lib/db/posts";
 import { type Profile } from "@/lib/db/profiles";
 import PostModal from "@/components/ui/PostModal";
 import SizePricingEditor from "@/components/profile/SizePricingEditor";
-import ShareModal from "@/components/ui/ShareModal";
+import { shareLink } from "@/lib/shareLink";
 import { useUser } from "@clerk/nextjs";
 import {
   Star, Heart, Bookmark, Users, LayoutGrid,
@@ -69,7 +69,7 @@ export default function ProfilePage() {
   const [showEdit, setShowEdit]         = useState(false);
   const [saving, setSaving]             = useState(false);
   const [saveError, setSaveError]       = useState<string | null>(null);
-  const [shareOpen, setShareOpen]        = useState(false);
+  const [shared, setShared]              = useState(false);
   const [avatarPreview, setAvatarPreview]   = useState<string | null>(null);
   const [avatarUploading, setAvatarUploading] = useState(false);
   const avatarInputRef                        = useRef<HTMLInputElement>(null);
@@ -234,9 +234,16 @@ export default function ProfilePage() {
     }
   }
 
-  const shareUrl = typeof window !== "undefined"
-    ? `${window.location.origin}/u/${profile?.username ?? user?.id}`
-    : "";
+  // Same as image sharing: native share sheet on phones, copy link + ✓ elsewhere
+  async function handleShareProfile() {
+    const nm = profile?.display_name ?? profile?.username ?? "Artist";
+    const result = await shareLink({
+      url: `${window.location.origin}/u/${profile?.username ?? user?.id}`,
+      title: `${nm} on Ortists`,
+      text: `Check out ${nm}'s art on Ortists`,
+    });
+    if (result === "copied") { setShared(true); setTimeout(() => setShared(false), 2000); }
+  }
 
   async function openFollowList(type: "followers" | "following") {
     if (!user) return;
@@ -358,11 +365,16 @@ export default function ProfilePage() {
                     </div>
                     {/* Action buttons — icon-only on xs, text on sm+ */}
                     <div className="flex items-center gap-1.5 shrink-0">
-                      <button onClick={() => setShareOpen(true)}
+                      <button onClick={handleShareProfile}
+                        title={shared ? "Link copied!" : "Share profile"}
                         className="flex items-center gap-1.5 px-2.5 sm:px-4 py-2 rounded-xl text-sm font-semibold transition-opacity hover:opacity-70"
-                        style={{ background: "var(--bg-subtle)", border: "1px solid var(--border)", color: "var(--text-3)" }}>
-                        <Share2 size={15} />
-                        <span className="hidden sm:inline">Share</span>
+                        style={{
+                          background: shared ? "rgba(16,185,129,0.12)" : "var(--bg-subtle)",
+                          border: `1px solid ${shared ? "rgba(16,185,129,0.3)" : "var(--border)"}`,
+                          color: shared ? "#10B981" : "var(--text-3)",
+                        }}>
+                        {shared ? <Check size={15} /> : <Share2 size={15} />}
+                        <span className="hidden sm:inline">{shared ? "Copied" : "Share"}</span>
                       </button>
                       <button onClick={() => openEdit("Basic Info")}
                         className="flex items-center gap-1.5 px-2.5 sm:px-4 py-2 rounded-xl text-sm font-bold transition-opacity hover:opacity-90"
@@ -1256,13 +1268,6 @@ export default function ProfilePage() {
           currentUserId={user?.id}
           onClose={() => setOpenPostModal(null)}
           onUpdate={updated => setDbPosts(posts => posts.map(p => p.id === updated.id ? updated : p))}
-        />
-      )}
-      {shareOpen && (
-        <ShareModal
-          url={shareUrl}
-          title={`${profile?.display_name ?? profile?.username ?? "Artist"} on Ortists`}
-          onClose={() => setShareOpen(false)}
         />
       )}
 

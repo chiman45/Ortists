@@ -8,11 +8,11 @@ import PostModal from "@/components/ui/PostModal";
 import { type Post as DbPost } from "@/lib/db/posts";
 import { type Profile } from "@/lib/db/profiles";
 import { useUser } from "@clerk/nextjs";
-import { ArrowLeft, Bookmark, Briefcase, Heart, MapPin, Share2, Star, Users, UserPlus, TrendingUp, X } from "lucide-react";
+import { ArrowLeft, Bookmark, Briefcase, Heart, Check, MapPin, Share2, Star, Users, UserPlus, TrendingUp, X } from "lucide-react";
 import Link from "next/link";
 import { use, useEffect, useState } from "react";
 import AuthPromptModal from "@/components/ui/AuthPromptModal";
-import ShareModal from "@/components/ui/ShareModal";
+import { shareLink } from "@/lib/shareLink";
 import { firstImage } from "@/lib/imageUrl";
 
 const isVideoUrl = (u: string) => /\.(mp4|webm|mov|avi|mkv|ogv)(\?|$)/i.test(u);
@@ -33,7 +33,7 @@ export default function UserProfilePage({ params }: { params: Promise<{ username
 
   const [profile, setProfile]         = useState<Profile | null>(null);
   const [authPrompt, setAuthPrompt]   = useState(false); // guest tried to follow/hire
-  const [shareOpen, setShareOpen]     = useState(false);
+  const [shared, setShared]           = useState(false);
   const [posts, setPosts]             = useState<DbPost[]>([]);
   const [following, setFollowing]     = useState(false);
   const [loading, setLoading]         = useState(true);
@@ -117,6 +117,18 @@ export default function UserProfilePage({ params }: { params: Promise<{ username
     } finally {
       setFollowPending(false);
     }
+  }
+
+  // Same as image sharing: native share sheet on phones, copy link + ✓ elsewhere
+  async function handleShareProfile() {
+    if (!profile) return;
+    const nm = profile.display_name ?? profile.username ?? "Artist";
+    const result = await shareLink({
+      url: `${window.location.origin}/u/${profile.username ?? profile.clerk_id}`,
+      title: `${nm} on Ortists`,
+      text: `Check out ${nm}'s art on Ortists`,
+    });
+    if (result === "copied") { setShared(true); setTimeout(() => setShared(false), 2000); }
   }
 
   function handleHire() {
@@ -212,11 +224,15 @@ export default function UserProfilePage({ params }: { params: Promise<{ username
                   <div className="flex items-center justify-between gap-2">
                     <div className="flex items-center gap-2 min-w-0">
                       <p className="text-sm truncate" style={{ color: "#9B7CF5" }}>@{profile.username}</p>
-                      <button onClick={() => setShareOpen(true)}
-                        aria-label="Share profile" title="Share profile"
+                      <button onClick={handleShareProfile}
+                        aria-label="Share profile" title={shared ? "Link copied!" : "Share profile"}
                         className="shrink-0 w-7 h-7 rounded-full flex items-center justify-center transition-opacity hover:opacity-70"
-                        style={{ background: "var(--bg-subtle)", border: "1px solid var(--border)", color: "var(--text-3)" }}>
-                        <Share2 size={13} />
+                        style={{
+                          background: shared ? "rgba(16,185,129,0.12)" : "var(--bg-subtle)",
+                          border: `1px solid ${shared ? "rgba(16,185,129,0.3)" : "var(--border)"}`,
+                          color: shared ? "#10B981" : "var(--text-3)",
+                        }}>
+                        {shared ? <Check size={13} /> : <Share2 size={13} />}
                       </button>
                     </div>
 
@@ -461,10 +477,14 @@ export default function UserProfilePage({ params }: { params: Promise<{ username
               ))}
             </div>
 
-            <button onClick={() => setShareOpen(true)}
+            <button onClick={handleShareProfile}
               className="w-full mb-2 py-3 rounded-2xl text-sm font-bold transition-opacity hover:opacity-85 flex items-center justify-center gap-2"
-              style={{ background: "var(--bg-subtle)", border: "1px solid var(--border)", color: "var(--text-2)" }}>
-              <Share2 size={15} /> Share profile
+              style={{
+                background: shared ? "rgba(16,185,129,0.12)" : "var(--bg-subtle)",
+                border: `1px solid ${shared ? "rgba(16,185,129,0.3)" : "var(--border)"}`,
+                color: shared ? "#10B981" : "var(--text-2)",
+              }}>
+              {shared ? <><Check size={15} /> Link copied</> : <><Share2 size={15} /> Share profile</>}
             </button>
             {!isOwnProfile && (
               <div className="flex flex-col gap-2">
@@ -572,13 +592,6 @@ export default function UserProfilePage({ params }: { params: Promise<{ username
         </div>
       )}
     {authPrompt && <AuthPromptModal onClose={() => setAuthPrompt(false)} />}
-      {shareOpen && profile && (
-        <ShareModal
-          url={`${window.location.origin}/u/${profile.username ?? profile.clerk_id}`}
-          title={`${profile.display_name ?? profile.username ?? "Artist"} on Ortists`}
-          onClose={() => setShareOpen(false)}
-        />
-      )}
     </div>
   );
 }
