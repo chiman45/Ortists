@@ -2,10 +2,22 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ortists/app/app.dart';
+import 'package:ortists/core/auth/session.dart';
+import 'package:ortists/data/repositories/post_repository.dart';
+
+import '../helpers/fakes.dart';
 
 void main() {
   Future<void> pumpApp(WidgetTester tester) async {
-    await tester.pumpWidget(const ProviderScope(child: OrtistsApp(googleFonts: false)));
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          authRepositoryProvider.overrideWithValue(FakeAuthRepository()),
+          postRepositoryProvider.overrideWithValue(FakePostRepository()),
+        ],
+        child: const OrtistsApp(googleFonts: false),
+      ),
+    );
     await tester.pumpAndSettle();
   }
 
@@ -14,7 +26,8 @@ void main() {
 
     expect(find.byType(NavigationBar), findsOneWidget);
     expect(find.byType(NavigationDestination), findsNWidgets(5));
-    expect(find.widgetWithText(AppBar, 'Feed'), findsOneWidget);
+    expect(find.text('Feed'), findsWidgets);
+    expect(find.text('Artist 1'), findsOneWidget);
   });
 
   testWidgets('switching tabs shows that screen', (tester) async {

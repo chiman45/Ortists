@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../../../core/api/api_exception.dart';
-import '../../../core/auth/session.dart';
 import '../../../core/config/env.dart';
 import '../../../core/theme/tokens.dart';
 import '../../../core/theme/widgets.dart';

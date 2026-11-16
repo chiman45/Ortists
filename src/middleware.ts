@@ -1,5 +1,5 @@
 import { clerkMiddleware } from "@clerk/nextjs/server";
-import { type NextRequest } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
 
 import { updateSession } from "@/utils/supabase/middleware";
 
@@ -56,8 +56,15 @@ export default clerkMiddleware(async (auth, request: NextRequest) => {
     return updateSession(request);
   }
 
-  // Everything else requires a valid Clerk session
-  await auth.protect();
+  // Everything else requires a valid Clerk session.
+  // API calls get a clear JSON 401 (the mobile app shows "please sign in");
+  // pages keep Clerk's normal redirect to the login screen.
+  if (pathname.startsWith("/api/")) {
+    const { userId } = await auth();
+    if (!userId) return NextResponse.json({ error: "Please sign in." }, { status: 401 });
+  } else {
+    await auth.protect();
+  }
   return updateSession(request);
 });
 

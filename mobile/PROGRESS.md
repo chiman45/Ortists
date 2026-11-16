@@ -5,7 +5,7 @@
 > (date, task id, one sentence), and note any decision in Decisions.
 > Status markers: `[ ]` todo · `[~]` in progress · `[x]` done · `BLOCKED: …` waiting on the user.
 
-**Current phase:** Phase 3: Feed & posts (Phase 2 code done; needs one real-device login test)
+**Current phase:** Phase 4: Create post (Phases 2–3 built and tested with fakes + live guest API; still need a run on a real device)
 **Last updated:** 2026-11-16
 
 ---
@@ -29,7 +29,7 @@
 - [ ] **P0-7** `create-order` takes the amount from the client. Compute the price on the server from the post/hire request instead.
 - [ ] **P0-8** Several routes insert notifications with `post_id` set to a non-post id (follows, hire requests, messages), which breaks the FK and silently drops them. Add `target_id`/`link` columns or stop setting `post_id`.
 - [ ] **P0-9** `/api/signed-url` for the `deliverables` bucket only checks login, not project membership.
-- [ ] **P0-10** Middleware answers 404 (not 401) for signed-out calls to protected API routes. Make API routes return JSON 401 so the app can show "please sign in".
+- [x] **P0-10** Middleware answers 404 (not 401) for signed-out calls to protected API routes. Make API routes return JSON 401 so the app can show "please sign in".
 
 ## Phase 1: Project setup
 
@@ -55,14 +55,14 @@
 
 ## Phase 3: Core: feed & posts
 
-- [ ] **P3-1** Models: Post, Profile, Comment, ReactionCounts (from the real `route.ts` responses).
-- [ ] **P3-2** Feed: masonry grid, Latest/Popular, pull to refresh, infinite scroll (`limit=24`).
-- [ ] **P3-3** Stories row (read only) — or skip if stories are out of v1 (PRD §12).
-- [ ] **P3-4** Post detail: image zoom, artist row, title/meta, price block, related posts.
-- [ ] **P3-5** Reactions button: tap ❤️, long-press picker (6 reactions), optimistic + revert.
-- [ ] **P3-6** Save, share (`share_plus` with an `ortist.art/feed/{id}` link), comments list + add comment.
-- [ ] **P3-7** Follow button (yellow) everywhere, optimistic.
-- [ ] **P3-8** Search: posts + accounts.
+- [x] **P3-1** Models: Post, Profile, Comment, ReactionCounts (from the real `route.ts` responses).
+- [x] **P3-2** Feed: masonry grid, Latest/Popular, pull to refresh, infinite scroll (`limit=24`).
+- [ ] **P3-3** DEFERRED until the user answers PRD §12 (stories in v1?). Stories row (read only) — or skip if stories are out of v1 (PRD §12).
+- [x] **P3-4** (Price is shown; the Buy button comes with checkout in P6-2. Tapping the artist opens their profile in P5-2.) Post detail: image zoom, artist row, title/meta, price block, related posts.
+- [x] **P3-5** Reactions button: tap ❤️, long-press picker (6 reactions), optimistic + revert.
+- [x] **P3-6** Save, share (`share_plus` with an `ortist.art/feed/{id}` link), comments list + add comment.
+- [x] **P3-7** (`FollowChip(userId:)` in `post_detail_screen.dart`; used on posts and search results. Reuse it on profiles.) Follow button (yellow) everywhere, optimistic.
+- [x] **P3-8** Search: posts + accounts.
 
 ## Phase 4: Create post
 
@@ -129,6 +129,8 @@
 - 2026-11-16 — P0-1: added `src/lib/apiAuth.ts` (`requireUser`, `viewerId`); 25 route handlers now use the signed-in user instead of client-sent ids, whitelist writable fields, and check ownership/participation. Curl: guest writes blocked, guest browsing still 200.
 - 2026-11-16 — P0-3: migration `019_device_tokens.sql` (user must run it) + `POST/DELETE /api/devices`.
 - 2026-11-16 — P1-1…P1-6: Flutter 3.47.6 project in `mobile/`, packages, theme tokens + buttons, dio client with Bearer interceptor and error mapping, bottom-tab router with placeholders, README. `flutter analyze` clean, 8 tests pass, debug APK builds.
+- 2026-11-16 — Phase 3: `Post`/`Comment` models, `Reaction` list (mirrors `src/lib/reactions.ts`), `PostRepository`, feed (masonry, Latest/Popular, pull-to-refresh, paging with de-dupe), post detail (zoom, reactions with hold-to-pick, save, share to `ortist.art/feed/{id}`, follow, comments, related), search with debounce. 40 tests pass. The data layer was also run against the local API as a guest: 60 posts, detail, comments, search, agreements and profiles all parse.
+- 2026-11-16 — Web (P0-10): signed-out calls to protected `/api/*` now get JSON 401 `Please sign in.` instead of a 404 page.
 - 2026-11-16 — Phase 2: `AuthRepository` + `ClerkAuthRepository`, `sessionProvider` (profile sync + gates), login/sign-up/code screen, agreements and phone screens, router redirects, account tab with logout, `requireLogin` sheet. Models with freezed (`dart run build_runner build`). 25 tests pass, analyze clean, debug APK builds with the Clerk key. Device run not done (emulator would not boot).
 - 2026-11-16 — Web: `/api/profiles` no longer returns `phone`/`settings`/`agreements_accepted_at` to anyone but the owner; added public `GET /api/agreements`.
 - 2026-11-16 — P2-1: clerk_flutter researched; decisions recorded. Next: P2-2 (sign-up screen).

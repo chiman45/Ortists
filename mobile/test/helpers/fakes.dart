@@ -4,7 +4,11 @@ import 'package:ortists/core/api/api_exception.dart';
 import 'package:ortists/core/auth/auth_repository.dart';
 import 'package:ortists/core/auth/auth_user.dart';
 import 'package:ortists/data/models/agreements_info.dart';
+import 'package:ortists/data/models/comment.dart';
+import 'package:ortists/data/models/post.dart';
 import 'package:ortists/data/models/profile.dart';
+import 'package:ortists/data/models/reaction.dart';
+import 'package:ortists/data/repositories/post_repository.dart';
 import 'package:ortists/data/repositories/profile_repository.dart';
 
 const testUser = AuthUser(id: 'user_1', name: 'Asha Rao', email: 'asha@example.com');
@@ -122,4 +126,124 @@ class FakeProfileRepository implements ProfileRepository {
 
   @override
   Future<AgreementsInfo> agreements() async => testAgreements;
+}
+
+/// Posts without image URLs, so widget tests never touch the network.
+Post testPost(int n, {int likes = 0, String userId = 'artist_1', String? category, String? description}) =>
+    Post(
+      id: 'p$n',
+      userId: userId,
+      authorName: 'Artist $n',
+      authorUsername: 'artist$n',
+      title: 'Artwork $n',
+      likesCount: likes,
+      category: category,
+      description: description,
+    );
+
+/// In-memory posts API. Set [error] to make every call fail.
+class FakePostRepository implements PostRepository {
+  FakePostRepository({List<Post>? posts})
+    : posts = posts ?? [for (var i = 1; i <= 3; i++) testPost(i, likes: i)];
+
+  List<Post> posts;
+  final calls = <String>[];
+  String? error;
+
+  /// What the signed-in viewer did, per post / user.
+  final myReactions = <String, String>{};
+  final saved = <String>{};
+  final following = <String>{};
+  final commentsByPost = <String, List<Comment>>{};
+  SearchResults searchResults = (posts: const [], accounts: const []);
+
+  void _check() {
+    if (error != null) throw ApiException(error!, statusCode: 500);
+  }
+
+  ReactionState _reactions(Post p) {
+    final mine = myReactions[p.id];
+    return ReactionState(
+      mine: mine,
+      count: p.likesCount,
+      counts: {
+        'like': p.likesCount - (mine == null || mine == 'like' ? 0 : 1),
+        if (mine != null && mine != 'like') mine: 1,
+      },
+    );
+  }
+
+  @override
+  Future<PostPage> list({int limit = 24, int offset = 0, String? category, String? userId}) async {
+    calls.add('list offset=$offset${category == null ? '' : ' category=$category'}');
+    _check();
+    final all = posts.where((p) => category == null || p.category == category).toList();
+    final page = all.skip(offset).take(limit).toList();
+    return (posts: page, hasMore: offset + page.length < all.length);
+  }
+
+  @override
+  Future<PostDetail> detail(String id) async {
+    _check();
+    final post = posts.firstWhere(
+      (p) => p.id == id,
+      orElse: () => throw const ApiException('Not found.', statusCode: 404),
+    );
+    return (post: post, saved: saved.contains(id), reactions: _reactions(post));
+  }
+
+  @override
+  Future<ReactionState> react(String postId, String? reaction) async {
+    calls.add('react $postId ${reaction ?? 'none'}');
+    _check();
+    final i = posts.indexWhere((p) => p.id == postId);
+    final had = myReactions.containsKey(postId);
+    reaction == null ? myReactions.remove(postId) : myReactions[postId] = reaction;
+    posts[i] = posts[i].copyWith(
+      likesCount: posts[i].likesCount + (reaction != null ? 1 : 0) - (had ? 1 : 0),
+    );
+    return _reactions(posts[i]);
+  }
+
+  @override
+  Future<void> setSaved(String postId, {required bool saved}) async {
+    calls.add('save $postId $saved');
+    _check();
+    saved ? this.saved.add(postId) : this.saved.remove(postId);
+  }
+
+  @override
+  Future<List<Comment>> comments(String postId) async => commentsByPost[postId] ?? const [];
+
+  @override
+  Future<Comment> addComment(String postId, String text, AuthUser author) async {
+    calls.add('comment $postId $text');
+    _check();
+    final c = Comment(
+      id: 'c${calls.length}',
+      postId: postId,
+      text: text,
+      authorName: author.name,
+      userId: author.id,
+    );
+    commentsByPost[postId] = [c, ...commentsByPost[postId] ?? const []];
+    return c;
+  }
+
+  @override
+  Future<bool> isFollowing({required String me, required String them}) async => following.contains(them);
+
+  @override
+  Future<void> setFollowing(String userId, {required bool following}) async {
+    calls.add('follow $userId $following');
+    _check();
+    following ? this.following.add(userId) : this.following.remove(userId);
+  }
+
+  @override
+  Future<SearchResults> search(String query) async {
+    calls.add('search $query');
+    _check();
+    return searchResults;
+  }
 }

@@ -6,6 +6,7 @@ import 'package:ortists/core/auth/auth_repository.dart';
 import 'package:ortists/core/auth/session.dart';
 import 'package:ortists/core/theme/tokens.dart';
 import 'package:ortists/data/models/profile.dart';
+import 'package:ortists/data/repositories/post_repository.dart';
 import 'package:ortists/data/repositories/profile_repository.dart';
 import 'package:ortists/features/auth/screens/phone_screen.dart';
 import 'package:ortists/features/auth/screens/welcome_screen.dart';
@@ -27,6 +28,7 @@ void main() {
         overrides: [
           authRepositoryProvider.overrideWithValue(auth),
           profileRepositoryProvider.overrideWithValue(profiles),
+          postRepositoryProvider.overrideWithValue(FakePostRepository()),
         ],
         child: const OrtistsApp(googleFonts: false),
       ),
