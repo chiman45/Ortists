@@ -1,19 +1,19 @@
 import { adminDb } from "@/utils/supabase/admin";
 import { normalizePhone } from "@/lib/phone";
 import { NextRequest, NextResponse } from "next/server";
+import { requireUser } from "@/lib/apiAuth";
 
 // POST /api/profile/sync — create or sync basic clerk data
 export async function POST(req: NextRequest) {
-  const body = await req.json();
-  const { clerk_id, display_name, username, avatar_url, phone, role, agreement_version, agreements_accepted_at } = body;
+  const body = await req.json().catch(() => ({}));
+  const me = await requireUser(body.clerk_id);
+  if (me.error) return me.error;
+  const clerk_id = me.userId;
+  const { display_name, username, avatar_url, phone, role, agreement_version, agreements_accepted_at } = body;
   // Consent recorded at sign-up (only trusted shapes are stored)
   const consent = (role === "artist" || role === "client") && typeof agreement_version === "string"
     ? { role, agreement_version, agreements_accepted_at: agreements_accepted_at ?? new Date().toISOString() }
     : null;
-
-  if (!clerk_id) {
-    return NextResponse.json({ error: "clerk_id required" }, { status: 400 });
-  }
 
   // Phone entered on the sign-up form (Clerk unsafeMetadata). Only apply it if
   // it's valid and not already linked to another account — otherwise seed the
@@ -61,12 +61,14 @@ export async function POST(req: NextRequest) {
 
 // PATCH /api/profile/sync — update editable profile fields
 export async function PATCH(req: NextRequest) {
-  const body = await req.json();
-  const { clerk_id, ...updates } = body;
+  const body = await req.json().catch(() => ({}));
+  const { clerk_id: claimed, ...updates } = body;
+  const me = await requireUser(claimed);
+  if (me.error) return me.error;
+  const clerk_id = me.userId;
 
-  if (!clerk_id) {
-    return NextResponse.json({ error: "clerk_id required" }, { status: 400 });
-  }
+  // Server-managed columns can't be set from the client
+  for (const k of ["id", "created_at", "updated_at", "followers_count", "following_count"]) delete updates[k];
 
   // Phone numbers are unique per account (see migration 014). Normalise to
   // digits with an optional leading "+" so "98765 43210" and "9876543210" can't

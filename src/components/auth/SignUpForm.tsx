@@ -2,7 +2,7 @@
 
 import { useSignUp } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { normalizePhone } from "@/lib/phone";
 
 /**
@@ -35,6 +35,14 @@ export default function SignUpForm() {
   const [step, setStep]         = useState<"form" | "verify">("form");
   const [busy, setBusy]         = useState(false);
   const [error, setError]       = useState<string | null>(null);
+  const [googleBusy, setGoogleBusy] = useState(false);
+
+  // Coming back from Google with the Back button restores this page from cache — un-stick the button
+  useEffect(() => {
+    const onShow = (e: PageTransitionEvent) => { if (e.persisted) setGoogleBusy(false); };
+    window.addEventListener("pageshow", onShow);
+    return () => window.removeEventListener("pageshow", onShow);
+  }, []);
 
   const working = busy || fetchStatus === "fetching";
 
@@ -102,14 +110,23 @@ export default function SignUpForm() {
   }
 
   async function google() {
-    if (!signUp || working) return;
+    if (!signUp || working || googleBusy) return;
     setError(null);
-    const res = await signUp.sso({
-      strategy: "oauth_google",
-      redirectUrl: "/welcome",
-      redirectCallbackUrl: "/login/sso-callback?mode=signup",
-    });
-    if (res.error) setError(msg(res.error, "Google sign-up failed. Please try again."));
+    // Show feedback right away — Clerk first creates the sign-up (and may run
+    // its bot check) before the browser can move to Google, which takes a moment.
+    setGoogleBusy(true);
+    try {
+      const res = await signUp.sso({
+        strategy: "oauth_google",
+        redirectUrl: "/welcome",
+        redirectCallbackUrl: "/login/sso-callback?mode=signup",
+      });
+      if (res.error) { setError(msg(res.error, "Google sign-up failed. Please try again.")); setGoogleBusy(false); }
+      // On success the page navigates away, so keep the busy state until it does
+    } catch {
+      setError("Network error — please try again.");
+      setGoogleBusy(false);
+    }
   }
 
   async function startOver() {
@@ -164,17 +181,21 @@ export default function SignUpForm() {
 
       <button
         onClick={google}
-        disabled={working}
+        disabled={working || googleBusy || !signUp}
         className="w-full py-2.5 rounded-xl text-sm font-semibold text-white flex items-center justify-center gap-2 transition-opacity hover:opacity-85 disabled:opacity-50"
         style={inputStyle}
       >
+        {googleBusy ? (
+          <span className="w-4 h-4 rounded-full border-2 border-white/30 border-t-white animate-spin" aria-hidden />
+        ) : (
         <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden>
           <path fill="#4285F4" d="M21.6 12.2c0-.7-.1-1.4-.2-2H12v3.9h5.4a4.6 4.6 0 0 1-2 3v2.5h3.2c1.9-1.7 3-4.3 3-7.4Z" />
           <path fill="#34A853" d="M12 22c2.7 0 5-.9 6.6-2.4l-3.2-2.5c-.9.6-2 1-3.4 1-2.6 0-4.8-1.8-5.6-4.1H3.1v2.6A10 10 0 0 0 12 22Z" />
           <path fill="#FBBC05" d="M6.4 14a6 6 0 0 1 0-3.9V7.5H3.1a10 10 0 0 0 0 9l3.3-2.6Z" />
           <path fill="#EA4335" d="M12 5.9c1.5 0 2.8.5 3.8 1.5l2.8-2.8A10 10 0 0 0 3.1 7.5l3.3 2.6C7.2 7.7 9.4 5.9 12 5.9Z" />
         </svg>
-        Continue with Google
+        )}
+        {googleBusy ? "Opening Google…" : !signUp ? "Loading…" : "Continue with Google"}
       </button>
 
       <div className="flex items-center gap-3">

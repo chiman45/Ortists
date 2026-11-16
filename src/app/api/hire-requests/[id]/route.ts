@@ -1,9 +1,12 @@
 import { adminDb } from "@/utils/supabase/admin";
 import { NextRequest, NextResponse } from "next/server";
+import { requireUser } from "@/lib/apiAuth";
 
 // GET /api/hire-requests/[id]
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
+  const me = await requireUser();
+  if (me.error) return me.error;
   const { data, error } = await adminDb
     .from("hire_requests")
     .select("*")
@@ -11,6 +14,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     .single();
 
   if (error || !data) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  if (data.client_id !== me.userId && data.artist_clerk_id !== me.userId) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   return NextResponse.json({ request: data });
 }
 
@@ -19,7 +23,9 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
 // Client: { clientId, status?: "completed", progress?: number, phase?: string, milestones?: array }
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const body = await req.json();
+  const body = await req.json().catch(() => ({}));
+  const me = await requireUser();
+  if (me.error) return me.error;
 
   const { data: hr } = await adminDb
     .from("hire_requests")
@@ -31,8 +37,10 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
   // Artist action — supports both numeric artistId and string artistClerkId
   if (body.artistId !== undefined || body.artistClerkId !== undefined) {
-    const isArtist = body.artistClerkId
-      ? hr.artist_clerk_id === body.artistClerkId
+    // Real artists are checked against the signed-in user. Requests to legacy
+    // demo artists (no Clerk account) keep the old numeric-id check.
+    const isArtist = hr.artist_clerk_id
+      ? hr.artist_clerk_id === me.userId
       : String(hr.artist_id) === String(body.artistId);
     if (!isArtist) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
@@ -55,7 +63,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
     // When accepting, ensure conversation exists and participant_ids uses real Clerk IDs
     if (body.status === "accepted") {
-      const artistClerkId = body.artistClerkId ?? hr.artist_clerk_id;
+      const artistClerkId = hr.artist_clerk_id ?? me.userId;
       if (artistClerkId) {
         if (data.conversation_id) {
           // Fix participant_ids — replace any "artist:N" placeholder with actual Clerk ID
@@ -108,7 +116,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
   // Client action
   if (body.clientId !== undefined) {
-    if (hr.client_id !== body.clientId) {
+    if (hr.client_id !== me.userId) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
     const now2 = new Date().toISOString();
@@ -133,9 +141,10 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
 // DELETE /api/hire-requests/[id]
 // Body: { clientId: string } | { artistClerkId: string }
-export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const body = await req.json();
+  const me = await requireUser();
+  if (me.error) return me.error;
 
   const { data: hr } = await adminDb
     .from("hire_requests")
@@ -145,8 +154,8 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
 
   if (!hr) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
-  const isClient = body.clientId && hr.client_id === body.clientId;
-  const isArtist = body.artistClerkId && hr.artist_clerk_id === body.artistClerkId;
+  const isClient = hr.client_id === me.userId;
+  const isArtist = hr.artist_clerk_id === me.userId;
 
   if (!isClient && !isArtist) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 

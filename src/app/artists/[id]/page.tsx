@@ -9,6 +9,7 @@ import { withPlatformFee } from "@/lib/pricing";
 import { Heart, Bookmark, MapPin, MessageCircle, Star, Users, TrendingUp, Clock, UserPlus } from "lucide-react";
 import Link from "next/link";
 import { use, useState } from "react";
+import { followStyle } from "@/lib/followStyle";
 
 const PORTFOLIO_SEEDS = [
   ["a1","a2","a3","a4","a5","a6","a7","a8","a9"],
@@ -107,11 +108,7 @@ export default function ArtistProfilePage({ params }: { params: Promise<{ id: st
                   <button
                     onClick={() => setFollowing(v => !v)}
                     className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold transition-all hover:opacity-85"
-                    style={{
-                      background: following ? "rgba(124,91,245,0.15)" : "#7C5BF5",
-                      color: following ? "#9B7CF5" : "#fff",
-                      border: following ? "1px solid rgba(124,91,245,0.4)" : "none",
-                    }}
+                    style={followStyle(following)}
                   >
                     <UserPlus size={14} />
                     {following ? "Following" : "Follow"}

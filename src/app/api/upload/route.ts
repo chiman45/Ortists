@@ -1,5 +1,6 @@
 import { adminDb } from "@/utils/supabase/admin";
 import { NextRequest, NextResponse } from "next/server";
+import { requireUser } from "@/lib/apiAuth";
 
 // Buckets that should never be publicly accessible.
 // Files here are served via signed URLs only (/api/signed-url).
@@ -17,9 +18,13 @@ const CACHE_CONTROL: Record<string, string> = {
 // POST /api/upload — accepts multipart/form-data with "file" field
 // Optional: "bucket" field (defaults to "artwork")
 export async function POST(req: NextRequest) {
+  const me = await requireUser();
+  if (me.error) return me.error;
+
   const form   = await req.formData();
   const file   = form.get("file") as File | null;
   const bucket = (form.get("bucket") as string | null) ?? "artwork";
+  if (!(bucket in CACHE_CONTROL)) return NextResponse.json({ error: "Invalid bucket" }, { status: 400 });
 
   if (!file) return NextResponse.json({ error: "No file provided" }, { status: 400 });
 

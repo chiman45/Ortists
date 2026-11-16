@@ -1,5 +1,6 @@
 import { adminDb } from "@/utils/supabase/admin";
 import { NextRequest, NextResponse } from "next/server";
+import { requireUser } from "@/lib/apiAuth";
 
 interface NotifItem {
   id: string;
@@ -12,8 +13,9 @@ interface NotifItem {
 
 // GET /api/notifications/panel?userId=
 export async function GET(req: NextRequest) {
-  const userId = new URL(req.url).searchParams.get("userId");
-  if (!userId) return NextResponse.json({ notifications: [] });
+  const me = await requireUser(new URL(req.url).searchParams.get("userId"));
+  if (me.error) return me.error;
+  const userId = me.userId;
 
   const notifications: NotifItem[] = [];
 

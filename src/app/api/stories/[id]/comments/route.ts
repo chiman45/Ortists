@@ -1,10 +1,13 @@
 import { adminDb } from "@/utils/supabase/admin";
 import { NextRequest, NextResponse } from "next/server";
+import { requireUser } from "@/lib/apiAuth";
 
 // GET /api/stories/[id]/comments?requesterId= — story owner only
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const requesterId = new URL(req.url).searchParams.get("requesterId");
+  const me = await requireUser(new URL(req.url).searchParams.get("requesterId"));
+  if (me.error) return me.error;
+  const requesterId = me.userId;
 
   const { data: story } = await adminDb.from("stories").select("user_id").eq("id", id).single();
   if (!story || story.user_id !== requesterId) {
@@ -45,9 +48,12 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
 // POST /api/stories/[id]/comments — any viewer can reply
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const { userId, content } = await req.json();
-  if (!userId || !content?.trim()) {
-    return NextResponse.json({ error: "userId and content required" }, { status: 400 });
+  const { userId: claimed, content } = await req.json().catch(() => ({}));
+  const me = await requireUser(claimed);
+  if (me.error) return me.error;
+  const userId = me.userId;
+  if (!content?.trim()) {
+    return NextResponse.json({ error: "content required" }, { status: 400 });
   }
 
   const { error } = await adminDb

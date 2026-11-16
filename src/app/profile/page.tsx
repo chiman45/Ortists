@@ -20,6 +20,7 @@ import { firstImage } from "@/lib/imageUrl";
 const isVideoUrl = (u: string) => /\.(mp4|webm|mov|avi|mkv|ogv)(\?|$)/i.test(u);
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
+import { followStyle } from "@/lib/followStyle";
 
 interface FollowUser {
   clerk_id: string;
@@ -904,9 +905,7 @@ export default function ProfilePage() {
                       <button
                         onClick={() => toggleFollow(p)}
                         className="text-[10px] font-semibold px-2.5 py-1 rounded-full shrink-0 transition-all hover:opacity-80"
-                        style={followed.has(p.clerk_id)
-                          ? { background: "rgba(124,91,245,0.25)", color: "#9B7CF5", border: "1px solid rgba(124,91,245,0.5)" }
-                          : { background: "rgba(124,91,245,0.15)", color: "#9B7CF5", border: "1px solid rgba(124,91,245,0.3)" }}>
+                        style={followStyle(followed.has(p.clerk_id))}>
                         {followed.has(p.clerk_id) ? "Following" : "Follow"}
                       </button>
                     </div>
@@ -987,23 +986,38 @@ export default function ProfilePage() {
 
       {/* ── Edit Profile Modal — sidebar layout ── */}
       {showEdit && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-0 md:p-4"
           style={{ background: "rgba(0,0,0,0.7)", backdropFilter: "blur(8px)" }}
           onClick={e => e.target === e.currentTarget && setShowEdit(false)}>
-          <div className="w-full flex overflow-hidden rounded-2xl"
-            style={{ maxWidth: 860, height: 580, background: "var(--bg)", border: "1px solid var(--border)", boxShadow: "0 24px 80px rgba(0,0,0,0.6)" }}>
+          {/* Phones: full-screen sheet with section tabs on top. md+: sidebar dialog. */}
+          <div className="w-full flex flex-col md:flex-row overflow-hidden md:rounded-2xl h-dvh md:h-145 md:max-w-215"
+            style={{ background: "var(--bg)", border: "1px solid var(--border)", boxShadow: "0 24px 80px rgba(0,0,0,0.6)" }}>
 
-            {/* ── Left sidebar ── */}
-            <div className="w-52 shrink-0 flex flex-col"
-              style={{ background: "rgba(124,91,245,0.05)", borderRight: "1px solid var(--border)" }}>
+            {/* ── Phone top bar ── */}
+            <div className="md:hidden flex items-center justify-between px-4 py-3 shrink-0 order-1"
+              style={{ borderBottom: "1px solid var(--border)", paddingTop: "max(0.75rem, env(safe-area-inset-top))" }}>
+              <div className="min-w-0">
+                <p className="text-base font-bold" style={{ color: "var(--text-1)" }}>Edit Profile</p>
+                <p className="text-xs truncate" style={{ color: "var(--text-5)" }}>{name}</p>
+              </div>
+              <button onClick={() => { setShowEdit(false); setSaveError(null); }} aria-label="Close"
+                className="w-9 h-9 flex items-center justify-center rounded-full transition-opacity hover:opacity-70"
+                style={{ color: "var(--text-4)", background: "var(--bg-subtle)" }}>
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* ── Left sidebar (top tab strip on phones) ── */}
+            <div className="w-full md:w-52 shrink-0 flex flex-col order-2 md:order-1 border-b md:border-b-0 md:border-r"
+              style={{ background: "rgba(124,91,245,0.05)", borderColor: "var(--border)" }}>
               {/* Header */}
-              <div className="px-5 py-5" style={{ borderBottom: "1px solid var(--border)" }}>
+              <div className="hidden md:block px-5 py-5" style={{ borderBottom: "1px solid var(--border)" }}>
                 <p className="text-sm font-bold mb-0.5" style={{ color: "var(--text-1)" }}>Edit Profile</p>
                 <p className="text-xs truncate" style={{ color: "var(--text-5)" }}>{name}</p>
               </div>
 
               {/* Nav */}
-              <nav className="flex flex-col gap-0.5 p-3 flex-1">
+              <nav className="flex flex-row md:flex-col gap-1 md:gap-0.5 p-2 md:p-3 md:flex-1 overflow-x-auto" style={{ scrollbarWidth: "none" }}>
                 {([
                   { key: "Basic Info",   icon: UserCircle  },
                   { key: "Portfolio",    icon: LayoutGrid  },
@@ -1013,7 +1027,7 @@ export default function ProfilePage() {
                   { key: "Preferences",  icon: SlidersHorizontal },
                 ] as { key: EditSection; icon: React.ElementType }[]).map(({ key, icon: Icon }) => (
                   <button key={key} onClick={() => setEditSection(key)}
-                    className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-medium transition-all text-left w-full"
+                    className="flex items-center gap-2 md:gap-2.5 px-3 py-2 md:py-2.5 rounded-xl text-sm font-medium transition-all text-left shrink-0 whitespace-nowrap md:w-full"
                     style={{
                       background: editSection === key ? "rgba(124,91,245,0.15)" : "transparent",
                       color:      editSection === key ? "#9B7CF5" : "var(--text-4)",
@@ -1026,9 +1040,9 @@ export default function ProfilePage() {
             </div>
 
             {/* ── Right content panel ── */}
-            <div className="flex-1 flex flex-col min-w-0">
-              {/* Panel header */}
-              <div className="flex items-center justify-between px-6 py-4 shrink-0"
+            <div className="flex-1 flex flex-col min-w-0 min-h-0 order-3 md:order-2">
+              {/* Panel header (desktop) */}
+              <div className="hidden md:flex items-center justify-between px-6 py-4 shrink-0"
                 style={{ borderBottom: "1px solid var(--border)" }}>
                 <h2 className="text-base font-bold" style={{ color: "var(--text-1)" }}>{editSection}</h2>
                 <button onClick={() => setShowEdit(false)}
@@ -1038,7 +1052,7 @@ export default function ProfilePage() {
               </div>
 
               {/* Scrollable body */}
-              <div className="flex-1 overflow-y-auto px-6 py-5" style={{ scrollbarWidth: "none" }}>
+              <div className="flex-1 overflow-y-auto px-4 md:px-6 py-5" style={{ scrollbarWidth: "none" }}>
 
                 {/* ── Basic Info ── */}
                 {editSection === "Basic Info" && (
@@ -1073,7 +1087,7 @@ export default function ProfilePage() {
                     </div>
 
                     {/* Full Name + Username */}
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div>
                         <label className="text-xs font-semibold mb-1.5 block" style={{ color: "var(--text-5)" }}>Full Name</label>
                         <input value={editForm.display_name}
@@ -1169,7 +1183,7 @@ export default function ProfilePage() {
                                   className="flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs transition-opacity hover:opacity-70"
                                   style={{ color: label === "" ? "#EF4444" : "var(--text-4)" }}>
                                   <Icon size={13} />
-                                  {label && <span>{label}</span>}
+                                  {label && <span className="hidden sm:inline">{label}</span>}
                                 </button>
                               ))}
                             </div>
@@ -1243,8 +1257,8 @@ export default function ProfilePage() {
               </div>
 
               {/* Footer */}
-              <div className="px-6 py-4 flex items-center justify-between shrink-0"
-                style={{ borderTop: "1px solid var(--border)" }}>
+              <div className="px-4 md:px-6 py-3 md:py-4 flex items-center justify-between gap-3 shrink-0"
+                style={{ borderTop: "1px solid var(--border)", paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))" }}>
                 <button onClick={() => { setShowEdit(false); setSaveError(null); }}
                   className="text-sm font-semibold transition-opacity hover:opacity-70"
                   style={{ color: "var(--text-4)" }}>

@@ -1,5 +1,6 @@
 import { adminDb } from "@/utils/supabase/admin";
 import { NextRequest, NextResponse } from "next/server";
+import { requireUser } from "@/lib/apiAuth";
 
 // GET /api/hire-requests?clientId= | ?artistId= | ?artistClerkId=
 export async function GET(req: NextRequest) {
@@ -7,6 +8,13 @@ export async function GET(req: NextRequest) {
   const clientId      = searchParams.get("clientId");
   const artistId      = searchParams.get("artistId");
   const artistClerkId = searchParams.get("artistClerkId");
+
+  // Hire requests are private to the client and the artist involved
+  const me = await requireUser();
+  if (me.error) return me.error;
+  if ((clientId && clientId !== me.userId) || (artistClerkId && artistClerkId !== me.userId)) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
 
   if (clientId) {
     const { data } = await adminDb
@@ -40,7 +48,10 @@ export async function GET(req: NextRequest) {
 
 // POST /api/hire-requests — create a hire request + its conversation
 export async function POST(req: NextRequest) {
-  const body = await req.json();
+  const body = await req.json().catch(() => ({}));
+  const me = await requireUser(body.client_id);
+  if (me.error) return me.error;
+  body.client_id = me.userId; // the client is always the signed-in user
 
   // Create a dedicated conversation for this project
   // Prefer real Clerk ID; fall back to placeholder if not yet known

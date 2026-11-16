@@ -1,10 +1,11 @@
 import { adminDb } from "@/utils/supabase/admin";
 import { NextRequest, NextResponse } from "next/server";
+import { requireUser, viewerId as getViewerId } from "@/lib/apiAuth";
 
 // GET /api/stories/[id]/like?userId= — like status + count
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const userId = new URL(req.url).searchParams.get("userId");
+  const userId = await getViewerId();
 
   const { count } = await adminDb
     .from("story_likes")
@@ -28,8 +29,10 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
 // POST /api/stories/[id]/like — toggle like
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const { userId } = await req.json();
-  if (!userId) return NextResponse.json({ error: "userId required" }, { status: 400 });
+  const body = await req.json().catch(() => ({}));
+  const me = await requireUser(body.userId);
+  if (me.error) return me.error;
+  const userId = me.userId;
 
   const { data: existing } = await adminDb
     .from("story_likes")

@@ -14,6 +14,7 @@ import { use, useEffect, useState } from "react";
 import AuthPromptModal from "@/components/ui/AuthPromptModal";
 import { shareLink } from "@/lib/shareLink";
 import { firstImage } from "@/lib/imageUrl";
+import { followStyle } from "@/lib/followStyle";
 
 const isVideoUrl = (u: string) => /\.(mp4|webm|mov|avi|mkv|ogv)(\?|$)/i.test(u);
 
@@ -241,9 +242,7 @@ export default function UserProfilePage({ params }: { params: Promise<{ username
                       <div className="profile-btn-inline">
                         <button onClick={handleFollow} disabled={followPending}
                           className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all hover:opacity-85 disabled:opacity-60"
-                          style={following
-                            ? { background: "rgba(124,91,245,0.15)", color: "#9B7CF5", border: "1px solid rgba(124,91,245,0.4)" }
-                            : { background: "#7C5BF5", color: "#fff" }}>
+                          style={followStyle(following)}>
                           <UserPlus size={12} />
                           {followPending ? "…" : following ? "Following" : "Follow"}
                         </button>
@@ -286,9 +285,7 @@ export default function UserProfilePage({ params }: { params: Promise<{ username
                     <>
                       <button onClick={handleFollow} disabled={followPending}
                         className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-sm font-semibold transition-all hover:opacity-85 disabled:opacity-60"
-                        style={following
-                          ? { background: "rgba(124,91,245,0.15)", color: "#9B7CF5", border: "1px solid rgba(124,91,245,0.4)" }
-                          : { background: "#7C5BF5", color: "#fff" }}>
+                        style={followStyle(following)}>
                         <UserPlus size={14} />
                         {followPending ? "…" : following ? "Following" : "Follow"}
                       </button>
@@ -490,10 +487,8 @@ export default function UserProfilePage({ params }: { params: Promise<{ username
               <div className="flex flex-col gap-2">
                 <button onClick={handleFollow}
                   disabled={followPending}
-                  className="w-full py-3 rounded-2xl text-sm font-bold text-white transition-opacity hover:opacity-85 disabled:opacity-60"
-                  style={following
-                    ? { background: "rgba(124,91,245,0.15)", color: "#9B7CF5", border: "1px solid rgba(124,91,245,0.4)" }
-                    : { background: "linear-gradient(135deg,#361E7B,#7C5BF5)", boxShadow: "0 4px 20px rgba(124,91,245,0.35)" }}>
+                  className="w-full py-3 rounded-2xl text-sm font-bold transition-opacity hover:opacity-85 disabled:opacity-60"
+                  style={followStyle(following)}>
                   <UserPlus size={15} className="inline mr-2" />
                   {followPending ? "…" : following ? "Following" : "Follow"}
                 </button>

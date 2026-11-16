@@ -1,5 +1,6 @@
 import { adminDb } from "@/utils/supabase/admin";
 import { NextRequest, NextResponse } from "next/server";
+import { requireUser } from "@/lib/apiAuth";
 
 // GET /api/posts?userId=&savedBy=&category=&limit=&offset=
 export async function GET(req: NextRequest) {
@@ -12,6 +13,9 @@ export async function GET(req: NextRequest) {
 
   // Fetch saved posts: join saves → posts
   if (savedBy) {
+    // Saved posts are private to their owner
+    const me = await requireUser(savedBy);
+    if (me.error) return me.error;
     const { data: saveRows } = await adminDb
       .from("saves")
       .select("post_id")
@@ -54,10 +58,9 @@ export async function GET(req: NextRequest) {
   if (galleryOnly) {
     // Gallery page: only posts whose category starts with "gallery:"
     query = query.ilike("category", "gallery:%");
-  } else if (!category && !userId) {
-    // Regular feed: exclude gallery posts so they don't pollute the feed
-    query = query.not("category", "ilike", "gallery:%");
   }
+  // Regular feed shows everything, gallery (for-sale) works included,
+  // so an artist's full body of work appears in the feed.
 
   const { data, error } = await query
     .order("created_at", { ascending: false })
@@ -97,9 +100,22 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({ posts, hasMore: false });
 }
 
-// POST /api/posts — create a new post
+// Columns a client may set when creating a post. Counters, id and created_at stay server-controlled.
+const POST_FIELDS = [
+  "author_name", "author_username", "author_avatar", "title", "description", "image_url",
+  "category", "tags", "medium", "style", "location", "visibility",
+  "allow_comments", "allow_downloads", "post_type", "gallery_urls",
+] as const;
+
+// POST /api/posts — create a new post as the signed-in user
 export async function POST(req: NextRequest) {
-  const body = await req.json();
+  const raw = await req.json().catch(() => ({}));
+  const me = await requireUser(raw.user_id);
+  if (me.error) return me.error;
+
+  const body: Record<string, unknown> = { user_id: me.userId };
+  for (const k of POST_FIELDS) if (raw[k] !== undefined) body[k] = raw[k];
+
   const { data, error } = await adminDb
     .from("posts")
     .insert(body)

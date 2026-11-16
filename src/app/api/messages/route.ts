@@ -1,5 +1,14 @@
 import { adminDb } from "@/utils/supabase/admin";
 import { NextRequest, NextResponse } from "next/server";
+import { requireUser } from "@/lib/apiAuth";
+
+/** Only people in a conversation may read or write it. */
+async function isParticipant(conversationId: string, userId: string) {
+  const { data } = await adminDb
+    .from("conversations").select("id").eq("id", conversationId)
+    .contains("participant_ids", [userId]).maybeSingle();
+  return !!data;
+}
 
 // Broadcast via Supabase Realtime REST API using the service role key.
 // This bypasses RLS and requires no persistent WebSocket from the server.
@@ -52,11 +61,11 @@ export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
     const action = searchParams.get("action");
-    console.log("[messages API] GET action:", action, "params:", Object.fromEntries(searchParams));
+    const me = await requireUser(searchParams.get("userId"));
+    if (me.error) return me.error;
 
     if (action === "unread_count") {
-      const userId = searchParams.get("userId");
-      if (!userId) return NextResponse.json({ count: 0 });
+      const userId = me.userId;
 
       const { data: convs } = await adminDb
         .from("conversations")
@@ -78,8 +87,7 @@ export async function GET(req: NextRequest) {
     }
 
     if (action === "conversations") {
-      const userId = searchParams.get("userId");
-      if (!userId) return NextResponse.json({ conversations: [] });
+      const userId = me.userId;
       const { data, error } = await adminDb
         .from("conversations")
         .select("*")
@@ -92,6 +100,7 @@ export async function GET(req: NextRequest) {
     if (action === "messages") {
       const conversationId = searchParams.get("conversationId");
       if (!conversationId) return NextResponse.json({ messages: [] });
+      if (!(await isParticipant(conversationId, me.userId))) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
       const { data, error } = await adminDb
         .from("messages")
         .select("*")
@@ -111,18 +120,20 @@ export async function GET(req: NextRequest) {
 // POST /api/messages — multiple actions via body.action
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json();
+    const body = await req.json().catch(() => ({}));
     const { action } = body;
-    console.log("[messages API] POST action:", action, "body:", body);
+    const me = await requireUser(body.sender_id ?? body.userId);
+    if (me.error) return me.error;
 
     if (action === "get_or_create_conversation") {
+      // The caller must be one of the two people
       const { userId1, userId2 } = body;
-      const { data: existing, error: findErr } = await adminDb
+      if (userId1 !== me.userId && userId2 !== me.userId) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      const { data: existing } = await adminDb
         .from("conversations")
         .select("*")
         .contains("participant_ids", [userId1, userId2])
         .maybeSingle();
-      console.log("[get_or_create_conversation] find:", { existing, findErr });
       if (existing) return NextResponse.json({ conversation: existing });
 
       const { data, error } = await adminDb
@@ -130,13 +141,14 @@ export async function POST(req: NextRequest) {
         .insert({ participant_ids: [userId1, userId2] })
         .select()
         .single();
-      console.log("[get_or_create_conversation] insert:", { data, error });
       if (error) return NextResponse.json({ error: error.message }, { status: 500 });
       return NextResponse.json({ conversation: data });
     }
 
     if (action === "send_message") {
-      const { conversation_id, sender_id, sender_name, sender_avatar, text } = body;
+      const { conversation_id, sender_name, sender_avatar, text } = body;
+      const sender_id = me.userId;
+      if (!conversation_id || !(await isParticipant(conversation_id, sender_id))) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
       const { data, error } = await adminDb
         .from("messages")
         .insert({ conversation_id, sender_id, sender_name, sender_avatar, text, type: "text" })
@@ -179,7 +191,9 @@ export async function POST(req: NextRequest) {
     }
 
     if (action === "mark_read") {
-      const { conversationId, userId } = body;
+      const { conversationId } = body;
+      const userId = me.userId;
+      if (!conversationId || !(await isParticipant(conversationId, userId))) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
       await adminDb
         .from("messages")
         .update({ read: true })

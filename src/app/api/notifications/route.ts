@@ -1,11 +1,13 @@
 import { adminDb } from "@/utils/supabase/admin";
 import { NextRequest, NextResponse } from "next/server";
+import { requireUser } from "@/lib/apiAuth";
 
 // GET /api/notifications?userId=
 // Returns unread message count across all hire-request conversations the user is part of.
 export async function GET(req: NextRequest) {
-  const userId = new URL(req.url).searchParams.get("userId");
-  if (!userId) return NextResponse.json({ unreadMessages: 0 }, { status: 400 });
+  const me = await requireUser(new URL(req.url).searchParams.get("userId"));
+  if (me.error) return me.error;
+  const userId = me.userId;
 
   // 1. Find all conversation_ids from accepted hire requests the user is involved in
   const { data: hrs } = await adminDb

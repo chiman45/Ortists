@@ -1,5 +1,6 @@
 import Razorpay from "razorpay";
 import { NextRequest, NextResponse } from "next/server";
+import { requireUser } from "@/lib/apiAuth";
 
 const razorpay = new Razorpay({
   key_id:     process.env.RAZORPAY_KEY_ID!,
@@ -7,6 +8,8 @@ const razorpay = new Razorpay({
 });
 
 export async function POST(req: NextRequest) {
+  const me = await requireUser();
+  if (me.error) return me.error;
   try {
     const { amount, currency = "INR", receipt } = await req.json() as {
       amount: number;

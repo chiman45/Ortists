@@ -1,7 +1,10 @@
 import crypto from "crypto";
 import { NextRequest, NextResponse } from "next/server";
+import { requireUser } from "@/lib/apiAuth";
 
 export async function POST(req: NextRequest) {
+  const me = await requireUser();
+  if (me.error) return me.error;
   try {
     const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = await req.json() as {
       razorpay_order_id: string;

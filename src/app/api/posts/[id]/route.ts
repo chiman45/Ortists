@@ -1,5 +1,6 @@
 import { adminDb } from "@/utils/supabase/admin";
 import { NextRequest, NextResponse } from "next/server";
+import { requireUser, viewerId } from "@/lib/apiAuth";
 import { DEFAULT_REACTION, isReaction, reactionMeta, type ReactionCounts } from "@/lib/reactions";
 
 // Until migration 018 adds likes.reaction, fall back to plain likes.
@@ -23,10 +24,12 @@ async function reactionCounts(postId: string): Promise<ReactionCounts> {
 // PATCH /api/posts/[id] — owner-only edit (title, description, category)
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const { userId, title, description, category } = await req.json();
+  const { userId: claimed, title, description, category } = await req.json().catch(() => ({}));
+  const me = await requireUser(claimed);
+  if (me.error) return me.error;
 
   const { data: post } = await adminDb.from("posts").select("user_id").eq("id", id).single();
-  if (!post || post.user_id !== userId) {
+  if (!post || post.user_id !== me.userId) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
@@ -44,10 +47,11 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 // DELETE /api/posts/[id]?userId= — owner-only post deletion
 export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const userId = new URL(req.url).searchParams.get("userId");
+  const me = await requireUser(new URL(req.url).searchParams.get("userId"));
+  if (me.error) return me.error;
 
   const { data: post } = await adminDb.from("posts").select("user_id").eq("id", id).single();
-  if (!post || post.user_id !== userId) {
+  if (!post || post.user_id !== me.userId) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
@@ -67,7 +71,8 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
 // GET /api/posts/[id]?userId= — fetch single post + liked/saved state
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const userId = new URL(req.url).searchParams.get("userId");
+  // "Did I like/save this?" is answered for the signed-in viewer only
+  const userId = await viewerId();
 
   const { data: post, error } = await adminDb
     .from("posts").select("*").eq("id", id).single();
@@ -97,10 +102,12 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
 // POST /api/posts/[id] — like/unlike/save/unsave
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const { action, userId, reaction: rawReaction } = await req.json();
+  const { action, userId: claimed, reaction: rawReaction } = await req.json().catch(() => ({}));
   const reaction = isReaction(rawReaction) ? rawReaction : DEFAULT_REACTION;
 
-  if (!userId) return NextResponse.json({ error: "userId required" }, { status: 400 });
+  const me = await requireUser(claimed);
+  if (me.error) return me.error;
+  const userId = me.userId;
 
   // Fetch post once to get category + tags for ML interaction logging
   const { data: post } = await adminDb

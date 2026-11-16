@@ -1,5 +1,6 @@
 import { adminDb } from "@/utils/supabase/admin";
 import { NextRequest, NextResponse } from "next/server";
+import { requireUser } from "@/lib/apiAuth";
 
 // GET /api/follows?followerId=&followingId= — check if following
 export async function GET(req: NextRequest) {
@@ -33,9 +34,13 @@ async function resyncCounts(followerId: string, followingId: string) {
 
 // POST /api/follows — follow a user
 export async function POST(req: NextRequest) {
-  const { followerId, followingId } = await req.json();
-  if (!followerId || !followingId) {
-    return NextResponse.json({ error: "followerId and followingId required" }, { status: 400 });
+  const body = await req.json().catch(() => ({}));
+  const me = await requireUser(body.followerId);
+  if (me.error) return me.error;
+  const followerId = me.userId;
+  const followingId: string | undefined = body.followingId;
+  if (!followingId) {
+    return NextResponse.json({ error: "followingId required" }, { status: 400 });
   }
   if (followerId === followingId) {
     return NextResponse.json({ error: "Cannot follow yourself" }, { status: 400 });
@@ -77,9 +82,13 @@ export async function POST(req: NextRequest) {
 
 // DELETE /api/follows — unfollow a user
 export async function DELETE(req: NextRequest) {
-  const { followerId, followingId } = await req.json();
-  if (!followerId || !followingId) {
-    return NextResponse.json({ error: "followerId and followingId required" }, { status: 400 });
+  const body = await req.json().catch(() => ({}));
+  const me = await requireUser(body.followerId);
+  if (me.error) return me.error;
+  const followerId = me.userId;
+  const followingId: string | undefined = body.followingId;
+  if (!followingId) {
+    return NextResponse.json({ error: "followingId required" }, { status: 400 });
   }
 
   const { error: deleteError } = await adminDb

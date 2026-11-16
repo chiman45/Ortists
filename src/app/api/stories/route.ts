@@ -1,5 +1,6 @@
 import { adminDb } from "@/utils/supabase/admin";
 import { NextRequest, NextResponse } from "next/server";
+import { requireUser } from "@/lib/apiAuth";
 
 export interface DbStory {
   id: string;
@@ -52,7 +53,22 @@ export async function GET() {
 
 // POST /api/stories — create a story
 export async function POST(req: NextRequest) {
-  const body = await req.json();
+  const raw = await req.json().catch(() => ({}));
+  const me = await requireUser(raw.user_id);
+  if (me.error) return me.error;
+  if (!raw.image_url) return NextResponse.json({ error: "image_url required" }, { status: 400 });
+
+  // Stories last at most 24 hours
+  const maxExpiry = Date.now() + 24 * 60 * 60 * 1000;
+  const asked = raw.expires_at ? Date.parse(raw.expires_at) : NaN;
+  const body = {
+    user_id:         me.userId,
+    author_name:     raw.author_name ?? "Artist",
+    author_username: raw.author_username ?? me.userId.slice(0, 12),
+    author_avatar:   raw.author_avatar ?? null,
+    image_url:       raw.image_url,
+    expires_at:      new Date(Number.isFinite(asked) ? Math.min(asked, maxExpiry) : maxExpiry).toISOString(),
+  };
   const { data, error } = await adminDb
     .from("stories")
     .insert(body)

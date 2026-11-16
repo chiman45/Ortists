@@ -1,5 +1,6 @@
 import { adminDb } from "@/utils/supabase/admin";
 import { NextRequest, NextResponse } from "next/server";
+import { requireUser } from "@/lib/apiAuth";
 
 // GET /api/signed-url?path=<storage-path>&bucket=<bucket>&userId=<clerkId>&convId=<conversationId>
 //
@@ -10,15 +11,21 @@ export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const path   = searchParams.get("path");
   const bucket = searchParams.get("bucket") ?? "message-media";
-  const userId = searchParams.get("userId");
   const convId = searchParams.get("convId");
 
+  const me = await requireUser(searchParams.get("userId"));
+  if (me.error) return me.error;
+  const userId = me.userId;
+
   if (!path) return NextResponse.json({ error: "path required" }, { status: 400 });
+  if (!["message-media", "deliverables", "post-media", "avatars", "artwork"].includes(bucket)) {
+    return NextResponse.json({ error: "Invalid bucket" }, { status: 400 });
+  }
 
   // For private message-media, verify the user belongs to the conversation
   if (bucket === "message-media") {
-    if (!userId || !convId) {
-      return NextResponse.json({ error: "userId and convId required for message-media" }, { status: 400 });
+    if (!convId) {
+      return NextResponse.json({ error: "convId required for message-media" }, { status: 400 });
     }
 
     // Check user is a participant in this conversation via hire_requests

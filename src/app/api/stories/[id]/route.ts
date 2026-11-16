@@ -1,18 +1,24 @@
 import { adminDb } from "@/utils/supabase/admin";
 import { NextRequest, NextResponse } from "next/server";
+import { requireUser } from "@/lib/apiAuth";
 
 // DELETE /api/stories/[id]
 export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  await adminDb.from("stories").delete().eq("id", id);
+  const me = await requireUser();
+  if (me.error) return me.error;
+  // Only the owner can delete their story
+  await adminDb.from("stories").delete().eq("id", id).eq("user_id", me.userId);
   return NextResponse.json({ ok: true });
 }
 
 // POST /api/stories/[id] — record a view (idempotent; skips own stories)
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const { viewerId } = await req.json();
-  if (!viewerId) return NextResponse.json({ error: "viewerId required" }, { status: 400 });
+  const body = await req.json().catch(() => ({}));
+  const me = await requireUser(body.viewerId);
+  if (me.error) return me.error;
+  const viewerId = me.userId;
 
   // Don't count self-views
   const { data: story } = await adminDb.from("stories").select("user_id").eq("id", id).single();
@@ -28,7 +34,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 // GET /api/stories/[id]?requesterId= — return viewers list (story owner only)
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const requesterId = new URL(req.url).searchParams.get("requesterId");
+  const me = await requireUser(new URL(req.url).searchParams.get("requesterId"));
+  if (me.error) return me.error;
+  const requesterId = me.userId;
 
   const { data: story } = await adminDb.from("stories").select("user_id").eq("id", id).single();
   if (!story || story.user_id !== requesterId) {

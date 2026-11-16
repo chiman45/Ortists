@@ -94,7 +94,7 @@ export default function FeedPage() {
     if (query) return;
     setLoading(true);
     setDbPosts([]);
-    fetch("/api/posts?limit=48&offset=0")
+    fetch("/api/posts?limit=100&offset=0")
       .then(r => r.json())
       .then(({ posts }: { posts: Post[] }) => {
         // API already returns newest first — keep that order so new work shows at the top

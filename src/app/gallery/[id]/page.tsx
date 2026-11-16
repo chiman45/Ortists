@@ -12,6 +12,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { use, useEffect, useState } from "react";
 import { useUser } from "@clerk/nextjs";
+import { followStyle } from "@/lib/followStyle";
 
 // ── Purchase modal ─────────────────────────────────────────────
 
@@ -301,11 +302,7 @@ export default function GalleryDetailPage({ params }: { params: Promise<{ id: st
                   <button
                     onClick={() => setFollowing(v => !v)}
                     className="text-xs font-semibold px-3 py-1.5 rounded-full transition-all hover:opacity-80"
-                    style={{
-                      background: following ? "rgba(16,185,129,0.12)" : "rgba(124,91,245,0.15)",
-                      color:      following ? "#10B981"                : "#9B7CF5",
-                      border:     `1px solid ${following ? "rgba(16,185,129,0.3)" : "rgba(124,91,245,0.3)"}`,
-                    }}
+                    style={followStyle(following)}
                   >
                     {following ? "Following" : "Follow"}
                   </button>

@@ -1,5 +1,6 @@
 import { adminDb } from "@/utils/supabase/admin";
 import { NextRequest, NextResponse } from "next/server";
+import { requireUser } from "@/lib/apiAuth";
 
 // GET /api/comments?postId=
 export async function GET(req: NextRequest) {
@@ -15,9 +16,23 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({ comments: data ?? [] });
 }
 
-// POST /api/comments — add comment
+// POST /api/comments — add comment as the signed-in user
 export async function POST(req: NextRequest) {
-  const body = await req.json();
+  const raw = await req.json().catch(() => ({}));
+  const me = await requireUser(raw.user_id);
+  if (me.error) return me.error;
+
+  const text = String(raw.text ?? "").trim().slice(0, 2000);
+  if (!raw.post_id || !text) return NextResponse.json({ error: "post_id and text required" }, { status: 400 });
+
+  // Only these columns may be written; author comes from the verified session
+  const body = {
+    user_id:       me.userId,
+    author_name:   String(raw.author_name ?? "Someone").slice(0, 120),
+    author_avatar: raw.author_avatar ?? null,
+    post_id:       raw.post_id,
+    text,
+  };
   const { data, error } = await adminDb
     .from("comments")
     .insert(body)
@@ -37,10 +52,10 @@ export async function POST(req: NextRequest) {
     if (post.user_id && post.user_id !== body.user_id) {
       await adminDb.from("notifications").insert({
         user_id:      post.user_id,
-        actor_name:   body.user_name ?? null,
-        actor_avatar: body.user_avatar ?? null,
+        actor_name:   body.author_name,
+        actor_avatar: body.author_avatar,
         type:         "comment",
-        text:         `${body.user_name ?? "Someone"} commented on your artwork`,
+        text:         `${body.author_name} commented on your artwork`,
         sub_text:     post.title ?? null,
         post_id:      body.post_id,
       });

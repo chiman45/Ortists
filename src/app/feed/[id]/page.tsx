@@ -34,6 +34,7 @@ import ArtworkViewer from "@/components/ui/ArtworkViewer";
 import WallPreview from "@/components/ui/WallPreview";
 import { buyerPriceAmount, buyerPriceLabel } from "@/lib/pricing";
 import { firstImage } from "@/lib/imageUrl";
+import { followStyle } from "@/lib/followStyle";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -456,9 +457,7 @@ export default function FeedPostPage({ params }: { params: Promise<{ id: string 
                           <button
                             onClick={handleFollow}
                             className="text-xs font-semibold px-3 py-1.5 rounded-full shrink-0 transition-all hover:opacity-80"
-                            style={following
-                              ? { background: "rgba(16,185,129,0.12)", color: "#10B981", border: "1px solid rgba(16,185,129,0.3)" }
-                              : { background: "rgba(124,91,245,0.15)", color: "#9B7CF5", border: "1px solid rgba(124,91,245,0.3)" }}
+                            style={followStyle(following)}
                           >
                             {following ? "Following" : "Follow"}
                           </button>

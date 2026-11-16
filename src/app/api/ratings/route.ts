@@ -1,11 +1,12 @@
 import { adminDb } from "@/utils/supabase/admin";
 import { NextRequest, NextResponse } from "next/server";
+import { requireUser, viewerId } from "@/lib/apiAuth";
 
 // GET /api/ratings?artworkId=&userId= → { average, count, myRating }
 export async function GET(req: NextRequest) {
   const url       = new URL(req.url);
   const artworkId = url.searchParams.get("artworkId");
-  const userId    = url.searchParams.get("userId");
+  const userId    = await viewerId();
   if (!artworkId) return NextResponse.json({ average: 0, count: 0, myRating: null });
 
   const { data } = await adminDb
@@ -23,10 +24,13 @@ export async function GET(req: NextRequest) {
 
 // POST /api/ratings — { artworkId, userId, rating } upsert one rating per user per artwork
 export async function POST(req: NextRequest) {
-  const body = await req.json();
-  const { artworkId, userId, rating } = body;
+  const body = await req.json().catch(() => ({}));
+  const me = await requireUser(body.userId);
+  if (me.error) return me.error;
+  const userId = me.userId;
+  const { artworkId, rating } = body;
 
-  if (!artworkId || !userId || !rating) {
+  if (!artworkId || !rating) {
     return NextResponse.json({ error: "artworkId, userId and rating are required" }, { status: 400 });
   }
   if (rating < 1 || rating > 5) {
