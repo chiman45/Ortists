@@ -53,27 +53,29 @@ export async function GET(req: NextRequest) {
     if (e1) console.error("[profiles] clerk_id lookup error:", e1.message, "| param:", username);
     if (byId) return NextResponse.json({ profile: scrub(byId, viewer) });
 
-    // 2. Case-insensitive username match (also try with @ prefix — usernames may be stored as @handle)
-    const usernameVariants = [username, `@${username}`];
-    let byUsername = null;
-    for (const variant of usernameVariants) {
-      const { data, error: e2 } = await adminDb
+    // Stored handles can carry an "@" prefix or stray spaces ("Designer "), while
+    // the URL arrives trimmed — so fetch loose candidates and compare normalised.
+    const norm = (s: unknown) => String(s ?? "").trim().replace(/^@+/, "").toLowerCase();
+    const wanted = norm(username);
+    // Escape LIKE wildcards so "user_3ab" only matches itself
+    const like = `%${username.trim().replace(/^@+/, "").replace(/[\\%_]/g, "\\$&")}%`;
+    const findBy = async (column: "username" | "display_name") => {
+      const { data, error } = await adminDb
         .from("profiles")
         .select("*")
-        .ilike("username", variant)
-        .maybeSingle();
-      if (e2) console.error("[profiles] username lookup error:", e2.message, "| variant:", variant);
-      if (data) { byUsername = data; break; }
-    }
+        .ilike(column, like)
+        .order("followers_count", { ascending: false })
+        .limit(50);
+      if (error) console.error(`[profiles] ${column} lookup error:`, error.message, "| param:", username);
+      return (data ?? []).find((r: Row) => norm(r[column]) === wanted) ?? null;
+    };
+
+    // 2. Case-insensitive username match
+    const byUsername = wanted ? await findBy("username") : null;
     if (byUsername) return NextResponse.json({ profile: scrub(byUsername, viewer) });
 
     // 3. Fallback: display_name match
-    const { data: byName, error: e3 } = await adminDb
-      .from("profiles")
-      .select("*")
-      .ilike("display_name", username)
-      .maybeSingle();
-    if (e3) console.error("[profiles] display_name lookup error:", e3.message, "| param:", username);
+    const byName = wanted ? await findBy("display_name") : null;
 
     console.log(
       "[profiles] lookup for param:", username,

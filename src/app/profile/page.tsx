@@ -14,8 +14,9 @@ import {
   Star, Heart, Bookmark, Users, LayoutGrid,
   Store, Briefcase, UserCircle, Eye, MapPin, Pencil, Zap,
   CheckCircle2, SlidersHorizontal, Plus, Pause, Copy, Trash2,
-  Clock, X, Check, Share2, Camera, Loader2, MoreVertical,
+  Clock, X, Check, Share2, Camera, Loader2, MoreVertical, Tag,
 } from "lucide-react";
+import { galleryListing } from "@/lib/pricing";
 import { firstImage } from "@/lib/imageUrl";
 const isVideoUrl = (u: string) => /\.(mp4|webm|mov|avi|mkv|ogv)(\?|$)/i.test(u);
 import Link from "next/link";
@@ -77,6 +78,7 @@ export default function ProfilePage() {
   const [bannerPreview, setBannerPreview]   = useState<string | null>(null);
   const [bannerUploading, setBannerUploading] = useState(false);
   const bannerInputRef                        = useRef<HTMLInputElement>(null);
+  const [bannerError, setBannerError]       = useState<string | null>(null);
   const [followModal, setFollowModal]   = useState<{ type: "followers" | "following"; users: FollowUser[] } | null>(null);
   const [followLoading, setFollowLoading] = useState(false);
   const [editSection, setEditSection]   = useState<EditSection>("Basic Info");
@@ -187,6 +189,7 @@ export default function ProfilePage() {
     const file = e.target.files?.[0];
     if (!file) return;
     e.target.value = "";
+    setBannerError(null);
     setBannerUploading(true);
     try {
       const form = new FormData();
@@ -194,9 +197,23 @@ export default function ProfilePage() {
       const res = await fetch("/api/upload", { method: "POST", body: form });
       const { url, error: upErr } = await res.json();
       if (upErr || !url) throw new Error(upErr ?? "Upload failed");
-      setBannerPreview(url);
+      if (showEdit) {
+        // Inside Edit Profile the new banner is saved with the rest of the form
+        setBannerPreview(url);
+      } else {
+        // Changed straight from the profile header — save it right away
+        const saveRes = await fetch("/api/profile/sync", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ clerk_id: user?.id, banner_url: url }),
+        });
+        const data = await saveRes.json();
+        if (!saveRes.ok || data.error) throw new Error(data.error ?? "Couldn't save banner");
+        if (data.profile) setProfile(data.profile);
+      }
     } catch (err) {
-      setSaveError(err instanceof Error ? err.message : "Banner upload failed");
+      const msg = err instanceof Error ? err.message : "Banner upload failed";
+      if (showEdit) setSaveError(msg); else setBannerError(msg);
     } finally {
       setBannerUploading(false);
     }
@@ -305,6 +322,7 @@ export default function ProfilePage() {
   const tag          = profile?.tag ?? "Artist";
   const bio          = profile?.bio ?? "Tell the world about your art. Click Edit Profile to update.";
   const avatar       = profile?.avatar_url ?? user?.imageUrl ?? "https://i.pravatar.cc/200?img=33";
+  const banner       = profile?.banner_url ?? null;
   const followers    = liveStats.followers;
   const following    = liveStats.following;
   const totalLikes   = liveStats.totalLikes;
@@ -343,6 +361,31 @@ export default function ProfilePage() {
 
             {/* ── Profile header ── */}
             <div className="mb-6">
+              {/* Banner — same crop on phone and desktop, editable in place */}
+              <div className="relative h-28 sm:h-40 w-full rounded-2xl overflow-hidden mb-4"
+                style={{ background: "linear-gradient(135deg,#1a0a3a,#2d1b69)", border: "1px solid var(--border)" }}>
+                {banner && (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={banner} alt="" className="absolute inset-0 w-full h-full object-cover" draggable={false} />
+                )}
+                {bannerUploading && !showEdit && (
+                  <div className="absolute inset-0 flex items-center justify-center" style={{ background: "rgba(0,0,0,0.5)" }}>
+                    <Loader2 size={20} className="animate-spin text-white" />
+                  </div>
+                )}
+                <button
+                  onClick={() => !bannerUploading && bannerInputRef.current?.click()}
+                  disabled={bannerUploading}
+                  aria-label="Change banner"
+                  className="absolute bottom-2.5 right-2.5 flex items-center gap-1.5 px-2.5 sm:px-3 py-2 rounded-xl text-xs font-semibold text-white transition-opacity hover:opacity-85 disabled:opacity-60"
+                  style={{ background: "rgba(0,0,0,0.6)", backdropFilter: "blur(10px)", border: "1px solid rgba(255,255,255,0.18)" }}>
+                  <Camera size={14} />
+                  <span className="hidden sm:inline">{banner ? "Change banner" : "Add banner"}</span>
+                </button>
+              </div>
+              {bannerError && (
+                <p className="text-xs mb-3" style={{ color: "#EF4444" }}>{bannerError}</p>
+              )}
               <div className="flex items-start gap-4">
                 {/* Avatar — square rounded */}
                 <div className="relative shrink-0">
@@ -471,11 +514,19 @@ export default function ProfilePage() {
                     const src = firstImage(post.image_url);
                     const isVid = isVideoUrl(src);
                     const menuOpen = postMenu === post.id;
+                    // Gallery (for-sale) works carry a price tag; plain feed posts don't
+                    const listing = galleryListing(post);
                     return (
                       <div key={post.id}
                         className="block break-inside-avoid mb-3 rounded-xl overflow-hidden group cursor-pointer relative"
                         style={{ background: "var(--bg-subtle)" }}
                         onClick={() => { if (!menuOpen) setOpenPostModal(post); }}>
+                        {listing && (
+                          <span className="absolute bottom-2 right-2 z-1 flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold text-white pointer-events-none"
+                            style={{ background: "rgba(124,91,245,0.9)", backdropFilter: "blur(6px)" }}>
+                            <Tag size={9} /> {listing.price ?? "For sale"}
+                          </span>
+                        )}
                         {isVid ? (
                           <video src={src} className="w-full object-cover"
                             muted playsInline preload="metadata"
@@ -919,6 +970,9 @@ export default function ProfilePage() {
 
       <BottomNav />
 
+      {/* One banner picker shared by the profile header and Edit Profile */}
+      <input ref={bannerInputRef} type="file" accept="image/*" className="hidden" onChange={handleBannerChange} />
+
       {/* ── Followers / Following Modal ── */}
       {(followModal || followLoading) && (
         <div
@@ -1057,6 +1111,26 @@ export default function ProfilePage() {
                 {/* ── Basic Info ── */}
                 {editSection === "Basic Info" && (
                   <div className="flex flex-col gap-5">
+                    {/* Banner */}
+                    <div>
+                      <p className="text-xs font-semibold mb-3" style={{ color: "var(--text-5)" }}>Banner</p>
+                      <div className="relative h-24 sm:h-28 w-full rounded-xl overflow-hidden cursor-pointer"
+                        style={{ background: "linear-gradient(135deg,#1a0a3a,#2d1b69)", border: "1px solid var(--border)" }}
+                        onClick={() => !bannerUploading && bannerInputRef.current?.click()}>
+                        {(bannerPreview ?? banner) && (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={(bannerPreview ?? banner)!} alt="banner" className="absolute inset-0 w-full h-full object-cover" />
+                        )}
+                        <div className="absolute inset-0 flex items-center justify-center gap-1.5 text-xs font-semibold text-white"
+                          style={{ background: "rgba(0,0,0,0.35)" }}>
+                          {bannerUploading
+                            ? <Loader2 size={16} className="animate-spin" />
+                            : <><Camera size={14} /> {(bannerPreview ?? banner) ? "Change banner" : "Upload banner"}</>}
+                        </div>
+                      </div>
+                      <p className="text-[11px] mt-1.5" style={{ color: "var(--text-5)" }}>Wide image works best. JPG, PNG or WEBP.</p>
+                    </div>
+
                     {/* Profile photo row */}
                     <div>
                       <p className="text-xs font-semibold mb-3" style={{ color: "var(--text-5)" }}>Profile Photo</p>

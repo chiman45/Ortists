@@ -162,7 +162,7 @@ function toArtist(a: ArtistProfile): Artist {
     available: a.available,
     medium:    a.tag ? a.tag.split(",").map(t => t.trim()) : [],
     followers: String(a.followers_count),
-    cover:     "",
+    cover:     a.banner_url ?? "",
     bio:       a.bio ?? "",
   };
 }

@@ -8,13 +8,14 @@ import PostModal from "@/components/ui/PostModal";
 import { type Post as DbPost } from "@/lib/db/posts";
 import { type Profile } from "@/lib/db/profiles";
 import { useUser } from "@clerk/nextjs";
-import { ArrowLeft, Bookmark, Briefcase, Heart, Check, MapPin, Share2, Star, Users, UserPlus, TrendingUp, X } from "lucide-react";
+import { ArrowLeft, Bookmark, Briefcase, Heart, Check, MapPin, Share2, Star, Tag, Users, UserPlus, TrendingUp, X } from "lucide-react";
 import Link from "next/link";
 import { use, useEffect, useState } from "react";
 import AuthPromptModal from "@/components/ui/AuthPromptModal";
 import { shareLink } from "@/lib/shareLink";
 import { firstImage } from "@/lib/imageUrl";
 import { followStyle } from "@/lib/followStyle";
+import { buyerPriceLabel, galleryListing } from "@/lib/pricing";
 
 const isVideoUrl = (u: string) => /\.(mp4|webm|mov|avi|mkv|ogv)(\?|$)/i.test(u);
 
@@ -186,9 +187,11 @@ export default function UserProfilePage({ params }: { params: Promise<{ username
             <div className="rounded-2xl overflow-hidden mb-5"
               style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}>
               {/* Cover — back arrow floats here */}
-              <div className="relative h-28 w-full" style={{ background: "linear-gradient(135deg,#1a0a3a,#2d1b69)" }}>
-                <div className="absolute inset-0 opacity-25"
-                  style={{ background: `url(https://picsum.photos/seed/${profile.clerk_id}cover/900/200) center/cover` }} />
+              <div className="relative h-28 sm:h-40 w-full" style={{ background: "linear-gradient(135deg,#1a0a3a,#2d1b69)" }}>
+                {profile.banner_url && (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={profile.banner_url} alt="" className="absolute inset-0 w-full h-full object-cover" draggable={false} />
+                )}
                 <Link href="/feed"
                   className="absolute top-3 left-3 w-9 h-9 flex items-center justify-center rounded-full transition-all hover:opacity-80 z-10"
                   style={{ background: "rgba(0,0,0,0.45)", backdropFilter: "blur(10px)", border: "1px solid rgba(255,255,255,0.15)" }}>
@@ -374,6 +377,12 @@ export default function UserProfilePage({ params }: { params: Promise<{ username
                   {posts.map(p => {
                     const src = firstImage(p.image_url);
                     const isVid = isVideoUrl(src);
+                    // Gallery (for-sale) works carry a price tag; plain feed posts don't.
+                    // Visitors see the buyer price, the artist sees their own.
+                    const listing = galleryListing(p);
+                    const priceTag = listing
+                      ? (isOwnProfile ? listing.price : buyerPriceLabel(listing.price)) ?? "For sale"
+                      : null;
                     return (
                       <button key={p.id} onClick={() => setOpenPostModal(p)}
                         className="block break-inside-avoid mb-3 rounded-xl overflow-hidden group cursor-pointer relative w-full text-left"
@@ -398,6 +407,12 @@ export default function UserProfilePage({ params }: { params: Promise<{ username
                         {isVid && (
                           <span className="absolute top-2 left-2 px-2 py-0.5 rounded-full text-[10px] font-bold text-white"
                             style={{ background: "rgba(0,0,0,0.55)", backdropFilter: "blur(6px)" }}>▶</span>
+                        )}
+                        {priceTag && (
+                          <span className="absolute top-2 right-2 flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold text-white"
+                            style={{ background: "rgba(124,91,245,0.9)", backdropFilter: "blur(6px)" }}>
+                            <Tag size={9} /> {priceTag}
+                          </span>
                         )}
                       </button>
                     );
@@ -514,24 +529,29 @@ export default function UserProfilePage({ params }: { params: Promise<{ username
         />
       )}
 
+      {/* HireModal is a full-size split view, not a self-positioning dialog — it
+          needs its own full-screen layer or it lands in the page's flex row and
+          squashes the header over itself. */}
       {hireOpen && profile && (
-        <HireModal
-          artist={{
-            id: 0,
-            name: profile.display_name ?? profile.username ?? "Artist",
-            location: profile.location ?? "",
-            medium: [],
-            followers: String(profile.followers_count ?? 0),
-            price: 0,
-            rating: 5.0,
-            available: true,
-            avatar: profile.avatar_url ?? `https://i.pravatar.cc/80?u=${profile.clerk_id}`,
-            cover: "",
-            bio: profile.bio ?? "",
-          }}
-          artistClerkId={profile.clerk_id}
-          onClose={() => setHireOpen(false)}
-        />
+        <div className="fixed inset-0 z-50 flex" style={{ height: "100dvh", background: "#06030f" }}>
+          <HireModal
+            artist={{
+              id: 0,
+              name: profile.display_name ?? profile.username ?? "Artist",
+              location: profile.location ?? "",
+              medium: [],
+              followers: String(profile.followers_count ?? 0),
+              price: 0,
+              rating: 5.0,
+              available: profile.available,
+              avatar: profile.avatar_url ?? `https://i.pravatar.cc/80?u=${profile.clerk_id}`,
+              cover: profile.banner_url ?? "",
+              bio: profile.bio ?? "",
+            }}
+            artistClerkId={profile.clerk_id}
+            onClose={() => setHireOpen(false)}
+          />
+        </div>
       )}
 
       {/* Followers / Following Modal */}

@@ -193,7 +193,8 @@ export default function HireModal({ artist, artistClerkId, onClose }: Props) {
   const portfolioImgs = Array.from({ length: 4 }, (_, i) =>
     `https://picsum.photos/seed/${encodeURIComponent(artist.name)}${i + 1}/400/300`
   );
-  const heroImg = `https://picsum.photos/seed/${encodeURIComponent(artist.name)}hero/800/500`;
+  // The artist's own banner when they've set one
+  const heroImg = artist.cover || `https://picsum.photos/seed/${encodeURIComponent(artist.name)}hero/800/500`;
 
   return (
     <div className="flex h-full w-full">

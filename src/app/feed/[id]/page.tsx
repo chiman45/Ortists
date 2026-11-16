@@ -8,7 +8,7 @@ import { type Comment } from "@/lib/db/comments";
 import { type Post } from "@/lib/db/posts";
 import { allPosts } from "@/lib/mockData";
 import { useUser } from "@clerk/nextjs";
-import { ArrowLeft, Bookmark, Check, Heart, Loader2, MessageCircle, Send, Share2, ShoppingBag, UserPlus } from "lucide-react";
+import { ArrowLeft, Bookmark, Check, Heart, Loader2, MessageCircle, Send, Share2, ShoppingBag, UserPlus, X } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import AuthPromptModal from "@/components/ui/AuthPromptModal";
@@ -36,7 +36,12 @@ import { buyerPriceAmount, buyerPriceLabel } from "@/lib/pricing";
 import { firstImage } from "@/lib/imageUrl";
 import { followStyle } from "@/lib/followStyle";
 
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+// Stable reference: MasonryGrid resets itself whenever its `posts` prop changes
+// identity, so an inline `[]` wiped and reloaded the grid on every keystroke
+// in the comment box.
+const NO_POSTS: Post[] = [];
+
+const UUID_RE =/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export default function FeedPostPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -57,6 +62,7 @@ export default function FeedPostPage({ params }: { params: Promise<{ id: string 
   const [paying, setPaying]           = useState(false);
   const [payDone, setPayDone]         = useState(false);
   const [payError, setPayError]       = useState<string | null>(null);
+  const [buySummary, setBuySummary]   = useState(false); // cost breakdown shown before Razorpay
   const [relatedPosts, setRelatedPosts] = useState<Post[]>([]);
   const [shared, setShared]           = useState(false);
   const [likePending, setLikePending] = useState(false);
@@ -252,6 +258,8 @@ export default function FeedPostPage({ params }: { params: Promise<{ id: string 
           },
           modal: { ondismiss: () => reject(new Error("__dismissed__")) },
         });
+        // The buyer has confirmed the summary — hand over to Razorpay
+        setBuySummary(false);
         rzp.open();
       });
     } catch (err: unknown) {
@@ -513,7 +521,11 @@ export default function FeedPostPage({ params }: { params: Promise<{ id: string 
                           ) : (
                             <>
                               <button
-                                onClick={handleBuyNow}
+                                onClick={() => {
+                                  if (!user) { setAuthPrompt(true); return; }
+                                  setPayError(null);
+                                  setBuySummary(true);
+                                }}
                                 disabled={paying}
                                 className="w-full py-2.5 rounded-xl font-bold text-sm text-white transition-opacity hover:opacity-85 disabled:opacity-60 flex items-center justify-center gap-2"
                                 style={{ background: "linear-gradient(135deg, #361E7B, #7C5BF5)" }}
@@ -586,7 +598,7 @@ export default function FeedPostPage({ params }: { params: Promise<{ id: string 
 
                 {/* ── Below pin card: fill left column with more posts (desktop only) ── */}
                 <div className="hidden lg:block mt-2">
-                  <MasonryGrid posts={[]} loadFromDb={true} columns="columns-2" />
+                  <MasonryGrid posts={NO_POSTS} loadFromDb={true} columns="columns-2" />
                 </div>
 
                 </div>{/* end left column */}
@@ -621,6 +633,88 @@ export default function FeedPostPage({ params }: { params: Promise<{ id: string 
         <ArtworkViewer src={img} alt={title} onClose={() => setViewerOpen(false)} />
       )}
       {authPrompt && <AuthPromptModal onClose={() => setAuthPrompt(false)} />}
+
+      {/* ── Order summary: cost breakdown the buyer confirms before Razorpay opens ── */}
+      {buySummary && descPrice && (
+        <div
+          className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4"
+          style={{ background: "rgba(0,0,0,0.65)", backdropFilter: "blur(6px)" }}
+          onClick={e => { if (e.target === e.currentTarget && !paying) setBuySummary(false); }}
+        >
+          <div
+            className="w-full sm:max-w-md flex flex-col rounded-t-2xl sm:rounded-2xl overflow-hidden"
+            style={{ background: "var(--bg-card)", border: "1px solid var(--border)", boxShadow: "0 32px 80px rgba(0,0,0,0.55)", paddingBottom: "env(safe-area-inset-bottom)" }}
+          >
+            <div className="px-5 pt-5 pb-4 flex items-center justify-between" style={{ borderBottom: "1px solid var(--border)" }}>
+              <div>
+                <p className="text-[10px] font-bold tracking-widest mb-0.5" style={{ color: "var(--text-5)" }}>ORDER SUMMARY</p>
+                <h2 className="text-lg font-bold" style={{ color: "var(--text-1)" }}>Review your order</h2>
+              </div>
+              <button
+                onClick={() => setBuySummary(false)}
+                disabled={paying}
+                aria-label="Close"
+                className="w-8 h-8 rounded-full flex items-center justify-center transition-opacity hover:opacity-70 disabled:opacity-40"
+                style={{ background: "var(--bg-subtle)", color: "var(--text-4)" }}
+              >
+                <X size={15} />
+              </button>
+            </div>
+
+            <div className="px-5 py-5 flex flex-col gap-4">
+              {/* Artwork */}
+              <div className="flex items-center gap-3 p-3 rounded-xl" style={{ background: "var(--bg-subtle)", border: "1px solid var(--border)" }}>
+                {!isVideo && (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={img} alt={title} className="rounded-lg object-cover shrink-0" style={{ width: 60, height: 60 }} />
+                )}
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-bold truncate" style={{ color: "var(--text-1)" }}>{title}</p>
+                  <p className="text-xs mt-0.5 truncate" style={{ color: "var(--text-5)" }}>
+                    by {udisp}{descDimensions ? ` · ${descDimensions}` : ""}
+                  </p>
+                </div>
+              </div>
+
+              {/* Breakdown — the listed price already includes the platform's charges */}
+              <div className="flex flex-col text-sm">
+                <div className="flex justify-between py-2.5" style={{ borderBottom: "1px solid var(--border)" }}>
+                  <span style={{ color: "var(--text-4)" }}>Artwork price</span>
+                  <span className="font-semibold" style={{ color: "var(--text-2)" }}>{buyerPriceLabel(descPrice) ?? descPrice}</span>
+                </div>
+                <div className="flex justify-between py-2.5" style={{ borderBottom: "1px solid var(--border)" }}>
+                  <span style={{ color: "var(--text-4)" }}>Service charges</span>
+                  <span style={{ color: "var(--text-4)" }}>Included</span>
+                </div>
+                <div className="flex justify-between items-baseline pt-3">
+                  <span className="font-bold" style={{ color: "var(--text-1)" }}>Total payable</span>
+                  <span className="text-xl font-bold" style={{ color: "#9B7CF5" }}>{buyerPriceLabel(descPrice) ?? descPrice}</span>
+                </div>
+              </div>
+
+              {payError && (
+                <p className="text-xs text-center px-3 py-2 rounded-xl"
+                  style={{ background: "rgba(239,68,68,0.1)", color: "#EF4444", border: "1px solid rgba(239,68,68,0.2)" }}>
+                  {payError}
+                </p>
+              )}
+
+              <button
+                onClick={handleBuyNow}
+                disabled={paying}
+                className="w-full py-3.5 rounded-xl font-bold text-sm text-white transition-opacity hover:opacity-85 disabled:opacity-60 flex items-center justify-center gap-2"
+                style={{ background: "linear-gradient(135deg, #361E7B, #7C5BF5)" }}
+              >
+                {paying && <Loader2 size={14} className="animate-spin" />}
+                {paying ? "Opening payment…" : `Pay ${buyerPriceLabel(descPrice) ?? descPrice}`}
+              </button>
+              <p className="text-[11px] text-center" style={{ color: "var(--text-5)" }}>
+                Secure payment via Razorpay
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

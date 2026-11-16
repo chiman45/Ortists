@@ -27,6 +27,23 @@ export function buyerPriceAmount(artistPrice: string | null | undefined): number
   return parsed ? withPlatformFee(parsed.amount) : null;
 }
 
+/**
+ * A post is a gallery (for-sale) listing when its category carries the
+ * "gallery:" prefix or its description embeds a price. `price` is the artist's
+ * own "₹1000"-style string, or null when the listing has no price yet.
+ */
+export function galleryListing(post: { category?: string | null; description?: string | null }): { price: string | null } | null {
+  let price: string | null = null;
+  if (post.description) {
+    try {
+      const obj = JSON.parse(post.description);
+      if (obj && typeof obj._price === "string" && obj._price) price = obj._price;
+    } catch { /* plain-text description */ }
+  }
+  if (price || (post.category ?? "").startsWith("gallery:")) return { price };
+  return null;
+}
+
 function splitPriceString(raw: string | null | undefined): { symbol: string; amount: number } | null {
   if (!raw) return null;
   const m = raw.trim().match(/^([^\d.]*)\s*([\d,]+(?:\.\d+)?)/);

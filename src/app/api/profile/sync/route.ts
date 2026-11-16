@@ -70,6 +70,11 @@ export async function PATCH(req: NextRequest) {
   // Server-managed columns can't be set from the client
   for (const k of ["id", "created_at", "updated_at", "followers_count", "following_count"]) delete updates[k];
 
+  // Stray spaces in a handle or name break profile links ("/u/Designer" ≠ "Designer ")
+  for (const k of ["username", "display_name"]) {
+    if (typeof updates[k] === "string") updates[k] = updates[k].trim() || null;
+  }
+
   // Phone numbers are unique per account (see migration 014). Normalise to
   // digits with an optional leading "+" so "98765 43210" and "9876543210" can't
   // both register, and reject anything that isn't a plausible number.
