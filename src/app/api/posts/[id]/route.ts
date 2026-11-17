@@ -126,6 +126,15 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     return likes_count;
   }
 
+  // Same for saves: recount so repeat taps can't inflate the number.
+  async function syncSaveCount() {
+    const { count } = await adminDb
+      .from("saves").select("user_id", { count: "exact", head: true }).eq("post_id", id);
+    const saves_count = count ?? 0;
+    await adminDb.from("posts").update({ saves_count }).eq("id", id);
+    return saves_count;
+  }
+
   if (action === "like") {
     // Guard: skip if already liked (prevents duplicate rows)
     const { data: existing } = await adminDb
@@ -180,30 +189,38 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       .eq("action_type", "like");
     return NextResponse.json({ ok: true, liked: false, reaction: null, likes_count, reactions: await reactionCounts(id) });
   } else if (action === "save") {
-    await adminDb.from("saves").insert({ post_id: id, user_id: userId });
-    if (post) {
-      await Promise.all([
-        adminDb.from("posts").update({ saves_count: post.saves_count + 1 }).eq("id", id),
-        // ML signal: saves = stronger interest than likes
-        adminDb.from("user_interactions").insert({
-          user_id: userId,
-          post_id: id,
-          action_type: "save",
-          category: post.category ?? null,
-          tags: post.tags ?? [],
-        }),
-      ]);
+    const { error: saveErr } = await adminDb.from("saves").insert({ post_id: id, user_id: userId });
+    // 23505 = already saved (primary key) — fine, anything else is a real failure
+    const alreadySaved = saveErr?.code === "23505";
+    if (saveErr && !alreadySaved) {
+      console.error("POST /api/posts/[id] save:", saveErr.message);
+      return NextResponse.json({ error: saveErr.message }, { status: 500 });
     }
+    const saves_count = await syncSaveCount();
+    if (post && !alreadySaved) {
+      // ML signal: saves = stronger interest than likes
+      await adminDb.from("user_interactions").insert({
+        user_id: userId,
+        post_id: id,
+        action_type: "save",
+        category: post.category ?? null,
+        tags: post.tags ?? [],
+      });
+    }
+    return NextResponse.json({ ok: true, saved: true, saves_count });
   } else if (action === "unsave") {
-    await adminDb.from("saves").delete().eq("post_id", id).eq("user_id", userId);
-    if (post) {
-      await adminDb.from("posts").update({ saves_count: Math.max(0, post.saves_count - 1) }).eq("id", id);
+    const { error: unsaveErr } = await adminDb.from("saves").delete().eq("post_id", id).eq("user_id", userId);
+    if (unsaveErr) {
+      console.error("POST /api/posts/[id] unsave:", unsaveErr.message);
+      return NextResponse.json({ error: unsaveErr.message }, { status: 500 });
     }
+    const saves_count = await syncSaveCount();
     await adminDb.from("user_interactions")
       .delete()
       .eq("user_id", userId)
       .eq("post_id", id)
       .eq("action_type", "save");
+    return NextResponse.json({ ok: true, saved: false, saves_count });
   }
 
   return NextResponse.json({ ok: true });

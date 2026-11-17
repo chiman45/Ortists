@@ -178,7 +178,7 @@ export default function FeedCard({ post, dbPost, priority = false }: FeedCardPro
         <span className="text-sm font-medium flex-1 truncate min-w-0" style={{ color: "var(--text-2)" }}>
           {post.username}
         </span>
-        {/* Tap = ❤️, hold = pick a reaction (stops the card from opening) */}
+        {/* Like toggle (stops the card from opening) */}
         <span onClick={e => e.stopPropagation()} className="shrink-0">
           <ReactionButton
             postId={post.id}

@@ -16,11 +16,15 @@ export async function GET(req: NextRequest) {
     // Saved posts are private to their owner
     const me = await requireUser(savedBy);
     if (me.error) return me.error;
-    const { data: saveRows } = await adminDb
+    const { data: saveRows, error: savesErr } = await adminDb
       .from("saves")
       .select("post_id")
-      .eq("user_id", savedBy)
+      .eq("user_id", me.userId)
       .order("created_at", { ascending: false });
+    if (savesErr) {
+      console.error("GET /api/posts savedBy (saves):", savesErr.message);
+      return NextResponse.json({ error: savesErr.message, posts: [], hasMore: false }, { status: 500 });
+    }
 
     const postIds = (saveRows ?? []).map((r: { post_id: string }) => r.post_id);
     if (!postIds.length) return NextResponse.json({ posts: [], hasMore: false });
@@ -31,7 +35,9 @@ export async function GET(req: NextRequest) {
       .in("id", postIds);
 
     if (error) console.error("GET /api/posts savedBy:", error.message);
-    const posts = data ?? [];
+    // .in() returns rows in table order — put the most recently saved first
+    const order = new Map(postIds.map((pid, i) => [pid, i]));
+    const posts = (data ?? []).sort((a: { id: string }, b: { id: string }) => (order.get(a.id) ?? 0) - (order.get(b.id) ?? 0));
 
     if (posts.length > 0) {
       const userIds = [...new Set(posts.map((p: { user_id: string }) => p.user_id))];

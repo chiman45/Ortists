@@ -66,6 +66,7 @@ export default function FeedPostPage({ params }: { params: Promise<{ id: string 
   const [relatedPosts, setRelatedPosts] = useState<Post[]>([]);
   const [shared, setShared]           = useState(false);
   const [likePending, setLikePending] = useState(false);
+  const [savePending, setSavePending] = useState(false);
   const [authPrompt, setAuthPrompt]   = useState(false); // guest tried to like/comment/etc.
   const commentInputRef               = useRef<HTMLInputElement>(null);
 
@@ -182,13 +183,23 @@ export default function FeedPostPage({ params }: { params: Promise<{ id: string 
   async function handleSave() {
     if (!isUUID) { setSaved(s => !s); return; }
     if (!user) { setAuthPrompt(true); return; }
-    const action = saved ? "unsave" : "save";
-    setSaved(!saved);
-    await fetch(`/api/posts/${id}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action, userId: user.id }),
-    });
+    if (savePending) return; // ignore double taps while the last one is saving
+    const wasSaved = saved;
+    setSavePending(true);
+    setSaved(!wasSaved);
+    try {
+      const res = await fetch(`/api/posts/${id}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: wasSaved ? "unsave" : "save", userId: user.id }),
+      });
+      if (!res.ok) throw new Error("save failed");
+    } catch {
+      // Didn't save — don't keep showing "Saved"
+      setSaved(wasSaved);
+    } finally {
+      setSavePending(false);
+    }
   }
 
   async function handleFollow() {

@@ -131,11 +131,15 @@ export default function PostModal({ post: initialPost, isOwner, ownerId, current
     setPost(p => ({ ...p, saves_count: p.saves_count + (wasSaved ? -1 : 1) }));
     setActionPending(true);
     try {
-      await fetch(`/api/posts/${post.id}`, {
+      const res = await fetch(`/api/posts/${post.id}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: wasSaved ? "unsave" : "save", userId: currentUserId }),
       });
+      const data = await res.json().catch(() => ({}));
+      // A rejected save must not keep showing as saved
+      if (!res.ok) throw new Error(data.error);
+      if (typeof data.saves_count === "number") setPost(p => ({ ...p, saves_count: data.saves_count }));
     } catch {
       setSaved(wasSaved);
       setPost(p => ({ ...p, saves_count: p.saves_count + (wasSaved ? 1 : -1) }));

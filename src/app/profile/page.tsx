@@ -91,6 +91,16 @@ export default function ProfilePage() {
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const [deleting, setDeleting]           = useState(false);
 
+  // Posts this user has saved. Re-run after the post dialog closes, since
+  // saving/unsaving happens inside it.
+  function loadSavedPosts() {
+    if (!user) return;
+    fetch(`/api/posts?savedBy=${user.id}`, { cache: "no-store" })
+      .then(r => r.json())
+      .then(({ posts }) => { if (posts) setSavedPosts(posts); })
+      .catch(() => {});
+  }
+
   useEffect(() => {
     if (!isLoaded || !user) return;
 
@@ -113,10 +123,7 @@ export default function ProfilePage() {
       .then(r => r.json())
       .then(({ posts }) => { if (posts) setDbPosts(posts); });
 
-    // Load saved posts
-    fetch(`/api/posts?savedBy=${user.id}`)
-      .then(r => r.json())
-      .then(({ posts }) => { if (posts) setSavedPosts(posts); });
+    loadSavedPosts();
 
     // Load recommended artists (other users)
     fetch("/api/profiles")
@@ -484,7 +491,7 @@ export default function ProfilePage() {
                 { tab: "Portfolio",    icon: LayoutGrid, count: dbPosts.length },
                 { tab: "Gallery", icon: Store,       count: 0  },
                 { tab: "Services",    icon: Briefcase,   count: 0  },
-                { tab: "Saved",       icon: Bookmark,    count: liveStats.totalSaves },
+                { tab: "Saved",       icon: Bookmark,    count: savedPosts.length },
                 { tab: "About",       icon: UserCircle,  count: 0  },
               ] as const).map(({ tab, icon: Icon, count }) => (
                 <button key={tab} onClick={() => setActiveTab(tab as Tab)}
@@ -1354,7 +1361,7 @@ export default function ProfilePage() {
           isOwner={true}
           ownerId={user?.id}
           currentUserId={user?.id}
-          onClose={() => setOpenPostModal(null)}
+          onClose={() => { setOpenPostModal(null); loadSavedPosts(); }}
           onUpdate={updated => setDbPosts(posts => posts.map(p => p.id === updated.id ? updated : p))}
         />
       )}

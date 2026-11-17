@@ -8,6 +8,7 @@ import type { Artist } from "@/lib/hiringData";
 import WallPreview from "@/components/ui/WallPreview";
 import { CANVAS_CATEGORIES, CUSTOM_INCHES, artistSizePrice, categoryById, framePrice, sizeLabel } from "@/lib/canvasSizes";
 import { withPlatformFee } from "@/lib/pricing";
+import { firstImage } from "@/lib/imageUrl";
 
 interface Props {
   artist: Artist;
@@ -71,6 +72,20 @@ export default function HireModal({ artist, artistClerkId, onClose }: Props) {
       .then(r => r.json())
       .then(({ profile }) => { if (!cancelled) setSizePrices(profile?.size_prices ?? {}); })
       .catch(() => {});
+    return () => { cancelled = true; };
+  }, [artistClerkId]);
+  // The artist's own posts, shown as their portfolio
+  const [works, setWorks]             = useState<{ id: string; title: string; image_url: string }[]>([]);
+  const [worksLoading, setWorksLoading] = useState(!!artistClerkId);
+
+  useEffect(() => {
+    if (!artistClerkId) return;
+    let cancelled = false;
+    fetch(`/api/posts?userId=${encodeURIComponent(artistClerkId)}&limit=24`)
+      .then(r => r.json())
+      .then(({ posts }) => { if (!cancelled) setWorks(posts ?? []); })
+      .catch(() => {})
+      .finally(() => { if (!cancelled) setWorksLoading(false); });
     return () => { cancelled = true; };
   }, [artistClerkId]);
   const [activeTab, setActiveTab]     = useState<"portfolio" | "reviews">("portfolio");
@@ -189,12 +204,14 @@ export default function HireModal({ artist, artistClerkId, onClose }: Props) {
   const reviewCount  = Math.max(5, Math.round(followersNum / 500));
   const projectCount = Math.max(8, Math.round(followersNum / 300));
 
-  // Portfolio placeholder images seeded by artist name
-  const portfolioImgs = Array.from({ length: 4 }, (_, i) =>
-    `https://picsum.photos/seed/${encodeURIComponent(artist.name)}${i + 1}/400/300`
-  );
-  // The artist's own banner when they've set one
-  const heroImg = artist.cover || `https://picsum.photos/seed/${encodeURIComponent(artist.name)}hero/800/500`;
+  // The artist's real works (image posts only), newest first
+  const portfolio = works
+    .map(p => ({ id: p.id, title: p.title, src: firstImage(p.image_url) }))
+    .filter(w => w.src && !/\.(mp4|webm|mov|avi|mkv|ogv)(\?|$)/i.test(w.src));
+  // Hero: the artist's banner, else their latest work — never a stock photo
+  const heroImg = artist.cover || portfolio[0]?.src || "";
+  // Wall preview shows one of their actual pieces
+  const previewImg = portfolio[0]?.src || artist.cover || "";
 
   return (
     <div className="flex h-full w-full">
@@ -205,9 +222,11 @@ export default function HireModal({ artist, artistClerkId, onClose }: Props) {
         style={{ width: 500, background: "#080413", scrollbarWidth: "none" }}
       >
         {/* Hero artwork */}
-        <div className="relative shrink-0" style={{ height: 340 }}>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={heroImg} alt={artist.name} className="w-full h-full object-cover" draggable={false} />
+        <div className="relative shrink-0" style={{ height: 340, background: "linear-gradient(135deg,#1a0a3a,#2d1b69)" }}>
+          {heroImg && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={heroImg} alt={artist.name} className="w-full h-full object-cover" draggable={false} />
+          )}
           <div className="absolute inset-0" style={{ background: "linear-gradient(to bottom, transparent 35%, #080413 100%)" }} />
 
           {/* Available badge */}
@@ -290,19 +309,31 @@ export default function HireModal({ artist, artistClerkId, onClose }: Props) {
 
           {/* Portfolio grid */}
           {activeTab === "portfolio" && (
-            <div className="grid grid-cols-2 gap-2 pb-4">
-              {portfolioImgs.map((src, i) => (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  key={i}
-                  src={src}
-                  alt={`Portfolio ${i + 1}`}
-                  className="w-full rounded-xl object-cover"
-                  style={{ height: 148 }}
-                  draggable={false}
-                />
-              ))}
-            </div>
+            worksLoading ? (
+              <div className="grid grid-cols-2 gap-2 pb-4">
+                {Array.from({ length: 4 }, (_, i) => (
+                  <div key={i} className="w-full rounded-xl animate-pulse" style={{ height: 148, background: "rgba(255,255,255,0.05)" }} />
+                ))}
+              </div>
+            ) : portfolio.length > 0 ? (
+              <div className="grid grid-cols-2 gap-2 pb-4">
+                {portfolio.map(w => (
+                  <a key={w.id} href={`/feed/${w.id}`} target="_blank" rel="noopener noreferrer"
+                    title={w.title} className="block rounded-xl overflow-hidden transition-opacity hover:opacity-85">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={w.src}
+                      alt={w.title}
+                      className="w-full object-cover"
+                      style={{ height: 148 }}
+                      draggable={false}
+                    />
+                  </a>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-center py-8" style={{ color: "rgba(255,255,255,0.3)" }}>No works posted yet</p>
+            )
           )}
 
           {activeTab === "reviews" && (
@@ -588,8 +619,8 @@ export default function HireModal({ artist, artistClerkId, onClose }: Props) {
                 </div>
 
                 {/* How it'd look on a wall at that size */}
-                {sizeW && sizeH && (
-                  <WallPreview imageUrl={heroImg} dimensions={`${sizeW} x ${sizeH} in`} />
+                {sizeW && sizeH && previewImg && (
+                  <WallPreview imageUrl={previewImg} dimensions={`${sizeW} x ${sizeH} in`} />
                 )}
               </div>
             );
