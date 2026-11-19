@@ -112,9 +112,12 @@ export default function HireModal({ artist, artistClerkId, onClose }: Props) {
         if (!file.type.startsWith("image/")) continue;
         const form = new FormData();
         form.append("file", file);
-        form.append("bucket", "message-media");
+        // Must be a bucket that returns a link: the private "message-media" bucket
+        // only returns a storage path, which needs a conversation to open — and
+        // there is no conversation yet when a hire request is being written.
+        form.append("bucket", "post-media");
         const res = await fetch("/api/upload", { method: "POST", body: form });
-        const { url, error: upErr } = await res.json();
+        const { url, error: upErr } = await res.json().catch(() => ({} as { url?: string; error?: string }));
         if (!res.ok || !url) throw new Error(upErr ?? `Could not upload ${file.name}`);
         setReferences(prev => [...prev, url as string]);
       }

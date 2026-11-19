@@ -10,8 +10,8 @@ import { Toaster } from "sonner";
 const inter = Inter({ subsets: ["latin"], display: "swap" });
 
 export const metadata: Metadata = {
-  title: "Ortists — Designer Community",
-  description: "A social platform for designers to share work and get hired",
+  title: "Ortists — Art & Artists Community",
+  description: "A social platform for artists to share their art, sell their work and get hired",
   icons: {
     icon: "/login-image/ortists-badge.png",
     shortcut: "/login-image/ortists-badge.png",
