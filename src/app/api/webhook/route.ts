@@ -1,5 +1,6 @@
 import crypto from "crypto";
 import { NextRequest, NextResponse } from "next/server";
+import { adminDb } from "@/utils/supabase/admin";
 
 // Razorpay sends the raw JSON body — we must read it as text for HMAC verification.
 export async function POST(req: NextRequest) {
@@ -37,13 +38,23 @@ export async function POST(req: NextRequest) {
       const p = event.payload.payment?.entity;
       if (p) {
         console.log(`[webhook] Payment captured — payment_id=${p.id}, order_id=${p.order_id}, amount=${p.amount}`);
-        // TODO: save confirmed order to DB (e.g. INSERT INTO orders ...)
+        // Backup for when the buyer's browser closes before /api/verify-payment runs
+        const { error } = await adminDb
+          .from("orders")
+          .update({ status: "paid", razorpay_payment_id: p.id })
+          .eq("razorpay_order_id", p.order_id)
+          .in("status", ["pending", "failed"]);
+        if (error) console.error("[webhook] could not mark order paid:", error.message);
       }
       break;
     }
     case "payment.failed": {
       const p = event.payload.payment?.entity;
-      if (p) console.log(`[webhook] Payment failed — order_id=${p.order_id}`);
+      if (p) {
+        console.log(`[webhook] Payment failed — order_id=${p.order_id}`);
+        await adminDb.from("orders").update({ status: "failed" })
+          .eq("razorpay_order_id", p.order_id).eq("status", "pending");
+      }
       break;
     }
     case "refund.created":

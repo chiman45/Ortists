@@ -2,7 +2,7 @@
 
 import { useClerk, useUser } from "@clerk/nextjs";
 import { useNotifications } from "@/hooks/useNotifications";
-import { Bell, CheckCheck, LogOut, Settings, X } from "lucide-react";
+import { Bell, CheckCheck, LogOut, Settings, ShoppingCart, X } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 
@@ -15,6 +15,7 @@ interface Notification {
   text: string;
   sub_text: string | null;
   post_id: string | null;
+  link?: string | null; // where non-post notifications open (migration 021)
   read: boolean;
   created_at: string;
 }
@@ -39,6 +40,7 @@ function meta(type: string) {
 }
 
 function notifLink(n: Notification): string {
+  if (n.link && n.link.startsWith("/")) return n.link;
   const { type, post_id } = n;
   // like / comment / mention → open the specific post
   if (type === "like" || type === "comment" || type === "mention")
@@ -48,7 +50,7 @@ function notifLink(n: Notification): string {
     return post_id ? `/u/${post_id}` : "/feed";
   // commission / message → open the hire-request project chat
   if (type === "commission" || type === "message")
-    return post_id ? `/hiring/projects/${post_id}` : "/hiring?tab=requests";
+    return post_id ? `/hiring/projects/${post_id}` : "/hiring?tab=projects";
   if (type === "milestone")
     return post_id ? `/hiring/projects/${post_id}` : "/hiring";
   if (type === "purchase" || type === "order" || type === "artwork_inquiry")
@@ -128,6 +130,21 @@ export default function MainHeader({ children }: { children?: React.ReactNode })
   const [loading, setLoading] = useState(false);
   const ref                 = useRef<HTMLDivElement>(null);
   const { newLikes }        = useNotifications();
+  const [cartCount, setCartCount] = useState(0);
+
+  // Cart badge: refreshed whenever a page adds to or removes from the cart
+  useEffect(() => {
+    if (!user) return;
+    const load = () => {
+      fetch("/api/cart")
+        .then(r => (r.ok ? r.json() : null))
+        .then(d => setCartCount(d?.count ?? 0))
+        .catch(() => {});
+    };
+    load();
+    window.addEventListener("ortists:cart-changed", load);
+    return () => window.removeEventListener("ortists:cart-changed", load);
+  }, [user]);
 
   const unread      = notifs.filter(n => !n.read).length;
   const totalBadge  = unread + newLikes;
@@ -145,6 +162,19 @@ export default function MainHeader({ children }: { children?: React.ReactNode })
   }
 
   useEffect(() => { if (user) fetchNotifs(); }, [user]); // eslint-disable-line
+
+  // Check for new notifications every 30s so the badge appears without a reload
+  useEffect(() => {
+    if (!user) return;
+    const t = setInterval(() => {
+      if (document.visibilityState !== "visible") return;
+      fetch(`/api/notifications/list?userId=${user.id}`)
+        .then(r => (r.ok ? r.json() : null))
+        .then(d => { if (d?.notifications) setNotifs(d.notifications); })
+        .catch(() => {});
+    }, 30_000);
+    return () => clearInterval(t);
+  }, [user]);
 
   useEffect(() => { if (open && user) fetchNotifs(); }, [open]); // eslint-disable-line
 
@@ -186,6 +216,25 @@ export default function MainHeader({ children }: { children?: React.ReactNode })
       {children && <div className="flex-1 min-w-0">{children}</div>}
 
       <div className="flex items-center gap-2 ml-auto">
+        {user && (
+          <Link
+            href="/cart"
+            className="relative p-2 rounded-xl transition-opacity hover:opacity-70 flex"
+            style={{ background: "var(--bg-subtle)", color: "var(--text-icon)" }}
+            aria-label={cartCount ? `Cart, ${cartCount} artwork${cartCount === 1 ? "" : "s"}` : "Cart"}
+          >
+            <ShoppingCart size={19} strokeWidth={1.8} />
+            {cartCount > 0 && (
+              <span
+                className="absolute top-1 right-1 flex items-center justify-center rounded-full text-[9px] font-bold text-white"
+                style={{ minWidth: 16, height: 16, padding: "0 3px", background: "#7C5BF5" }}
+              >
+                {cartCount > 9 ? "9+" : cartCount}
+              </span>
+            )}
+          </Link>
+        )}
+
         <Link
           href="/settings"
           className="p-2 rounded-xl transition-opacity hover:opacity-70 flex"

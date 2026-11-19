@@ -8,8 +8,14 @@ interface TokenCache {
 
 let cache: TokenCache | null = null;
 
+/** Thrown when SHIPROCKET_EMAIL / SHIPROCKET_PASSWORD are not set. */
+export class ShiprocketNotConfigured extends Error {
+  constructor() { super("Shiprocket is not configured"); }
+}
+
 export async function getToken(): Promise<string> {
   if (cache && Date.now() < cache.expiresAt - 5 * 60 * 1000) return cache.token;
+  if (!process.env.SHIPROCKET_EMAIL || !process.env.SHIPROCKET_PASSWORD) throw new ShiprocketNotConfigured();
 
   const res = await fetch(`${BASE}/auth/login`, {
     method:  "POST",
@@ -129,4 +135,60 @@ export async function getRates(params: {
   const data = await res.json() as { data?: { available_courier_companies?: CourierRate[] } };
   if (!res.ok) throw new Error(`Shiprocket getRates failed: ${JSON.stringify(data)}`);
   return data.data?.available_courier_companies ?? [];
+}
+
+export interface Serviceability {
+  serviceable:    boolean;
+  rate:           number | null; // cheapest courier, ₹
+  courier_name:   string | null;
+  delivery_days:  number | null;
+}
+
+/**
+ * Can a parcel go from `pickup` to `delivery`, and what does the cheapest
+ * courier charge? "Not serviceable" is a normal answer (serviceable: false);
+ * login or network problems throw so the caller never mistakes them for it.
+ */
+export async function checkServiceability(params: {
+  pickup_postcode:   string;
+  delivery_postcode: string;
+  weight:            number; // kg
+}): Promise<Serviceability> {
+  const none: Serviceability = { serviceable: false, rate: null, courier_name: null, delivery_days: null };
+  const token = await getToken();
+  const q = new URLSearchParams({
+    pickup_postcode:   params.pickup_postcode,
+    delivery_postcode: params.delivery_postcode,
+    weight:            String(params.weight),
+    cod:               "0",
+  });
+  const res = await fetch(`${BASE}/courier/serviceability/?${q}`, {
+    headers: { "Authorization": `Bearer ${token}` },
+    cache: "no-store",
+  });
+  if (res.status === 401 || res.status === 403) { cache = null; throw new Error("Shiprocket rejected the login"); }
+  if (res.status >= 500) throw new Error(`Shiprocket is unavailable (${res.status})`);
+
+  const data = await res.json().catch(() => null) as {
+    data?: { available_courier_companies?: Array<Record<string, unknown>> };
+  } | null;
+  // Shiprocket answers 404 / an empty list when no courier covers the pincode
+  const couriers = data?.data?.available_courier_companies ?? [];
+  const priced = couriers
+    .map(c => ({
+      rate: Number(c.rate ?? c.freight_charge),
+      name: typeof c.courier_name === "string" ? c.courier_name : null,
+      days: parseInt(String(c.estimated_delivery_days ?? ""), 10),
+    }))
+    .filter(c => Number.isFinite(c.rate) && c.rate > 0)
+    .sort((a, b) => a.rate - b.rate);
+  if (!priced.length) return none;
+
+  const best = priced[0];
+  return {
+    serviceable:   true,
+    rate:          best.rate,
+    courier_name:  best.name,
+    delivery_days: Number.isFinite(best.days) ? best.days : null,
+  };
 }

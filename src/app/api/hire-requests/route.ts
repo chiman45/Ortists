@@ -1,6 +1,7 @@
 import { adminDb } from "@/utils/supabase/admin";
 import { NextRequest, NextResponse } from "next/server";
 import { requireUser } from "@/lib/apiAuth";
+import { notify } from "@/lib/notify";
 
 // GET /api/hire-requests?clientId= | ?artistId= | ?artistClerkId=
 export async function GET(req: NextRequest) {
@@ -105,17 +106,17 @@ export async function POST(req: NextRequest) {
 
   // Notify the artist about the new commission request
   if (body.artist_clerk_id) {
-    try {
-      await adminDb.from("notifications").insert({
-        user_id:      body.artist_clerk_id,
-        actor_name:   body.client_name ?? null,
-        actor_avatar: body.client_avatar ?? null,
-        type:         "commission",
-        text:         `${body.client_name ?? "Someone"} sent you a commission request`,
-        sub_text:     body.project_title ?? null,
-        post_id:      data.id,
-      });
-    } catch {}
+    // First line of the brief, so the artist sees what it is about straight away
+    const firstLine = String(body.project_description ?? "").split("\n").find(l => l.trim())?.trim() ?? "";
+    await notify({
+      user_id:      body.artist_clerk_id,
+      actor_name:   body.client_name ?? null,
+      actor_avatar: body.client_avatar ?? null,
+      type:         "commission",
+      text:         `${body.client_name ?? "Someone"} sent you a commission request`,
+      sub_text:     firstLine ? firstLine.slice(0, 140) : (body.project_title ?? null),
+      link:         "/hiring?tab=projects",
+    });
   }
 
   return NextResponse.json({ request: data });

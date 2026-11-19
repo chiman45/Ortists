@@ -1,6 +1,7 @@
 import { adminDb } from "@/utils/supabase/admin";
 import { NextRequest, NextResponse } from "next/server";
 import { requireUser } from "@/lib/apiAuth";
+import { notify } from "@/lib/notify";
 
 // GET /api/hire-requests/[id]
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -101,15 +102,13 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
     // Notify the client about the accept/decline
     const verb = body.status === "accepted" ? "accepted" : "declined";
-    try {
-      await adminDb.from("notifications").insert({
-        user_id:  hr.client_id,
-        type:     "commission",
-        text:     `Your commission request was ${verb}`,
-        sub_text: data?.project_title ?? null,
-        post_id:  id,
-      });
-    } catch {}
+    await notify({
+      user_id:  hr.client_id,
+      type:     "commission",
+      text:     `Your commission request was ${verb}`,
+      sub_text: data?.project_title ?? null,
+      link:     `/hiring/projects/${id}`,
+    });
 
     return NextResponse.json({ request: data });
   }

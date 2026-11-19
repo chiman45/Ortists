@@ -1,6 +1,7 @@
 import { adminDb } from "@/utils/supabase/admin";
 import { NextRequest, NextResponse } from "next/server";
 import { requireUser } from "@/lib/apiAuth";
+import { notify } from "@/lib/notify";
 
 /** Only people in a conversation may read or write it. */
 async function isParticipant(conversationId: string, userId: string) {
@@ -170,17 +171,15 @@ export async function POST(req: NextRequest) {
       if (hr) {
         const recipientId = hr.client_id === sender_id ? hr.artist_clerk_id : hr.client_id;
         if (recipientId && recipientId !== sender_id) {
-          try {
-            await adminDb.from("notifications").insert({
-              user_id:      recipientId,
-              actor_name:   sender_name ?? null,
-              actor_avatar: sender_avatar ?? null,
-              type:         "message",
-              text:         `${sender_name ?? "Someone"} sent you a message`,
-              sub_text:     hr.project_title ?? null,
-              post_id:      hr.id,
-            });
-          } catch {}
+          await notify({
+            user_id:      recipientId,
+            actor_name:   sender_name ?? null,
+            actor_avatar: sender_avatar ?? null,
+            type:         "message",
+            text:         `${sender_name ?? "Someone"} sent you a message`,
+            sub_text:     hr.project_title ?? null,
+            link:         `/hiring/projects/${hr.id}`,
+          });
         }
       }
 

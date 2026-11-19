@@ -408,10 +408,10 @@ export default function LandingPage() {
 
           {/* Image */}
           <RevealFade>
-            <div className="relative overflow-hidden" style={{ borderRadius: 3, aspectRatio: "3/4" }}>
+            <div className="relative overflow-hidden" style={{ borderRadius: 3, aspectRatio: "1/1" }}>
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
-                src="/Landing-Images/Message_3.jpg"
+                src="/Landing-Images/Gallery_Showcase.jpg"
                 alt="gallery"
                 className="w-full h-full object-cover transition-transform duration-1000 hover:scale-[1.04]"
               />

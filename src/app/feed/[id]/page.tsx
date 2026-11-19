@@ -8,31 +8,17 @@ import { type Comment } from "@/lib/db/comments";
 import { type Post } from "@/lib/db/posts";
 import { allPosts } from "@/lib/mockData";
 import { useUser } from "@clerk/nextjs";
-import { ArrowLeft, Bookmark, Check, Heart, Loader2, MessageCircle, Send, Share2, ShoppingBag, UserPlus, X } from "lucide-react";
+import { ArrowLeft, Bookmark, Check, Heart, Loader2, MessageCircle, Send, Share2, ShoppingBag, ShoppingCart, UserPlus } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import AuthPromptModal from "@/components/ui/AuthPromptModal";
 import ReactionButton from "@/components/ui/ReactionButton";
 import { use, useEffect, useRef, useState } from "react";
 
-// ── Razorpay ──────────────────────────────────────────────────────
-// Loaded from the CDN at runtime; no bundled type declarations, so we
-// access it as `any` (consistent with the cast used below at call time).
-function loadRazorpayScript(): Promise<boolean> {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  if (typeof window !== "undefined" && (window as any).Razorpay) return Promise.resolve(true);
-  return new Promise(resolve => {
-    const s = document.createElement("script");
-    s.src = "https://checkout.razorpay.com/v1/checkout.js";
-    s.onload  = () => resolve(true);
-    s.onerror = () => resolve(false);
-    document.body.appendChild(s);
-  });
-}
 import MasonryGrid from "@/components/feed/MasonryGrid";
 import ArtworkViewer from "@/components/ui/ArtworkViewer";
 import WallPreview from "@/components/ui/WallPreview";
-import { buyerPriceAmount, buyerPriceLabel } from "@/lib/pricing";
+import { buyerPriceLabel } from "@/lib/pricing";
 import { firstImage } from "@/lib/imageUrl";
 import { followStyle } from "@/lib/followStyle";
 
@@ -59,10 +45,9 @@ export default function FeedPostPage({ params }: { params: Promise<{ id: string 
   const [commentText, setCommentText] = useState("");
   const [loading, setLoading]         = useState(true);
   const [viewerOpen, setViewerOpen]   = useState(false);
-  const [paying, setPaying]           = useState(false);
-  const [payDone, setPayDone]         = useState(false);
-  const [payError, setPayError]       = useState<string | null>(null);
-  const [buySummary, setBuySummary]   = useState(false); // cost breakdown shown before Razorpay
+  const [inCart, setInCart]           = useState(false);
+  const [cartBusy, setCartBusy]       = useState(false);
+  const [cartError, setCartError]     = useState<string | null>(null);
   const [relatedPosts, setRelatedPosts] = useState<Post[]>([]);
   const [shared, setShared]           = useState(false);
   const [likePending, setLikePending] = useState(false);
@@ -215,69 +200,31 @@ export default function FeedPostPage({ params }: { params: Promise<{ id: string 
     if (!res.ok) setFollowing(wasFollowing); // revert on failure
   }
 
-  async function handleBuyNow() {
+  // Buying: both buttons lead to /checkout (address → delivery check → summary → payment)
+  function handleBuyNow() {
     if (!user) { setAuthPrompt(true); return; }
-    if (paying) return;
-    let currentDescPrice: string | null = null;
-    if (post?.description) {
-      try {
-        const p = JSON.parse(post.description);
-        if (p._price !== undefined) currentDescPrice = p._price ?? null;
-      } catch { /* not JSON */ }
-    }
-    if (!currentDescPrice) return;
-    // Charge the buyer-facing amount (artist price + platform fee)
-    const priceNum = buyerPriceAmount(currentDescPrice) ?? 0;
-    if (!priceNum || priceNum < 1) { setPayError("Invalid price."); return; }
-    setPayError(null);
-    setPaying(true);
+    router.push(`/checkout?buy=${id}`);
+  }
+
+  async function handleAddToCart() {
+    if (!user) { setAuthPrompt(true); return; }
+    if (inCart) { router.push("/cart"); return; }
+    if (cartBusy) return;
+    setCartBusy(true); setCartError(null);
     try {
-      const loaded = await loadRazorpayScript();
-      if (!loaded) throw new Error("Could not load payment gateway. Please try again.");
-      const orderRes = await fetch("/api/create-order", {
+      const res = await fetch("/api/cart", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ amount: priceNum * 100 }),
+        body: JSON.stringify({ postId: id }),
       });
-      const { order_id, error: orderErr } = await orderRes.json();
-      if (!orderRes.ok) throw new Error(orderErr ?? "Order creation failed.");
-      await new Promise<void>((resolve, reject) => {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const rzp = new (window as any).Razorpay({
-          key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID!,
-          amount: priceNum * 100,
-          currency: "INR",
-          order_id,
-          name: "Ortists",
-          description: title || "Artwork purchase",
-          image: "/logo.jpeg",
-          // Phone-signup users have no email; Razorpay accepts either/both.
-          prefill: {
-            email:   user?.primaryEmailAddress?.emailAddress ?? undefined,
-            contact: user?.primaryPhoneNumber?.phoneNumber ?? undefined,
-          },
-          theme: { color: "#7C5BF5" },
-          handler: async (r: { razorpay_payment_id: string; razorpay_order_id: string; razorpay_signature: string }) => {
-            const vRes = await fetch("/api/verify-payment", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify(r),
-            });
-            if (!vRes.ok) { reject(new Error("Payment verification failed.")); return; }
-            setPayDone(true);
-            resolve();
-          },
-          modal: { ondismiss: () => reject(new Error("__dismissed__")) },
-        });
-        // The buyer has confirmed the summary — hand over to Razorpay
-        setBuySummary(false);
-        rzp.open();
-      });
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Payment failed.";
-      if (msg !== "__dismissed__") setPayError(msg);
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error ?? "Could not add this to your cart.");
+      setInCart(true);
+      window.dispatchEvent(new Event("ortists:cart-changed"));
+    } catch (e) {
+      setCartError(e instanceof Error ? e.message : "Could not add this to your cart.");
     } finally {
-      setPaying(false);
+      setCartBusy(false);
     }
   }
 
@@ -524,31 +471,39 @@ export default function FeedPostPage({ params }: { params: Promise<{ id: string 
                           </div>
                           {/* See it on a wall — drawn to scale from the listed size */}
                           {!isVideo && <WallPreview imageUrl={img} dimensions={descDimensions} />}
-                          {payDone ? (
-                            <div className="w-full py-2.5 rounded-xl font-semibold text-sm text-center"
-                              style={{ background: "rgba(16,185,129,0.15)", color: "#10B981", border: "1px solid rgba(16,185,129,0.3)" }}>
-                              ✓ Payment successful!
-                            </div>
+                          {post?.user_id === user?.id ? (
+                            <p className="text-xs px-3 py-2.5 rounded-xl text-center" style={{ background: "var(--bg-subtle)", color: "var(--text-4)", border: "1px solid var(--border)" }}>
+                              This is your own listing. Buyers see Add to Cart and Buy Now here.
+                            </p>
+                          ) : !/^\s*(₹|rs\.?|inr)?\s*\d/i.test(descPrice) ? (
+                            <p className="text-xs px-3 py-2.5 rounded-xl text-center" style={{ background: "var(--bg-subtle)", color: "var(--text-4)", border: "1px solid var(--border)" }}>
+                              Online payment is available only for artworks priced in ₹.
+                            </p>
                           ) : (
                             <>
-                              <button
-                                onClick={() => {
-                                  if (!user) { setAuthPrompt(true); return; }
-                                  setPayError(null);
-                                  setBuySummary(true);
-                                }}
-                                disabled={paying}
-                                className="w-full py-2.5 rounded-xl font-bold text-sm text-white transition-opacity hover:opacity-85 disabled:opacity-60 flex items-center justify-center gap-2"
-                                style={{ background: "linear-gradient(135deg, #361E7B, #7C5BF5)" }}
-                              >
-                                {paying && <Loader2 size={14} className="animate-spin" />}
-                                <ShoppingBag size={14} />
-                                {paying ? "Processing…" : "Buy Now"}
-                              </button>
-                              {payError && (
-                                <p className="text-xs text-center px-3 py-2 rounded-xl"
+                              <div className="flex flex-col sm:flex-row gap-2">
+                                <button
+                                  onClick={handleAddToCart}
+                                  disabled={cartBusy}
+                                  className="flex-1 py-3 rounded-xl font-bold text-sm transition-opacity hover:opacity-85 disabled:opacity-60 flex items-center justify-center gap-2"
+                                  style={{ background: "transparent", color: "var(--buy-bg)", border: "1px solid var(--buy-bg)" }}
+                                >
+                                  {cartBusy ? <Loader2 size={14} className="animate-spin" /> : inCart ? <Check size={14} /> : <ShoppingCart size={14} />}
+                                  {inCart ? "Go to Cart" : "Add to Cart"}
+                                </button>
+                                <button
+                                  onClick={handleBuyNow}
+                                  className="flex-1 py-3 rounded-xl font-bold text-sm transition-opacity hover:opacity-85 flex items-center justify-center gap-2"
+                                  style={{ background: "var(--buy-bg)", color: "var(--buy-text)", border: "1px solid var(--buy-bg)" }}
+                                >
+                                  <ShoppingBag size={14} />
+                                  Buy Now
+                                </button>
+                              </div>
+                              {cartError && (
+                                <p role="alert" className="text-xs text-center px-3 py-2 rounded-xl"
                                   style={{ background: "rgba(239,68,68,0.1)", color: "#EF4444", border: "1px solid rgba(239,68,68,0.2)" }}>
-                                  {payError}
+                                  {cartError}
                                 </p>
                               )}
                             </>
@@ -645,87 +600,6 @@ export default function FeedPostPage({ params }: { params: Promise<{ id: string 
       )}
       {authPrompt && <AuthPromptModal onClose={() => setAuthPrompt(false)} />}
 
-      {/* ── Order summary: cost breakdown the buyer confirms before Razorpay opens ── */}
-      {buySummary && descPrice && (
-        <div
-          className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4"
-          style={{ background: "rgba(0,0,0,0.65)", backdropFilter: "blur(6px)" }}
-          onClick={e => { if (e.target === e.currentTarget && !paying) setBuySummary(false); }}
-        >
-          <div
-            className="w-full sm:max-w-md flex flex-col rounded-t-2xl sm:rounded-2xl overflow-hidden"
-            style={{ background: "var(--bg-card)", border: "1px solid var(--border)", boxShadow: "0 32px 80px rgba(0,0,0,0.55)", paddingBottom: "env(safe-area-inset-bottom)" }}
-          >
-            <div className="px-5 pt-5 pb-4 flex items-center justify-between" style={{ borderBottom: "1px solid var(--border)" }}>
-              <div>
-                <p className="text-[10px] font-bold tracking-widest mb-0.5" style={{ color: "var(--text-5)" }}>ORDER SUMMARY</p>
-                <h2 className="text-lg font-bold" style={{ color: "var(--text-1)" }}>Review your order</h2>
-              </div>
-              <button
-                onClick={() => setBuySummary(false)}
-                disabled={paying}
-                aria-label="Close"
-                className="w-8 h-8 rounded-full flex items-center justify-center transition-opacity hover:opacity-70 disabled:opacity-40"
-                style={{ background: "var(--bg-subtle)", color: "var(--text-4)" }}
-              >
-                <X size={15} />
-              </button>
-            </div>
-
-            <div className="px-5 py-5 flex flex-col gap-4">
-              {/* Artwork */}
-              <div className="flex items-center gap-3 p-3 rounded-xl" style={{ background: "var(--bg-subtle)", border: "1px solid var(--border)" }}>
-                {!isVideo && (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={img} alt={title} className="rounded-lg object-cover shrink-0" style={{ width: 60, height: 60 }} />
-                )}
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-bold truncate" style={{ color: "var(--text-1)" }}>{title}</p>
-                  <p className="text-xs mt-0.5 truncate" style={{ color: "var(--text-5)" }}>
-                    by {udisp}{descDimensions ? ` · ${descDimensions}` : ""}
-                  </p>
-                </div>
-              </div>
-
-              {/* Breakdown — the listed price already includes the platform's charges */}
-              <div className="flex flex-col text-sm">
-                <div className="flex justify-between py-2.5" style={{ borderBottom: "1px solid var(--border)" }}>
-                  <span style={{ color: "var(--text-4)" }}>Artwork price</span>
-                  <span className="font-semibold" style={{ color: "var(--text-2)" }}>{buyerPriceLabel(descPrice) ?? descPrice}</span>
-                </div>
-                <div className="flex justify-between py-2.5" style={{ borderBottom: "1px solid var(--border)" }}>
-                  <span style={{ color: "var(--text-4)" }}>Service charges</span>
-                  <span style={{ color: "var(--text-4)" }}>Included</span>
-                </div>
-                <div className="flex justify-between items-baseline pt-3">
-                  <span className="font-bold" style={{ color: "var(--text-1)" }}>Total payable</span>
-                  <span className="text-xl font-bold" style={{ color: "#9B7CF5" }}>{buyerPriceLabel(descPrice) ?? descPrice}</span>
-                </div>
-              </div>
-
-              {payError && (
-                <p className="text-xs text-center px-3 py-2 rounded-xl"
-                  style={{ background: "rgba(239,68,68,0.1)", color: "#EF4444", border: "1px solid rgba(239,68,68,0.2)" }}>
-                  {payError}
-                </p>
-              )}
-
-              <button
-                onClick={handleBuyNow}
-                disabled={paying}
-                className="w-full py-3.5 rounded-xl font-bold text-sm text-white transition-opacity hover:opacity-85 disabled:opacity-60 flex items-center justify-center gap-2"
-                style={{ background: "linear-gradient(135deg, #361E7B, #7C5BF5)" }}
-              >
-                {paying && <Loader2 size={14} className="animate-spin" />}
-                {paying ? "Opening payment…" : `Pay ${buyerPriceLabel(descPrice) ?? descPrice}`}
-              </button>
-              <p className="text-[11px] text-center" style={{ color: "var(--text-5)" }}>
-                Secure payment via Razorpay
-              </p>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

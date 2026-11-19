@@ -8,6 +8,7 @@ import { type Post as DbPost } from "@/lib/db/posts";
 import { type Profile } from "@/lib/db/profiles";
 import PostModal from "@/components/ui/PostModal";
 import SizePricingEditor from "@/components/profile/SizePricingEditor";
+import AddressEditor, { AddressSummary, useMyAddress } from "@/components/address/AddressEditor";
 import { shareLink } from "@/lib/shareLink";
 import { useUser } from "@clerk/nextjs";
 import {
@@ -45,7 +46,7 @@ interface EditForm {
   size_prices: Record<string, number>;
 }
 
-type EditSection = "Basic Info" | "Portfolio" | "Services" | "Availability" | "Pricing" | "Preferences";
+type EditSection = "Basic Info" | "Portfolio" | "Services" | "Availability" | "Pricing" | "Address" | "Preferences";
 
 function timeAgo(iso: string) {
   const m = Math.floor((Date.now() - new Date(iso).getTime()) / 60000);
@@ -82,6 +83,9 @@ export default function ProfilePage() {
   const [followModal, setFollowModal]   = useState<{ type: "followers" | "following"; users: FollowUser[] } | null>(null);
   const [followLoading, setFollowLoading] = useState(false);
   const [editSection, setEditSection]   = useState<EditSection>("Basic Info");
+  // Pickup / delivery address: private, shown only on your own profile
+  const myAddress = useMyAddress(!!user);
+  const [addressEditing, setAddressEditing] = useState(false);
   const [editForm, setEditForm]         = useState<EditForm>({
     display_name: "", username: "", bio: "", location: "",
     tag: "Artist", available: true, response_time: "Within 24 hours", size_prices: {},
@@ -905,6 +909,21 @@ export default function ProfilePage() {
                     <p className="text-sm leading-relaxed" style={{ color: "var(--text-3)" }}>{bio}</p>
                   </div>
                 )}
+                {/* Address: private, used for courier pickup and delivery */}
+                <div className="pt-1">
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-xs font-semibold" style={{ color: "var(--text-5)" }}>Address</p>
+                    <button onClick={() => { setAddressEditing(!myAddress.address); openEdit("Address"); }}
+                      className="text-xs font-semibold transition-opacity hover:opacity-80" style={{ color: "#9B7CF5" }}>
+                      {myAddress.address ? "Edit" : "Add address"}
+                    </button>
+                  </div>
+                  {myAddress.address
+                    ? <AddressSummary address={myAddress.address} />
+                    : <p className="text-sm" style={{ color: "var(--text-4)" }}>
+                        {myAddress.loaded ? "No address added yet. You need one to sell artwork." : "Loading…"}
+                      </p>}
+                </div>
               </div>
             )}
           </div>
@@ -1085,6 +1104,7 @@ export default function ProfilePage() {
                   { key: "Services",     icon: Briefcase   },
                   { key: "Availability", icon: Clock       },
                   { key: "Pricing",      icon: Store       },
+                  { key: "Address",      icon: MapPin      },
                   { key: "Preferences",  icon: SlidersHorizontal },
                 ] as { key: EditSection; icon: React.ElementType }[]).map(({ key, icon: Icon }) => (
                   <button key={key} onClick={() => setEditSection(key)}
@@ -1324,6 +1344,33 @@ export default function ProfilePage() {
                   />
                 )}
 
+                {/* ── Address: saved on its own, separately from "Save Changes" ── */}
+                {editSection === "Address" && (
+                  <div className="flex flex-col gap-4">
+                    <p className="text-xs leading-relaxed" style={{ color: "var(--text-4)" }}>
+                      The courier collects sold artworks from this address, and your own orders are delivered here.
+                    </p>
+                    {myAddress.address && !addressEditing ? (
+                      <div className="rounded-xl p-4 flex flex-col gap-3" style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}>
+                        <AddressSummary address={myAddress.address} />
+                        <button onClick={() => setAddressEditing(true)}
+                          className="self-start px-4 py-2 rounded-xl text-sm font-semibold transition-opacity hover:opacity-80"
+                          style={{ background: "rgba(124,91,245,0.12)", color: "#9B7CF5", border: "1px solid rgba(124,91,245,0.3)" }}>
+                          Edit address
+                        </button>
+                      </div>
+                    ) : (
+                      <AddressEditor
+                        key={myAddress.address?.id ?? "new"}
+                        initial={myAddress.address}
+                        defaultName={name}
+                        onSaved={a => { myAddress.setAddress(a); setAddressEditing(false); }}
+                        onCancel={myAddress.address ? () => setAddressEditing(false) : undefined}
+                      />
+                    )}
+                  </div>
+                )}
+
                 {/* ── Other sections placeholder ── */}
                 {(editSection === "Portfolio" || editSection === "Preferences") && (
                   <div className="flex flex-col items-center justify-center py-16 gap-3">
@@ -1345,11 +1392,14 @@ export default function ProfilePage() {
                   style={{ color: "var(--text-4)" }}>
                   Cancel
                 </button>
+                {/* The address has its own Save button above */}
+                {editSection !== "Address" && (
                 <button onClick={saveProfile} disabled={saving || avatarUploading}
                   className="flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-bold text-white transition-opacity hover:opacity-90 disabled:opacity-50"
                   style={{ background: "linear-gradient(135deg,#361E7B,#7C5BF5)" }}>
                   {saving ? "Saving…" : <><Check size={14} /> Save Changes</>}
                 </button>
+                )}
               </div>
             </div>
           </div>

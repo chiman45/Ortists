@@ -370,7 +370,7 @@ export default function HireModal({ artist, artistClerkId, onClose }: Props) {
               <em style={{ color: "#7C5BF5", fontStyle: "italic" }}>{artist.name}</em>
             </h1>
             <p className="text-sm" style={{ color: "rgba(255,255,255,0.38)" }}>
-              Tell the artist about your project. They&apos;ll review your brief and come back with a proposal.
+              I want a beautiful mountain landscape with a river, trees and a sunset. The artwork should have a peaceful and natural feel.
             </p>
           </div>
 

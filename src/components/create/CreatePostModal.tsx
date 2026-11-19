@@ -8,6 +8,7 @@ import { useUser } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
 import { Playfair_Display } from "next/font/google";
 import { useCallback, useRef, useState } from "react";
+import { AddressPopup, useMyAddress } from "@/components/address/AddressEditor";
 import { uploadMedia } from "@/lib/uploadMedia";
 
 // Same editorial serif the landing page uses — warmer than the gradient display text
@@ -159,6 +160,9 @@ export default function CreatePostModal({ onClose }: Props) {
   const [galleryFiles, setGalleryFiles] = useState<File[]>([]);
   const [galleryUrls, setGalleryUrls]   = useState<string[]>([]);
   const [publishing, setPublishing]   = useState(false);
+  // For-sale artworks are collected by courier from the artist's address
+  const pickup = useMyAddress(!!user);
+  const [askAddress, setAskAddress] = useState(false);
   const [publishError, setPublishError] = useState<string | null>(null);
   // Preview step: which image is showing, and whether the full-post overlay is open
   const [previewIdx, setPreviewIdx]   = useState(0);
@@ -992,6 +996,7 @@ export default function CreatePostModal({ onClose }: Props) {
                   if (!user) { setPublishError("You're signed out — please log in again."); return; }
                   const isGallery = type === "gallery";
                   if (!imageFile) { setPublishError("Please add an image first."); return; }
+                  if (isGallery && pickup.loaded && !pickup.address) { setAskAddress(true); return; }
                   setPublishing(true);
                   setPublishError(null);
                   try {
@@ -1070,7 +1075,12 @@ export default function CreatePostModal({ onClose }: Props) {
               </p>
             )}
             <button
-              onClick={() => canContinue && setStep(s => s + 1)}
+              onClick={() => {
+                if (!canContinue) return;
+                // Selling needs a pickup address: ask right after "Gallery" is chosen
+                if (type === "gallery" && pickup.loaded && !pickup.address) { setAskAddress(true); return; }
+                setStep(s => s + 1);
+              }}
               disabled={!canContinue}
               className="flex items-center gap-1.5 px-5 py-2.5 rounded-xl text-sm font-semibold text-white transition-opacity disabled:opacity-40 hover:opacity-85 ml-auto"
               style={{ background: "#7C5BF5" }}
@@ -1081,6 +1091,16 @@ export default function CreatePostModal({ onClose }: Props) {
           )}
         </div>
       </div>
+
+      {askAddress && (
+        <AddressPopup
+          title="Add your pickup address"
+          message="The courier collects sold artworks from this address. Buyers and other users never see it."
+          defaultName={user?.fullName ?? ""}
+          onClose={() => setAskAddress(false)}
+          onSaved={a => { pickup.setAddress(a); setAskAddress(false); if (step < STEPS.length - 1) setStep(s => s + 1); }}
+        />
+      )}
     </div>
   );
 }

@@ -3,6 +3,7 @@
 import BottomNav from "@/components/layout/BottomNav";
 import Sidebar from "@/components/layout/Sidebar";
 import HireModal from "@/components/hiring/HireModal";
+import HireBrief from "@/components/hiring/HireBrief";
 import type { Artist } from "@/lib/hiringData";
 import { useUser, UserButton } from "@clerk/nextjs";
 import {
@@ -1100,32 +1101,51 @@ function MyProjectsView({ userId, onSwitchToHire }: { userId: string; onSwitchTo
       {pendingIncoming.length > 0 && (
         <section className="px-4 md:px-8 mb-8">
           <p className="text-[10px] font-bold tracking-widest mb-3" style={{ color: "var(--text-5)" }}>NEEDS YOUR APPROVAL</p>
-          <div className="flex flex-col gap-2">
+          <div className="flex flex-col gap-4">
             {pendingIncoming.map(r => (
-              <div key={r.id} className="flex items-center gap-3 p-4 rounded-2xl" style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}>
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={r.client_avatar ?? `https://i.pravatar.cc/48?u=${r.client_id}`} alt={r.client_name ?? "Client"} className="w-10 h-10 rounded-full object-cover shrink-0" />
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-bold truncate" style={{ color: "var(--text-1)" }}>{r.project_title}</p>
-                  <p className="text-xs" style={{ color: "var(--text-5)" }}>Awaiting brief · {r.client_name ?? "Client"}</p>
+              <article key={r.id} className="rounded-2xl overflow-hidden" style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}>
+                <header className="flex items-center gap-3 p-4" style={{ borderBottom: "1px solid var(--border)" }}>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={r.client_avatar ?? `https://i.pravatar.cc/48?u=${r.client_id}`} alt="" className="w-10 h-10 rounded-full object-cover shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-bold truncate" style={{ color: "var(--text-1)" }}>{r.client_name ?? "A client"}</p>
+                    <p className="text-xs" style={{ color: "var(--text-5)" }}>
+                      Commission request · {new Date(r.created_at).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
+                    </p>
+                  </div>
+                  <span className="text-[11px] font-semibold px-2.5 py-1 rounded-full shrink-0" style={{ background: "rgba(245,158,11,0.15)", color: "#FCD34D" }}>
+                    Awaiting your reply
+                  </span>
+                </header>
+
+                {/* Everything the client sent: description, size, deadline and reference images */}
+                <div className="p-4">
+                  <HireBrief description={r.project_description} deadline={r.deadline} />
                 </div>
-                <div className="flex gap-2 shrink-0">
-                  <button
-                    onClick={() => handleDecide(r.id, "accepted")}
-                    className="px-3 py-1.5 rounded-xl text-xs font-bold text-white transition-all hover:opacity-85"
-                    style={{ background: "linear-gradient(135deg,#361E7B,#7C5BF5)" }}
-                  >
-                    Accept
+
+                <footer className="flex flex-col sm:flex-row sm:items-center gap-3 p-4" style={{ borderTop: "1px solid var(--border)" }}>
+                  <button onClick={() => router.push(`/hiring/projects/${r.id}`)}
+                    className="text-xs font-semibold underline underline-offset-4 py-2 sm:mr-auto text-left transition-opacity hover:opacity-75" style={{ color: "var(--text-4)" }}>
+                    Open full request
                   </button>
-                  <button
-                    onClick={() => handleDecide(r.id, "declined")}
-                    className="px-3 py-1.5 rounded-xl text-xs font-bold transition-all hover:opacity-75"
-                    style={{ background: "rgba(239,68,68,0.1)", color: "#F87171", border: "1px solid rgba(239,68,68,0.3)" }}
-                  >
-                    Decline
-                  </button>
-                </div>
-              </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => handleDecide(r.id, "declined")}
+                      className="flex-1 sm:flex-none px-5 py-2.5 rounded-xl text-sm font-bold transition-all hover:opacity-75"
+                      style={{ background: "rgba(239,68,68,0.1)", color: "#F87171", border: "1px solid rgba(239,68,68,0.3)" }}
+                    >
+                      Decline
+                    </button>
+                    <button
+                      onClick={() => handleDecide(r.id, "accepted")}
+                      className="flex-1 sm:flex-none px-6 py-2.5 rounded-xl text-sm font-bold text-white transition-all hover:opacity-85"
+                      style={{ background: "linear-gradient(135deg,#361E7B,#7C5BF5)" }}
+                    >
+                      Accept
+                    </button>
+                  </div>
+                </footer>
+              </article>
             ))}
           </div>
         </section>

@@ -10,7 +10,15 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { id } = await params;
-  const body   = await req.json();
+  const raw    = await req.json().catch(() => ({}));
+  // Only these fields can be edited (never clerk_id or id)
+  const body: Record<string, unknown> = {};
+  for (const k of ["label", "name", "phone", "address_line", "city", "state", "pincode", "is_default"]) {
+    if (raw?.[k] !== undefined) body[k] = raw[k];
+  }
+  if (body.pincode !== undefined && !/^\d{6}$/.test(String(body.pincode))) {
+    return NextResponse.json({ error: "Enter a 6-digit pincode." }, { status: 400 });
+  }
 
   // If setting as default, clear others first
   if (body.is_default) {

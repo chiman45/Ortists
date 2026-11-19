@@ -8,6 +8,10 @@
 /* ── Theme tokens ── */
 
 :root {
+  /* Buy / checkout buttons: warm off-white, so buying stands apart from
+     purple (brand) and yellow (Follow). Flipped to near-black in the light theme. */
+  --buy-bg:      #F5F0E6;
+  --buy-text:    #151515;
   --bg:          #151515;
   --bg-header:   rgba(21,21,21,0.82);
   --bg-sidebar:  rgba(21,21,21,0.88);
@@ -31,6 +35,8 @@
 }
 
 html.light {
+  --buy-bg:      #151515;
+  --buy-text:    #F5F0E6;
   --bg:          #EEE9FB;
   --bg-header:   rgba(226,219,252,0.88);
   --bg-sidebar:  rgba(222,215,252,0.94);

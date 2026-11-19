@@ -1,6 +1,7 @@
 import { adminDb } from "@/utils/supabase/admin";
 import { NextRequest, NextResponse } from "next/server";
 import { requireUser } from "@/lib/apiAuth";
+import { notify } from "@/lib/notify";
 
 // GET /api/follows?followerId=&followingId= — check if following
 export async function GET(req: NextRequest) {
@@ -68,14 +69,14 @@ export async function POST(req: NextRequest) {
     .eq("clerk_id", followerId)
     .maybeSingle();
 
-  Promise.resolve(adminDb.from("notifications").insert({
+  await notify({
     user_id:      followingId,
     actor_name:   followerProfile?.display_name ?? null,
     actor_avatar: followerProfile?.avatar_url ?? null,
     type:         "follow",
     text:         `${followerProfile?.display_name ?? "Someone"} started following you`,
-    post_id:      followerId,
-  })).catch(() => {}); // ignore notification errors
+    link:         `/u/${followerId}`,
+  });
 
   return NextResponse.json({ ok: true });
 }

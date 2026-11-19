@@ -26,7 +26,7 @@
 - [ ] **P0-4** BLOCKED: Firebase project. Push: send FCM when a notification row is created (shared helper). Needs P2-8.
 - [ ] **P0-5** BLOCKED: needs the Android signing SHA-256 and Apple Team ID (P8-2). Serve `/.well-known/assetlinks.json` and `/.well-known/apple-app-site-association` for deep links.
 - [ ] **P0-6** BLOCKED: user must create the Clerk **production** instance (DNS, Google OAuth client, 30-day sessions). Then: user-ID migration script (old dev IDs → new prod IDs across all tables).
-- [ ] **P0-7** `create-order` takes the amount from the client. Compute the price on the server from the post/hire request instead.
+- [x] **P0-7** (2026-11-20: `create-order` removed. Use `POST /api/checkout/quote` and `POST /api/checkout/pay` with `{postIds, addressId}`; cart is `GET/POST/DELETE /api/cart`. Needs migration 020.) `create-order` took the amount from the client.
 - [ ] **P0-8** Several routes insert notifications with `post_id` set to a non-post id (follows, hire requests, messages), which breaks the FK and silently drops them. Add `target_id`/`link` columns or stop setting `post_id`.
 - [ ] **P0-9** `/api/signed-url` for the `deliverables` bucket only checks login, not project membership.
 - [x] **P0-10** Middleware answers 404 (not 401) for signed-out calls to protected API routes. Make API routes return JSON 401 so the app can show "please sign in".
