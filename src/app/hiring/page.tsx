@@ -3,11 +3,11 @@
 import BottomNav from "@/components/layout/BottomNav";
 import Sidebar from "@/components/layout/Sidebar";
 import HireModal from "@/components/hiring/HireModal";
-import HireBrief from "@/components/hiring/HireBrief";
+import HireBrief, { parseBrief } from "@/components/hiring/HireBrief";
 import type { Artist } from "@/lib/hiringData";
 import { useUser, UserButton } from "@clerk/nextjs";
 import {
-  ArrowRight, Briefcase, Clock,
+  ArrowRight, Briefcase, ChevronRight, Clock, Plus,
   Search, SlidersHorizontal, Star, X,
 } from "lucide-react";
 import Link from "next/link";
@@ -20,24 +20,13 @@ import { createPortal } from "react-dom";
 
 type ProjectStatus = "active" | "pending" | "completed" | "cancelled";
 
-interface Project {
-  id: string;
-  title: string;
-  artist: string;
-  avatar: string;
-  budget: number;
-  deadline: string;
-  lastActivity: string;
-  progress: number;
-  status: ProjectStatus;
-}
-
 interface HireRequest {
   id: string;
   artist_name: string;
   artist_avatar: string | null;
   artist_id: number;
   project_title: string;
+  project_description: string | null;
   budget: string | number | null;
   deadline: string | null;
   progress: number;
@@ -183,44 +172,7 @@ function timeAgo(ts: string): string {
   return days > 1 ? `${days} days ago` : days === 1 ? "Yesterday" : hrs > 0 ? `${hrs} hours ago` : "Just now";
 }
 
-function mapRequest(r: HireRequest): Project {
-  return {
-    id:           r.id,
-    title:        r.project_title,
-    artist:       r.artist_name,
-    avatar:       r.artist_avatar ?? `https://i.pravatar.cc/80?img=${r.artist_id}`,
-    budget:       Number(r.budget ?? 0),
-    deadline:     r.deadline ?? "",
-    lastActivity: timeAgo(r.updated_at ?? r.created_at),
-    progress:     r.progress ?? 0,
-    status:       mapStatus(r.status),
-  };
-}
-
-function mapIncomingToProject(r: IncomingRequest): Project {
-  const ts = r.updated_at ?? r.accepted_at ?? r.created_at;
-  return {
-    id:           r.id,
-    title:        r.project_title,
-    artist:       r.client_name ?? "Client",
-    avatar:       r.client_avatar ?? `https://i.pravatar.cc/80?u=${r.client_id}`,
-    budget:       Number(r.budget ?? 0),
-    deadline:     r.deadline ?? "",
-    lastActivity: timeAgo(ts),
-    progress:     r.progress ?? 0,
-    status:       mapStatus(r.status),
-  };
-}
-
 // ── Config ─────────────────────────────────────────────────────
-
-const STATUS_CONFIG: Record<ProjectStatus, { label: string; dot: string; bar: string; badge: string; badgeText: string; displayLabel: string }> = {
-  active:    { label: "ACTIVE PROJECTS",  dot: "#3B82F6", bar: "#3B82F6", badge: "rgba(59,130,246,0.15)",  badgeText: "#60A5FA", displayLabel: "Active"    },
-  pending:   { label: "PENDING REQUESTS", dot: "#F59E0B", bar: "#6B7280", badge: "rgba(245,158,11,0.15)",  badgeText: "#FCD34D", displayLabel: "Pending"   },
-  completed: { label: "COMPLETED",        dot: "#10B981", bar: "#10B981", badge: "rgba(16,185,129,0.15)",  badgeText: "#34D399", displayLabel: "Completed" },
-  cancelled: { label: "CANCELLED",        dot: "#EF4444", bar: "#EF4444", badge: "rgba(239,68,68,0.15)",   badgeText: "#F87171", displayLabel: "Cancelled" },
-};
-
 
 // ── Featured card ──────────────────────────────────────────────
 
@@ -556,59 +508,6 @@ function ThreeDotsMenu({ onDelete }: { onDelete: () => Promise<void> }) {
   );
 }
 
-function ProjectCard({ project, onClick, onDelete }: { project: Project; onClick: () => void; onDelete: () => void }) {
-  const cfg = STATUS_CONFIG[project.status];
-  const isDelivered = project.status === "completed";
-
-  return (
-    <div
-      onClick={onClick}
-      role="button"
-      tabIndex={0}
-      onKeyDown={e => e.key === "Enter" && onClick()}
-      className="w-full text-left p-4 rounded-2xl flex flex-col gap-3 transition-all hover:scale-[1.01] cursor-pointer"
-      style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}
-      onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = "rgba(124,91,245,0.35)"; }}
-      onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = "var(--border)"; }}
-    >
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex items-center gap-3 min-w-0">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={project.avatar} alt={project.artist} className="w-9 h-9 rounded-full object-cover shrink-0" />
-          <div className="min-w-0">
-            <p className="text-sm font-semibold truncate" style={{ color: "var(--text-1)" }}>{project.title}</p>
-            <p className="text-xs" style={{ color: "var(--text-5)" }}>with {project.artist}</p>
-          </div>
-        </div>
-        <div className="flex items-center gap-2 shrink-0">
-          <span className="text-[11px] font-semibold px-2.5 py-1 rounded-full" style={{ background: cfg.badge, color: cfg.badgeText }}>
-            {cfg.displayLabel}
-          </span>
-          <ThreeDotsMenu onDelete={async () => { onDelete(); }} />
-        </div>
-      </div>
-      <div className="flex flex-wrap gap-x-4 gap-y-1 text-[11px]" style={{ color: "var(--text-5)" }}>
-        <span className="flex items-center gap-1">
-          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="2" y="5" width="20" height="16" rx="2"/><path d="M16 3v4M8 3v4M2 9h20"/></svg>
-          ₹{project.budget.toLocaleString()}
-        </span>
-        <span className="flex items-center gap-1">
-          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-          {isDelivered ? "Delivered" : project.deadline}
-        </span>
-      </div>
-      <div>
-        <div className="flex justify-between text-[10px] mb-1.5" style={{ color: "var(--text-6)" }}>
-          <span>PROGRESS</span><span>{project.progress}%</span>
-        </div>
-        <div className="h-1.5 rounded-full overflow-hidden" style={{ background: "var(--bg-subtle)" }}>
-          <div className="h-full rounded-full transition-all" style={{ width: `${project.progress}%`, background: cfg.bar }} />
-        </div>
-      </div>
-    </div>
-  );
-}
-
 function EmptyProjects({ onHire }: { onHire: () => void }) {
   return (
     <div className="flex flex-col items-center justify-center py-20 text-center">
@@ -653,544 +552,325 @@ interface IncomingRequest {
   completed_at: string | null;
 }
 
-function IncomingCard({ req, onDecide, onDelete }: { req: IncomingRequest; onDecide: (id: string, status: "accepted" | "declined") => Promise<void>; onDelete: () => Promise<void> }) {
-  const router = useRouter();
-  const [deciding, setDeciding] = useState<"accepted" | "declined" | null>(null);
+// ── My Projects view ───────────────────────────────────────────
+// Shows only what is really stored for each commission: who it is with, what
+// was asked, the reference image the client attached, dates and status.
 
-  async function decide(e: React.MouseEvent, status: "accepted" | "declined") {
-    e.stopPropagation();
-    setDeciding(status);
+/** One commission, seen from the signed-in user's side. */
+interface CommissionRow {
+  id: string;
+  role: "client" | "artist";   // client = I hired the artist; artist = I was hired
+  other: string;               // the other person's name
+  avatar: string | null;
+  status: ProjectStatus;
+  summary: string | null;      // first line of the brief
+  thumb: string | null;        // first reference image, if the client attached one
+  deadline: string | null;
+  budget: number | null;       // the client's price: shown to the client only
+  sentAt: string;
+  updatedAt: string;
+}
+
+function daysUntil(dateStr: string | null): number | null {
+  if (!dateStr) return null;
+  const d = new Date(dateStr);
+  return isNaN(d.getTime()) ? null : Math.ceil((d.getTime() - Date.now()) / 86400000);
+}
+
+const shortDate = (ts: string) =>
+  new Date(ts).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
+
+function deadlineText(deadline: string | null): { text: string; urgent: boolean } | null {
+  if (!deadline) return null;
+  const d = daysUntil(deadline);
+  if (d === null) return { text: `Due ${deadline}`, urgent: false };
+  if (d < 0)  return { text: `Was due ${shortDate(deadline)}`, urgent: true };
+  if (d === 0) return { text: "Due today", urgent: true };
+  return { text: `Due ${shortDate(deadline)} · ${d} day${d === 1 ? "" : "s"} left`, urgent: d <= 3 };
+}
+
+/** Profile picture, or the person's initial when they have none (never a stock face). */
+function Face({ src, name, size = 40 }: { src: string | null; name: string; size?: number }) {
+  if (src) {
+    // eslint-disable-next-line @next/next/no-img-element
+    return <img src={src} alt="" className="rounded-full object-cover shrink-0" style={{ width: size, height: size }} />;
+  }
+  return (
+    <span aria-hidden className="rounded-full shrink-0 flex items-center justify-center font-bold"
+      style={{ width: size, height: size, fontSize: size * 0.4, background: "rgba(124,91,245,0.18)", color: "#9B7CF5" }}>
+      {(name.trim()[0] ?? "?").toUpperCase()}
+    </span>
+  );
+}
+
+function CommissionRowItem({ row, onOpen, onDelete }: { row: CommissionRow; onOpen: () => void; onDelete?: () => Promise<void> }) {
+  const due = row.status === "active" || row.status === "pending" ? deadlineText(row.deadline) : null;
+  const meta = [
+    row.status === "pending"   ? `Sent ${shortDate(row.sentAt)}` : null,
+    row.status === "active"    ? `Last update ${timeAgo(row.updatedAt).toLowerCase()}` : null,
+    row.status === "completed" ? `Completed ${shortDate(row.updatedAt)}` : null,
+    row.status === "cancelled" ? `Declined ${shortDate(row.updatedAt)}` : null,
+  ].filter(Boolean)[0];
+
+  return (
+    <li
+      onClick={onOpen}
+      onKeyDown={e => e.key === "Enter" && onOpen()}
+      role="link"
+      tabIndex={0}
+      className="flex items-center gap-4 py-4 cursor-pointer transition-opacity hover:opacity-85"
+      style={{ borderBottom: "1px solid var(--border)" }}
+    >
+      {row.thumb ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={row.thumb} alt="" className="w-14 h-14 md:w-16 md:h-16 rounded-lg object-cover shrink-0" style={{ background: "var(--bg-subtle)" }} />
+      ) : (
+        <Face src={row.avatar} name={row.other} size={56} />
+      )}
+
+      <div className="flex-1 min-w-0">
+        <p className="text-[15px] font-semibold truncate" style={{ color: "var(--text-1)" }}>
+          {row.role === "client" ? `Commission with ${row.other}` : `Commission for ${row.other}`}
+        </p>
+        {row.summary && <p className="text-sm truncate mt-0.5" style={{ color: "var(--text-4)" }}>{row.summary}</p>}
+        <p className="text-xs mt-1.5 flex flex-wrap gap-x-3 gap-y-0.5" style={{ color: "var(--text-5)" }}>
+          <span>{row.role === "client" ? "You hired" : "You were hired"}</span>
+          {meta && <span>{meta}</span>}
+          {due && <span style={{ color: due.urgent ? "#F87171" : "var(--text-5)", fontWeight: due.urgent ? 600 : 400 }}>{due.text}</span>}
+        </p>
+      </div>
+
+      {row.budget ? (
+        <p className="hidden sm:block text-sm font-semibold shrink-0" style={{ color: "var(--text-2)" }}>
+          ₹{row.budget.toLocaleString("en-IN")}
+        </p>
+      ) : null}
+      {onDelete && <span className="shrink-0"><ThreeDotsMenu onDelete={onDelete} /></span>}
+      <ChevronRight size={16} className="shrink-0" style={{ color: "var(--text-6)" }} />
+    </li>
+  );
+}
+
+function SectionTitle({ children, count }: { children: React.ReactNode; count?: number }) {
+  return (
+    <h2 className="flex items-baseline gap-2.5 text-lg md:text-xl font-bold pb-3" style={{ color: "var(--text-1)", borderBottom: "1px solid var(--border)" }}>
+      {children}
+      {count !== undefined && <span className="text-sm font-medium" style={{ color: "var(--text-5)" }}>{count}</span>}
+    </h2>
+  );
+}
+
+function MyProjectsView({ userId, onSwitchToHire }: { userId: string; onSwitchToHire: () => void }) {
+  const router = useRouter();
+  const [mine, setMine]         = useState<HireRequest[]>([]);      // requests I sent as a client
+  const [incoming, setIncoming] = useState<IncomingRequest[]>([]);  // requests sent to me as an artist
+  const [loading, setLoading]   = useState(true);
+  const [pastOpen, setPastOpen] = useState(false);
+  const [deciding, setDeciding] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!userId) return;
+    let cancelled = false;
+    Promise.all([
+      fetch(`/api/hire-requests?clientId=${userId}`).then(r => r.json()),
+      fetch(`/api/hire-requests?artistClerkId=${userId}`).then(r => r.json()),
+    ]).then(([clientData, artistData]) => {
+      if (cancelled) return;
+      setMine(clientData.requests ?? []);
+      setIncoming(artistData.requests ?? []);
+      setLoading(false);
+    }).catch(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  }, [userId]);
+
+  async function handleDeleteMine(id: string) {
+    await fetch(`/api/hire-requests/${id}`, { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ clientId: userId }) });
+    setMine(prev => prev.filter(p => p.id !== id));
+  }
+  async function handleDecide(id: string, status: "accepted" | "declined") {
+    if (deciding) return;
+    setDeciding(id);
     try {
-      await onDecide(req.id, status);
+      const res = await fetch(`/api/hire-requests/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ artistClerkId: userId, status }) });
+      if (res.ok) setIncoming(prev => prev.map(r => r.id === id ? { ...r, status } : r));
     } finally {
       setDeciding(null);
     }
   }
 
-  const isPending = req.status === "pending";
-  const statusColors: Record<string, { bg: string; color: string; label: string }> = {
-    pending:  { bg: "rgba(245,158,11,0.15)",  color: "#FCD34D", label: "Pending"  },
-    accepted: { bg: "rgba(16,185,129,0.15)",  color: "#34D399", label: "Accepted" },
-    declined: { bg: "rgba(239,68,68,0.15)",   color: "#F87171", label: "Declined" },
-  };
-  const sc = statusColors[req.status] ?? statusColors.pending;
+  const rows: CommissionRow[] = [
+    ...mine.map((r): CommissionRow => {
+      const b = parseBrief(r.project_description);
+      return {
+        id: r.id, role: "client", other: r.artist_name, avatar: r.artist_avatar, status: mapStatus(r.status),
+        summary: b.text[0] ?? null, thumb: b.images[0] ?? null, deadline: r.deadline,
+        budget: Number(r.budget) > 0 ? Number(r.budget) : null,
+        sentAt: r.created_at, updatedAt: r.updated_at ?? r.created_at,
+      };
+    }),
+    ...incoming.map((r): CommissionRow => {
+      const b = parseBrief(r.project_description);
+      return {
+        id: r.id, role: "artist", other: r.client_name ?? "a client", avatar: r.client_avatar, status: mapStatus(r.status),
+        summary: b.text[0] ?? null, thumb: b.images[0] ?? null, deadline: r.deadline,
+        budget: null, // the stored amount is the client's price, not the artist's
+        sentAt: r.created_at, updatedAt: r.updated_at ?? r.accepted_at ?? r.created_at,
+      };
+    }),
+  ];
 
-  return (
-    <div
-      onClick={() => router.push(`/hiring/projects/${req.id}`)}
-      className="p-4 rounded-2xl flex flex-col gap-3 cursor-pointer transition-all hover:scale-[1.01]"
-      style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}
-      onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = "rgba(124,91,245,0.35)"; }}
-      onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = "var(--border)"; }}
-    >
-      {/* Client + status */}
-      <div className="flex items-center gap-3">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={req.client_avatar ?? `https://i.pravatar.cc/48?u=${req.client_id}`}
-          alt={req.client_name ?? "Client"}
-          className="w-9 h-9 rounded-full object-cover shrink-0"
-        />
-        <div className="flex-1 min-w-0">
-          <p className="text-sm font-semibold truncate" style={{ color: "var(--text-1)" }}>
-            {req.project_title}
-          </p>
-          <p className="text-xs" style={{ color: "var(--text-5)" }}>
-            from {req.client_name ?? "a client"}
-          </p>
-        </div>
-        <div className="flex items-center gap-2 shrink-0">
-          <span className="text-[11px] font-semibold px-2.5 py-1 rounded-full" style={{ background: sc.bg, color: sc.color }}>
-            {sc.label}
-          </span>
-          <ThreeDotsMenu onDelete={onDelete} />
-        </div>
-      </div>
+  const byNewest = (a: CommissionRow, b: CommissionRow) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime();
+  const pendingIncoming = incoming.filter(r => r.status === "pending");
+  const active   = rows.filter(r => r.status === "active").sort(byNewest);
+  const waiting  = rows.filter(r => r.status === "pending" && r.role === "client").sort(byNewest);
+  const past     = rows.filter(r => r.status === "completed" || r.status === "cancelled").sort(byNewest);
 
-      {/* Details */}
-      <div className="flex flex-wrap gap-x-4 gap-y-1 text-[11px]" style={{ color: "var(--text-5)" }}>
-        {req.budget && (
-          <span>💰 ₹{Number(req.budget).toLocaleString()}</span>
-        )}
-        {req.deadline && (
-          <span>📅 {req.deadline}</span>
-        )}
-        <span className="capitalize">⚡ {req.priority} priority</span>
-      </div>
+  const nextDue = active
+    .map(r => ({ r, d: daysUntil(r.deadline) }))
+    .filter((x): x is { r: CommissionRow; d: number } => x.d !== null && x.d >= 0)
+    .sort((a, b) => a.d - b.d)[0] ?? null;
 
-      {req.project_description && (
-        <p className="text-xs leading-relaxed line-clamp-2" style={{ color: "var(--text-4)" }}>
-          {req.project_description}
-        </p>
-      )}
-
-      {/* Accept / Decline — only for pending */}
-      {isPending && (
-        <div className="flex gap-2 pt-1">
-          <button
-            onClick={e => decide(e, "accepted")}
-            disabled={!!deciding}
-            className="flex-1 py-2 rounded-xl text-xs font-bold transition-all hover:opacity-90 disabled:opacity-50"
-            style={{ background: "rgba(16,185,129,0.15)", color: "#34D399", border: "1px solid rgba(16,185,129,0.35)" }}
-          >
-            {deciding === "accepted" ? "Accepting…" : "✓ Accept"}
-          </button>
-          <button
-            onClick={e => decide(e, "declined")}
-            disabled={!!deciding}
-            className="flex-1 py-2 rounded-xl text-xs font-bold transition-all hover:opacity-90 disabled:opacity-50"
-            style={{ background: "rgba(239,68,68,0.1)", color: "#F87171", border: "1px solid rgba(239,68,68,0.3)" }}
-          >
-            {deciding === "declined" ? "Declining…" : "✕ Decline"}
-          </button>
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ── My Projects view ───────────────────────────────────────────
-
-function MyProjectsView({ userId, onSwitchToHire }: { userId: string; onSwitchToHire: () => void }) {
-  const router = useRouter();
-  const [projects, setProjects]               = useState<Project[]>([]);
-  const [incoming, setIncoming]               = useState<IncomingRequest[]>([]);
-  const [loading, setLoading]                 = useState(true);
-  const [loadingIncoming, setLoadingIncoming] = useState(true);
-  const [deliveredOpen, setDeliveredOpen]     = useState(false);
-
-  useEffect(() => {
-    if (!userId) return;
-    setLoading(true);
-    setLoadingIncoming(true);
-    Promise.all([
-      fetch(`/api/hire-requests?clientId=${userId}`).then(r => r.json()),
-      fetch(`/api/hire-requests?artistClerkId=${userId}`).then(r => r.json()),
-    ]).then(([clientData, artistData]) => {
-      const clientProjects: Project[]       = (clientData.requests ?? []).map(mapRequest);
-      const incomingReqs: IncomingRequest[] = artistData.requests ?? [];
-      setProjects(clientProjects);
-      setIncoming(incomingReqs);
-      setLoading(false);
-      setLoadingIncoming(false);
-    }).catch(() => { setLoading(false); setLoadingIncoming(false); });
-  }, [userId]);
-
-  async function handleDeleteProject(id: string) {
-    await fetch(`/api/hire-requests/${id}`, { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ clientId: userId }) });
-    setProjects(prev => prev.filter(p => p.id !== id));
-  }
-  async function handleDeleteIncoming(id: string) {
-    await fetch(`/api/hire-requests/${id}`, { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ artistClerkId: userId }) });
-    setIncoming(prev => prev.filter(r => r.id !== id));
-  }
-  async function handleDecide(id: string, status: "accepted" | "declined") {
-    const res = await fetch(`/api/hire-requests/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ artistClerkId: userId, status }) });
-    if (res.ok) {
-      setIncoming(prev => prev.map(r => r.id === id ? { ...r, status } : r));
-    }
-  }
-
-  const activeProjects       = projects.filter(p => p.status === "active");
-  const pendingProjects      = projects.filter(p => p.status === "pending");
-  const completedProjects    = projects.filter(p => p.status === "completed");
-  const pendingIncoming      = incoming.filter(r => r.status === "pending");
-  const acceptedCommissions  = incoming.filter(r => r.status === "accepted");
-  const totalBudget          = projects.reduce((sum, p) => sum + p.budget, 0);
-
-  const STAGES = ["Brief", "Concept", "Revision", "Final", "Delivered"];
-  function getStageIdx(progress: number) {
-    if (progress < 20) return 0;
-    if (progress < 40) return 1;
-    if (progress < 60) return 2;
-    if (progress < 80) return 3;
-    return 4;
-  }
-  function daysUntil(dateStr: string): number | null {
-    try { const d = new Date(dateStr); if (isNaN(d.getTime())) return null; return Math.ceil((d.getTime() - Date.now()) / 86400000); } catch { return null; }
-  }
-
-  // Collect deadlines from both client-commissioned projects and accepted commissions
-  const allDeadlineEntries: { deadline: string; title: string }[] = [
-    ...activeProjects.filter(p => !!p.deadline).map(p => ({ deadline: p.deadline, title: p.title })),
-    ...acceptedCommissions.filter(r => !!r.deadline).map(r => ({ deadline: r.deadline!, title: r.project_title })),
-  ].sort((a, b) => new Date(a.deadline).getTime() - new Date(b.deadline).getTime());
-
-  const nearestDeadline = allDeadlineEntries[0] ?? null;
-
-  const heroProject = activeProjects[0] ?? null;
-
-
-  if (loading || loadingIncoming) {
+  if (loading) {
     return (
-      <div className="flex-1 px-4 md:px-8 py-6 flex flex-col gap-4">
-        {[1,2,3].map(i => <div key={i} className="h-28 rounded-2xl animate-pulse" style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }} />)}
+      <div className="flex-1 px-4 md:px-8 py-8 flex flex-col gap-4 max-w-5xl w-full mx-auto">
+        {[1, 2, 3].map(i => <div key={i} className="h-20 rounded-xl skeleton-shimmer" style={{ background: "var(--bg-card)" }} />)}
       </div>
     );
   }
 
-  if (projects.length === 0 && incoming.length === 0) {
+  if (rows.length === 0) {
     return <div className="flex-1 px-4 md:px-8 py-6"><EmptyProjects onHire={onSwitchToHire} /></div>;
   }
-  const totalActive = activeProjects.length + acceptedCommissions.length;
+
+  const facts = [
+    { label: "Need your reply", value: String(pendingIncoming.length), note: pendingIncoming.length ? "Read the brief, then accept or decline" : "Nothing waiting" },
+    { label: "In progress",     value: String(active.length),          note: waiting.length ? `${waiting.length} more waiting for an artist` : "Accepted and under way" },
+    { label: "Next deadline",   value: nextDue ? (nextDue.d === 0 ? "Today" : `${nextDue.d} day${nextDue.d === 1 ? "" : "s"}`) : "None",
+      note: nextDue ? `${shortDate(nextDue.r.deadline!)} · ${nextDue.r.other}` : "No dated work in progress" },
+  ];
 
   return (
-    <div className="flex-1 pb-28 lg:pb-12 relative">
+    <div className="flex-1 pb-28 lg:pb-14">
+      <div className="max-w-5xl mx-auto px-4 md:px-8">
 
-      {/* ── Header ── */}
-      <div className="px-4 md:px-8 pt-6 pb-5 flex items-start justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-bold" style={{ color: "var(--text-1)" }}>Commissions</h1>
-          <p className="text-sm mt-1" style={{ color: "var(--text-5)" }}>
-            {totalActive} active · {pendingProjects.length} pending · {completedProjects.length} delivered
-          </p>
+        {/* Heading */}
+        <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 pt-7 md:pt-10 pb-6">
+          <div>
+            <p className="text-[11px] font-semibold tracking-[0.18em] uppercase mb-1.5" style={{ color: "#9B7CF5" }}>Your work</p>
+            <h1 className="text-3xl md:text-4xl font-bold" style={{ color: "var(--text-1)", letterSpacing: "-0.02em" }}>Commissions</h1>
+          </div>
+          <button onClick={onSwitchToHire}
+            className="self-start sm:self-auto inline-flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-bold text-white transition-opacity hover:opacity-90"
+            style={{ background: "linear-gradient(135deg,#361E7B,#7C5BF5)" }}>
+            <Plus size={15} /> New commission
+          </button>
         </div>
-      </div>
 
-      {/* ── Stats row ── */}
-      <div
-        className="mx-4 md:mx-8 mb-8 grid grid-cols-2 lg:grid-cols-4"
-        style={{ border: "1px solid var(--border)", borderRadius: 16, overflow: "hidden" }}
-      >
-        {[
-          {
-            label: "UPCOMING DEADLINE",
-            color: "#F59E0B",
-            primary: nearestDeadline
-              ? new Date(nearestDeadline.deadline).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
-              : "—",
-            sub: nearestDeadline
-              ? (() => {
-                  const d = daysUntil(nearestDeadline.deadline);
-                  return d !== null
-                    ? `${d > 0 ? `${d} days left` : d === 0 ? "Due today" : "Overdue"}`
-                    : nearestDeadline.title;
-                })()
-              : "No upcoming deadlines",
-          },
-          { label: "NEEDS REVIEW",      color: "#9B7CF5", primary: String(pendingIncoming.length), sub: "awaiting approval" },
-          { label: "ACTIVE PROJECTS",   color: "#60A5FA", primary: String(totalActive),  sub: "in progress"      },
-          { label: "BUDGET COMMITTED",  color: "#10B981", primary: `₹${totalBudget.toLocaleString()}`, sub: "across all projects" },
-        ].map((s, i) => (
-          <div key={i} className="p-4" style={{ background: "var(--bg-card)", borderRight: i < 3 ? "1px solid var(--border)" : "none" }}>
-            <p className="text-[9px] font-bold tracking-widest mb-2" style={{ color: s.color }}>{s.label}</p>
-            <p className="text-xl font-bold" style={{ color: i === 0 ? s.color : "var(--text-1)" }}>{s.primary}</p>
-            <p className="text-xs mt-0.5" style={{ color: "var(--text-5)" }}>{s.sub}</p>
-          </div>
-        ))}
-      </div>
-
-      {/* ── Continue Working (hero) ── */}
-      {heroProject && (
-        <section className="px-4 md:px-8 mb-8">
-          <p className="text-[10px] font-bold tracking-widest mb-3" style={{ color: "var(--text-5)" }}>CONTINUE WORKING</p>
-          <div
-            className="rounded-2xl overflow-hidden flex cursor-pointer transition-all hover:scale-[1.005]"
-            style={{ background: "var(--bg-card)", border: "1px solid var(--border)", minHeight: 240 }}
-            onClick={() => router.push(`/hiring/projects/${heroProject.id}`)}
-          >
-            {/* Cover */}
-            <div className="shrink-0 relative hidden sm:block" style={{ width: "38%" }}>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={`https://picsum.photos/seed/${heroProject.id}/600/400`} alt={heroProject.title} className="w-full h-full object-cover" />
-              <div className="absolute inset-0" style={{ background: "linear-gradient(to right, transparent 55%, rgba(14,8,36,0.85))" }} />
+        {/* Three real numbers */}
+        <dl className="grid grid-cols-1 sm:grid-cols-3 rounded-2xl overflow-hidden mb-10"
+          style={{ background: "var(--bg-card)", border: "1px solid var(--border-card)" }}>
+          {facts.map((f, i) => (
+            <div key={f.label} className={`px-5 py-4 ${i ? "border-t sm:border-t-0 sm:border-l" : ""}`} style={{ borderColor: "var(--border)" }}>
+              <dt className="text-xs font-medium" style={{ color: "var(--text-4)" }}>{f.label}</dt>
+              <dd className="text-2xl font-bold mt-1" style={{ color: "var(--text-1)" }}>{f.value}</dd>
+              <dd className="text-xs mt-0.5 truncate" style={{ color: "var(--text-5)" }}>{f.note}</dd>
             </div>
-            {/* Details */}
-            <div className="flex-1 p-5 flex flex-col gap-3 min-w-0">
-              <div className="flex items-center justify-between gap-2">
-                <div className="flex items-center gap-2 min-w-0">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={heroProject.avatar} alt={heroProject.artist} className="w-7 h-7 rounded-full object-cover shrink-0" />
-                  <span className="text-sm truncate" style={{ color: "var(--text-4)" }}>{heroProject.artist}</span>
-                </div>
-                {pendingIncoming.length > 0 && (
-                  <span className="flex items-center gap-1 text-[11px] font-bold px-2.5 py-1 rounded-full shrink-0" style={{ background: "rgba(96,165,250,0.15)", color: "#60A5FA", border: "1px solid rgba(96,165,250,0.3)" }}>
-                    💬 {pendingIncoming.length} unread
-                  </span>
-                )}
-              </div>
-              <div>
-                <h2 className="text-xl font-bold mb-0.5 truncate" style={{ color: "var(--text-1)" }}>{heroProject.title}</h2>
-                <p className="text-xs" style={{ color: "var(--text-5)" }}>Stage: {STAGES[getStageIdx(heroProject.progress)]}</p>
-              </div>
-              {/* Stepper */}
-              <div className="flex items-start">
-                {STAGES.map((s, i) => {
-                  const si = getStageIdx(heroProject.progress);
-                  return (
-                    <div key={s} className="flex items-center flex-1 min-w-0">
-                      <div className="flex flex-col items-center gap-1 min-w-0">
-                        <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{
-                          background: i <= si ? "#7C5BF5" : "rgba(255,255,255,0.2)",
-                          boxShadow: i === si ? "0 0 6px rgba(124,91,245,0.6)" : "none",
-                        }} />
-                        <span className="text-[9px] truncate w-full text-center" style={{ color: i === si ? "#9B7CF5" : "var(--text-6)", fontWeight: i === si ? 700 : 400 }}>{s}</span>
-                      </div>
-                      {i < STAGES.length - 1 && <div className="flex-1 h-px mx-1 mb-3 shrink-0" style={{ background: i < si ? "#7C5BF5" : "rgba(255,255,255,0.12)" }} />}
-                    </div>
-                  );
-                })}
-              </div>
-              {/* Progress */}
-              <div>
-                <div className="flex justify-between text-xs mb-1.5" style={{ color: "var(--text-5)" }}>
-                  <span>Progress</span>
-                  <span style={{ color: "#9B7CF5", fontWeight: 700 }}>{heroProject.progress}%</span>
-                </div>
-                <div className="h-1.5 rounded-full overflow-hidden" style={{ background: "rgba(255,255,255,0.08)" }}>
-                  <div className="h-full rounded-full" style={{ width: `${heroProject.progress}%`, background: "linear-gradient(90deg,#361E7B,#7C5BF5)" }} />
-                </div>
-              </div>
-              <p className="text-xs" style={{ color: "var(--text-5)" }}>
-                <span style={{ color: "var(--text-6)" }}>{heroProject.lastActivity} · </span>Last activity
-              </p>
-              <div className="flex items-center justify-between mt-auto">
-                <span className="text-xs" style={{ color: "var(--text-5)" }}>
-                  Next: <span style={{ color: "#9B7CF5", fontWeight: 600 }}>{STAGES[Math.min(getStageIdx(heroProject.progress) + 1, 4)]} review</span>
-                </span>
-                <button
-                  onClick={e => { e.stopPropagation(); router.push(`/hiring/projects/${heroProject.id}`); }}
-                  className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold text-white transition-all hover:opacity-85"
-                  style={{ background: "linear-gradient(135deg,#361E7B,#7C5BF5)" }}
-                >
-                  Resume project ↗
-                </button>
-              </div>
-            </div>
-          </div>
-        </section>
-      )}
+          ))}
+        </dl>
 
-      {/* Today's Tasks removed */}
-      {/* ── Active Projects grid ── */}
-      {activeProjects.length > 0 && (
-        <section className="px-4 md:px-8 mb-8">
-          <div className="flex items-center justify-between mb-4">
-            <p className="text-[10px] font-bold tracking-widest" style={{ color: "var(--text-5)" }}>ACTIVE PROJECTS</p>
-            <span className="text-[11px]" style={{ color: "var(--text-5)" }}>{activeProjects.length} in progress</span>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {activeProjects.map(p => {
-              const si   = getStageIdx(p.progress);
-              const days = daysUntil(p.deadline);
-              const dueSoon = days !== null && days <= 5;
-              return (
-                <div
-                  key={p.id}
-                  onClick={() => router.push(`/hiring/projects/${p.id}`)}
-                  className="rounded-2xl overflow-hidden cursor-pointer transition-all hover:scale-[1.02]"
-                  style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}
-                  onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = "rgba(124,91,245,0.35)"; }}
-                  onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = "var(--border)"; }}
-                >
-                  <div className="relative" style={{ height: 180 }}>
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={`https://picsum.photos/seed/${p.id}/600/300`} alt={p.title} className="w-full h-full object-cover" />
-                    <div className="absolute inset-0" style={{ background: "linear-gradient(to top, rgba(0,0,0,0.75) 0%, transparent 55%)" }} />
-                    {dueSoon && (
-                      <span className="absolute top-3 left-3 text-[10px] font-bold px-2.5 py-1 rounded-full" style={{ background: "rgba(239,68,68,0.85)", color: "#fff" }}>
-                        Due soon
-                      </span>
-                    )}
-                    <div className="absolute bottom-3 left-3">
-                      <p className="text-[9px] font-bold tracking-widest mb-0.5" style={{ color: "rgba(255,255,255,0.5)" }}>CURRENT STAGE</p>
-                      <p className="text-sm font-bold text-white">{STAGES[si]}</p>
+        {/* Requests waiting for my answer (artist) */}
+        {pendingIncoming.length > 0 && (
+          <section className="mb-12" aria-labelledby="sec-reply">
+            <SectionTitle count={pendingIncoming.length}><span id="sec-reply">Needs your reply</span></SectionTitle>
+            <div className="flex flex-col gap-5 pt-5">
+              {pendingIncoming.map(r => (
+                <article key={r.id} className="rounded-2xl overflow-hidden" style={{ background: "var(--bg-card)", border: "1px solid var(--border-card)" }}>
+                  <header className="flex items-center gap-3 p-4 md:p-5" style={{ borderBottom: "1px solid var(--border)" }}>
+                    <Face src={r.client_avatar} name={r.client_name ?? "Client"} />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[15px] font-semibold truncate" style={{ color: "var(--text-1)" }}>{r.client_name ?? "A client"}</p>
+                      <p className="text-xs" style={{ color: "var(--text-5)" }}>Sent {shortDate(r.created_at)}</p>
                     </div>
+                  </header>
+
+                  {/* Everything the client sent: description, size, deadline and reference images */}
+                  <div className="p-4 md:p-5">
+                    <HireBrief description={r.project_description} deadline={r.deadline} />
                   </div>
-                  <div className="p-4 flex flex-col gap-2.5">
-                    <div className="flex items-start justify-between gap-2">
-                      <p className="text-sm font-bold leading-snug truncate" style={{ color: "var(--text-1)" }}>{p.title}</p>
-                      <span className="text-sm font-bold shrink-0" style={{ color: "#9B7CF5" }}>₹{p.budget.toLocaleString()}</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={p.avatar} alt={p.artist} className="w-5 h-5 rounded-full object-cover shrink-0" />
-                      <span className="text-xs truncate" style={{ color: "var(--text-5)" }}>{p.artist}</span>
-                    </div>
-                    {/* Stepper */}
-                    <div className="flex items-start">
-                      {STAGES.map((s, i) => (
-                        <div key={s} className="flex items-center flex-1 min-w-0">
-                          <div className="flex flex-col items-center gap-0.5 min-w-0">
-                            <div className="w-2 h-2 rounded-full shrink-0" style={{ background: i <= si ? "#7C5BF5" : "rgba(255,255,255,0.18)" }} />
-                            <span className="text-[8px] w-full text-center truncate" style={{ color: i === si ? "#9B7CF5" : "var(--text-6)", fontWeight: i === si ? 700 : 400 }}>{s}</span>
-                          </div>
-                          {i < STAGES.length - 1 && <div className="flex-1 h-px mx-0.5 mb-3 shrink-0" style={{ background: i < si ? "#7C5BF5" : "rgba(255,255,255,0.1)" }} />}
-                        </div>
-                      ))}
-                    </div>
-                    {/* Progress */}
-                    <div>
-                      <div className="flex justify-between text-[10px] mb-1" style={{ color: "var(--text-6)" }}>
-                        <span>Progress</span><span>{p.progress}%</span>
-                      </div>
-                      <div className="h-1 rounded-full overflow-hidden" style={{ background: "rgba(255,255,255,0.08)" }}>
-                        <div className="h-full rounded-full" style={{ width: `${p.progress}%`, background: "linear-gradient(90deg,#361E7B,#7C5BF5)" }} />
-                      </div>
-                    </div>
-                    <div className="flex items-center justify-between pt-0.5">
-                      <span className="text-xs" style={{ color: days !== null && days <= 3 ? "#EF4444" : "var(--text-5)" }}>
-                        {days !== null
-                          ? `${days}d left`
-                          : p.deadline
-                            ? new Date(p.deadline).toLocaleDateString("en-US", { month: "short", day: "numeric" })
-                            : "No deadline"}
-                      </span>
-                      <button
-                        onClick={e => { e.stopPropagation(); router.push(`/hiring/projects/${p.id}`); }}
-                        className="flex items-center gap-1 px-4 py-1.5 rounded-xl text-xs font-bold text-white transition-all hover:opacity-85"
-                        style={{ background: "linear-gradient(135deg,#361E7B,#7C5BF5)" }}
-                      >
-                        Open ↗
+
+                  <footer className="flex flex-col sm:flex-row sm:items-center gap-3 p-4 md:p-5" style={{ borderTop: "1px solid var(--border)" }}>
+                    <button onClick={() => router.push(`/hiring/projects/${r.id}`)}
+                      className="text-sm font-semibold underline underline-offset-4 py-2 sm:mr-auto text-left transition-opacity hover:opacity-75" style={{ color: "var(--text-4)" }}>
+                      Open full request
+                    </button>
+                    <div className="flex gap-2.5">
+                      <button onClick={() => handleDecide(r.id, "declined")} disabled={!!deciding}
+                        className="flex-1 sm:flex-none px-5 py-2.5 rounded-full text-sm font-bold transition-opacity hover:opacity-75 disabled:opacity-50"
+                        style={{ color: "#F87171", border: "1px solid rgba(239,68,68,0.35)" }}>
+                        Decline
+                      </button>
+                      <button onClick={() => handleDecide(r.id, "accepted")} disabled={!!deciding}
+                        className="flex-1 sm:flex-none px-6 py-2.5 rounded-full text-sm font-bold text-white transition-opacity hover:opacity-90 disabled:opacity-50"
+                        style={{ background: "linear-gradient(135deg,#361E7B,#7C5BF5)" }}>
+                        {deciding === r.id ? "Saving…" : "Accept"}
                       </button>
                     </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </section>
-      )}
-
-      {/* ── Commissions You've Accepted (artist side) ── */}
-      {acceptedCommissions.length > 0 && (
-        <section className="px-4 md:px-8 mb-8">
-          <div className="flex items-center justify-between mb-3">
-            <p className="text-[10px] font-bold tracking-widest" style={{ color: "var(--text-5)" }}>COMMISSIONS ACCEPTED</p>
-            <span className="text-[11px] font-semibold px-2.5 py-1 rounded-full" style={{ background: "rgba(16,185,129,0.12)", color: "#34D399" }}>
-              {acceptedCommissions.length} active
-            </span>
-          </div>
-          <div className="flex flex-col gap-3">
-            {acceptedCommissions.map(r => (
-              <div
-                key={r.id}
-                onClick={() => router.push(`/hiring/projects/${r.id}`)}
-                className="p-4 rounded-2xl flex items-center gap-3 cursor-pointer transition-all hover:scale-[1.01]"
-                style={{ background: "var(--bg-card)", border: "1px solid rgba(16,185,129,0.25)" }}
-                onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = "rgba(16,185,129,0.5)"; }}
-                onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = "rgba(16,185,129,0.25)"; }}
-              >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={r.client_avatar ?? `https://i.pravatar.cc/48?u=${r.client_id}`}
-                  alt={r.client_name ?? "Client"}
-                  className="w-10 h-10 rounded-full object-cover shrink-0"
-                />
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-bold truncate" style={{ color: "var(--text-1)" }}>{r.project_title}</p>
-                  <p className="text-xs" style={{ color: "var(--text-5)" }}>
-                    from {r.client_name ?? "a client"}{r.deadline ? ` · Due ${new Date(r.deadline).toLocaleDateString("en-US", { month: "short", day: "numeric" })}` : ""}
-                  </p>
-                </div>
-                <div className="flex items-center gap-2 shrink-0">
-                  <span className="text-[11px] font-semibold px-2.5 py-1 rounded-full" style={{ background: "rgba(16,185,129,0.15)", color: "#34D399" }}>
-                    In progress
-                  </span>
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color: "var(--text-5)" }}>
-                    <polyline points="9 18 15 12 9 6" />
-                  </svg>
-                </div>
-              </div>
-            ))}
-          </div>
-        </section>
-      )}
-
-      {/* ── Needs Your Approval (incoming pending) ── */}
-      {pendingIncoming.length > 0 && (
-        <section className="px-4 md:px-8 mb-8">
-          <p className="text-[10px] font-bold tracking-widest mb-3" style={{ color: "var(--text-5)" }}>NEEDS YOUR APPROVAL</p>
-          <div className="flex flex-col gap-4">
-            {pendingIncoming.map(r => (
-              <article key={r.id} className="rounded-2xl overflow-hidden" style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}>
-                <header className="flex items-center gap-3 p-4" style={{ borderBottom: "1px solid var(--border)" }}>
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={r.client_avatar ?? `https://i.pravatar.cc/48?u=${r.client_id}`} alt="" className="w-10 h-10 rounded-full object-cover shrink-0" />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-bold truncate" style={{ color: "var(--text-1)" }}>{r.client_name ?? "A client"}</p>
-                    <p className="text-xs" style={{ color: "var(--text-5)" }}>
-                      Commission request · {new Date(r.created_at).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
-                    </p>
-                  </div>
-                  <span className="text-[11px] font-semibold px-2.5 py-1 rounded-full shrink-0" style={{ background: "rgba(245,158,11,0.15)", color: "#FCD34D" }}>
-                    Awaiting your reply
-                  </span>
-                </header>
-
-                {/* Everything the client sent: description, size, deadline and reference images */}
-                <div className="p-4">
-                  <HireBrief description={r.project_description} deadline={r.deadline} />
-                </div>
-
-                <footer className="flex flex-col sm:flex-row sm:items-center gap-3 p-4" style={{ borderTop: "1px solid var(--border)" }}>
-                  <button onClick={() => router.push(`/hiring/projects/${r.id}`)}
-                    className="text-xs font-semibold underline underline-offset-4 py-2 sm:mr-auto text-left transition-opacity hover:opacity-75" style={{ color: "var(--text-4)" }}>
-                    Open full request
-                  </button>
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => handleDecide(r.id, "declined")}
-                      className="flex-1 sm:flex-none px-5 py-2.5 rounded-xl text-sm font-bold transition-all hover:opacity-75"
-                      style={{ background: "rgba(239,68,68,0.1)", color: "#F87171", border: "1px solid rgba(239,68,68,0.3)" }}
-                    >
-                      Decline
-                    </button>
-                    <button
-                      onClick={() => handleDecide(r.id, "accepted")}
-                      className="flex-1 sm:flex-none px-6 py-2.5 rounded-xl text-sm font-bold text-white transition-all hover:opacity-85"
-                      style={{ background: "linear-gradient(135deg,#361E7B,#7C5BF5)" }}
-                    >
-                      Accept
-                    </button>
-                  </div>
-                </footer>
-              </article>
-            ))}
-          </div>
-        </section>
-      )}
-
-      {/* ── Pending commissions ── */}
-      {pendingProjects.length > 0 && (
-        <section className="px-4 md:px-8 mb-8">
-          <p className="text-[10px] font-bold tracking-widest mb-3" style={{ color: "var(--text-5)" }}>PENDING REQUESTS</p>
-          <div className="flex flex-col gap-3">
-            {pendingProjects.map(p => (
-              <ProjectCard key={p.id} project={p} onClick={() => router.push(`/hiring/projects/${p.id}`)} onDelete={() => handleDeleteProject(p.id)} />
-            ))}
-          </div>
-        </section>
-      )}
-
-      {/* ── Delivered (collapsible) ── */}
-      {completedProjects.length > 0 && (
-        <section className="px-4 md:px-8 mb-8">
-          <button onClick={() => setDeliveredOpen(v => !v)} className="flex items-center gap-2 mb-3">
-            <p className="text-[10px] font-bold tracking-widest" style={{ color: "var(--text-5)" }}>DELIVERED {completedProjects.length}</p>
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"
-              style={{ color: "var(--text-5)", transform: deliveredOpen ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 0.2s" }}>
-              <polyline points="6 9 12 15 18 9" />
-            </svg>
-          </button>
-          {deliveredOpen && (
-            <div className="flex flex-col gap-3">
-              {completedProjects.map(p => (
-                <ProjectCard key={p.id} project={p} onClick={() => router.push(`/hiring/projects/${p.id}`)} onDelete={() => handleDeleteProject(p.id)} />
+                  </footer>
+                </article>
               ))}
             </div>
-          )}
-        </section>
-      )}
+          </section>
+        )}
 
-      {/* ── Floating new commission button ── */}
-      <button
-        onClick={onSwitchToHire}
-        className="fixed bottom-20 lg:bottom-8 right-6 flex items-center gap-2 px-5 py-3 rounded-full text-sm font-bold text-white z-20 transition-all hover:scale-105"
-        style={{ background: "linear-gradient(135deg,#361E7B,#7C5BF5)" }}
-      >
-        + New commission
-      </button>
+        {/* Accepted and under way: both the artists I hired and the clients who hired me */}
+        {active.length > 0 && (
+          <section className="mb-12" aria-labelledby="sec-active">
+            <SectionTitle count={active.length}><span id="sec-active">In progress</span></SectionTitle>
+            <ul>
+              {active.map(row => (
+                <CommissionRowItem key={row.id} row={row} onOpen={() => router.push(`/hiring/projects/${row.id}`)} />
+              ))}
+            </ul>
+          </section>
+        )}
+
+        {/* Sent by me, not answered yet */}
+        {waiting.length > 0 && (
+          <section className="mb-12" aria-labelledby="sec-waiting">
+            <SectionTitle count={waiting.length}><span id="sec-waiting">Waiting for the artist</span></SectionTitle>
+            <ul>
+              {waiting.map(row => (
+                <CommissionRowItem key={row.id} row={row} onOpen={() => router.push(`/hiring/projects/${row.id}`)}
+                  onDelete={() => handleDeleteMine(row.id)} />
+              ))}
+            </ul>
+          </section>
+        )}
+
+        {pendingIncoming.length === 0 && active.length === 0 && waiting.length === 0 && (
+          <p className="text-sm mb-12" style={{ color: "var(--text-4)" }}>Nothing is open right now. Your finished and declined commissions are below.</p>
+        )}
+
+        {/* Completed and declined */}
+        {past.length > 0 && (
+          <section className="mb-8">
+            <button onClick={() => setPastOpen(v => !v)} aria-expanded={pastOpen}
+              className="flex items-center gap-2 text-sm font-semibold py-2 transition-opacity hover:opacity-75" style={{ color: "var(--text-3)" }}>
+              <ChevronRight size={15} style={{ transform: pastOpen ? "rotate(90deg)" : "none", transition: "transform 0.2s" }} />
+              Completed and declined
+              <span style={{ color: "var(--text-5)", fontWeight: 500 }}>{past.length}</span>
+            </button>
+            {pastOpen && (
+              <ul style={{ borderTop: "1px solid var(--border)" }} className="mt-2">
+                {past.map(row => (
+                  <CommissionRowItem key={row.id} row={row} onOpen={() => router.push(`/hiring/projects/${row.id}`)}
+                    onDelete={row.role === "client" ? () => handleDeleteMine(row.id) : undefined} />
+                ))}
+              </ul>
+            )}
+          </section>
+        )}
+      </div>
     </div>
   );
 }

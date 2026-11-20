@@ -2,6 +2,7 @@
 
 import Sidebar from "@/components/layout/Sidebar";
 import BottomNav from "@/components/layout/BottomNav";
+import HireBrief from "@/components/hiring/HireBrief";
 import { useAuth, useUser } from "@clerk/nextjs";
 import {
   Bell, ChevronRight, CheckCircle2, FileText,
@@ -1268,7 +1269,24 @@ export default function ProjectDetailPage() {
   const [project, setProject]     = useState<HireRequest | null>(null);
   const [loading, setLoading]     = useState(true);
   const [notFound, setNotFound]   = useState(false);
-  const [activeTab, setActiveTab] = useState<"conversation" | "deliverables" | "references">("conversation");
+  const [activeTab, setActiveTab] = useState<"brief" | "conversation" | "deliverables" | "references">("brief");
+  const [deciding, setDeciding]   = useState<"accepted" | "declined" | null>(null);
+
+  // Artist's answer to a pending request, given after reading the brief
+  async function decide(status: "accepted" | "declined") {
+    if (!project || !user || deciding) return;
+    setDeciding(status);
+    try {
+      const res = await fetch(`/api/hire-requests/${project.id}`, {
+        method: "PATCH", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ artistClerkId: user.id, status }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok) setProject(prev => (prev ? { ...prev, ...(data.request ?? {}), status } : prev));
+    } finally {
+      setDeciding(null);
+    }
+  }
   const [completing, setCompleting] = useState(false);
   const [messages, setMessages]   = useState<Message[]>([]);
 
@@ -1427,7 +1445,7 @@ export default function ProjectDetailPage() {
           <div className="flex-1 flex flex-col min-w-0 min-h-0 overflow-hidden">
             {/* Tabs */}
             <div className="shrink-0 flex items-center gap-1 px-5 py-2" style={{ borderBottom: "1px solid var(--border)" }}>
-              {(["conversation", "deliverables", "references"] as const).map(t => (
+              {(["brief", "conversation", "deliverables", "references"] as const).map(t => (
                 <button
                   key={t}
                   onClick={() => setActiveTab(t)}
@@ -1445,6 +1463,66 @@ export default function ProjectDetailPage() {
 
             {/* Tab content */}
             <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
+              {activeTab === "brief" && (
+                <div className="flex-1 overflow-y-auto px-5 md:px-8 py-6 md:py-8">
+                  <div className="max-w-2xl mx-auto flex flex-col gap-8">
+                    {/* Who sent it, when, and where it stands */}
+                    {(() => {
+                      const who    = isArtist ? (project.client_name ?? "A client") : project.artist_name;
+                      const avatar = isArtist ? project.client_avatar : project.artist_avatar;
+                      const pill = ({
+                        pending:   { label: isArtist ? "Awaiting your reply" : "Awaiting the artist", color: "#FCD34D", bg: "rgba(245,158,11,0.14)" },
+                        accepted:  { label: "Accepted",  color: "#34D399", bg: "rgba(16,185,129,0.14)" },
+                        completed: { label: "Completed", color: "#34D399", bg: "rgba(16,185,129,0.14)" },
+                        declined:  { label: "Declined",  color: "#F87171", bg: "rgba(239,68,68,0.12)" },
+                      } as Record<string, { label: string; color: string; bg: string }>)[project.status]
+                        ?? { label: project.status, color: "var(--text-3)", bg: "var(--bg-subtle)" };
+                      return (
+                        <div className="flex items-center gap-4 pb-6" style={{ borderBottom: "1px solid var(--border)" }}>
+                          {avatar ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img src={avatar} alt="" className="w-14 h-14 rounded-full object-cover shrink-0" style={{ border: "2px solid rgba(124,91,245,0.5)" }} />
+                          ) : (
+                            <span aria-hidden className="w-14 h-14 rounded-full shrink-0 flex items-center justify-center text-xl font-bold"
+                              style={{ background: "rgba(124,91,245,0.18)", color: "#9B7CF5" }}>
+                              {(who.trim()[0] ?? "?").toUpperCase()}
+                            </span>
+                          )}
+                          <div className="flex-1 min-w-0">
+                            <p className="text-[11px] font-semibold tracking-[0.16em] uppercase" style={{ color: "var(--text-5)" }}>
+                              {isArtist ? "Commission request from" : "Your request to"}
+                            </p>
+                            <h2 className="text-2xl md:text-[28px] font-bold truncate leading-tight mt-0.5" style={{ color: "var(--text-1)", letterSpacing: "-0.01em" }}>{who}</h2>
+                            <p className="text-xs mt-1" style={{ color: "var(--text-5)" }}>Sent {fmtDateFull(project.created_at)}</p>
+                          </div>
+                          <span className="text-xs font-semibold px-3 py-1.5 rounded-full shrink-0 self-start" style={{ background: pill.bg, color: pill.color }}>
+                            {pill.label}
+                          </span>
+                        </div>
+                      );
+                    })()}
+
+                    {/* The budget is the client's price, so only the client sees it */}
+                    <HireBrief description={project.project_description} deadline={project.deadline}
+                      budget={isArtist ? null : project.budget} />
+
+                    {isArtist && project.status === "pending" && (
+                      <div className="flex gap-3 pt-6" style={{ borderTop: "1px solid var(--border)" }}>
+                        <button onClick={() => decide("declined")} disabled={!!deciding}
+                          className="flex-1 sm:flex-none px-6 py-2.5 rounded-xl text-sm font-bold transition-opacity hover:opacity-75 disabled:opacity-50"
+                          style={{ background: "rgba(239,68,68,0.1)", color: "#F87171", border: "1px solid rgba(239,68,68,0.3)" }}>
+                          {deciding === "declined" ? "Declining…" : "Decline"}
+                        </button>
+                        <button onClick={() => decide("accepted")} disabled={!!deciding}
+                          className="flex-1 sm:flex-none px-7 py-2.5 rounded-xl text-sm font-bold text-white transition-opacity hover:opacity-85 disabled:opacity-50"
+                          style={{ background: "linear-gradient(135deg,#361E7B,#7C5BF5)" }}>
+                          {deciding === "accepted" ? "Accepting…" : "Accept request"}
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
               {activeTab === "conversation" && (
                 <ConversationPanel
                   project={project}
