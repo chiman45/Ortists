@@ -23,6 +23,7 @@ const isVideoUrl = (u: string) => /\.(mp4|webm|mov|avi|mkv|ogv)(\?|$)/i.test(u);
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { followStyle } from "@/lib/followStyle";
+import { invalidate, peek, setCached, swr } from "@/lib/clientCache";
 
 interface FollowUser {
   clerk_id: string;
@@ -99,14 +100,16 @@ export default function ProfilePage() {
   // saving/unsaving happens inside it.
   function loadSavedPosts() {
     if (!user) return;
-    fetch(`/api/posts?savedBy=${user.id}`, { cache: "no-store" })
-      .then(r => r.json())
-      .then(({ posts }) => { if (posts) setSavedPosts(posts); })
-      .catch(() => {});
+    swr<{ posts?: DbPost[] }>(`/api/posts?savedBy=${user.id}`, ({ posts }) => { if (posts) setSavedPosts(posts); });
   }
 
   useEffect(() => {
     if (!isLoaded || !user) return;
+
+    // Show the profile from the last visit straight away (no skeleton), then refresh it
+    const profileKey = `profile:${user.id}`;
+    const known = peek<Profile>(profileKey);
+    if (known) queueMicrotask(() => setProfile(known));
 
     // Sync Clerk → Supabase, get profile back
     fetch("/api/profile/sync", {
@@ -120,42 +123,33 @@ export default function ProfilePage() {
       }),
     })
       .then(r => r.json())
-      .then(({ profile: p }) => { if (p) setProfile(p); });
+      .then(({ profile: p }) => { if (p) { setCached(profileKey, p); setProfile(p); } });
 
-    // Load own posts
-    fetch(`/api/posts?userId=${user.id}&limit=200`) // API defaults to 12 — would hide older portfolio work
-      .then(r => r.json())
-      .then(({ posts }) => { if (posts) setDbPosts(posts); });
+    // Load own posts (API defaults to 12 — would hide older portfolio work)
+    swr<{ posts?: DbPost[] }>(`/api/posts?userId=${user.id}&limit=200`, ({ posts }) => { if (posts) setDbPosts(posts); });
 
     loadSavedPosts();
 
     // Load recommended artists (other users)
-    fetch("/api/profiles")
-      .then(r => r.json())
-      .then(({ profiles }) => {
-        const others = (profiles ?? []).filter((p: Profile) => p.clerk_id !== user.id).slice(0, 4);
-        setRecommended(others);
-      });
+    // Suggestions change rarely: reuse the list for 5 minutes
+    swr<{ profiles?: Profile[] }>("/api/profiles", ({ profiles }) => {
+      setRecommended((profiles ?? []).filter(p => p.clerk_id !== user.id).slice(0, 4));
+    }, 300_000);
 
     // Load who the user is already following → initialise the followed Set
-    fetch(`/api/follows/list?userId=${user.id}&type=following`)
-      .then(r => r.json())
-      .then(({ users }) => {
-        const ids = (users ?? []).map((u: { clerk_id: string }) => u.clerk_id);
-        setFollowed(new Set(ids));
-      });
+    swr<{ users?: { clerk_id: string }[] }>(`/api/follows/list?userId=${user.id}&type=following`, ({ users }) => {
+      setFollowed(new Set((users ?? []).map(u => u.clerk_id)));
+    });
 
     // Load accurate counts directly from source tables
-    fetch(`/api/stats?userId=${user.id}`)
-      .then(r => r.json())
-      .then(data => {
-        setLiveStats({
-          followers:  data.followers  ?? 0,
-          following:  data.following  ?? 0,
-          totalLikes: data.totalLikes ?? 0,
-          totalSaves: data.totalSaves ?? 0,
-        });
+    swr<{ followers?: number; following?: number; totalLikes?: number; totalSaves?: number }>(`/api/stats?userId=${user.id}`, data => {
+      setLiveStats({
+        followers:  data.followers  ?? 0,
+        following:  data.following  ?? 0,
+        totalLikes: data.totalLikes ?? 0,
+        totalSaves: data.totalSaves ?? 0,
       });
+    });
 
   }, [user, isLoaded]);
 
@@ -316,6 +310,7 @@ export default function ProfilePage() {
     if (!user) return;
     setDeleting(true);
     const res = await fetch(`/api/posts/${id}?userId=${user.id}`, { method: "DELETE" }).catch(() => null);
+    invalidate("/api/posts"); // the feed and this page must not show it again
     if (!res?.ok) {
       setDeleting(false);
       window.alert("Couldn't delete this post — please try again.");
@@ -1411,7 +1406,7 @@ export default function ProfilePage() {
           isOwner={true}
           ownerId={user?.id}
           currentUserId={user?.id}
-          onClose={() => { setOpenPostModal(null); loadSavedPosts(); }}
+          onClose={() => { setOpenPostModal(null); invalidate("/api/posts"); loadSavedPosts(); }}
           onUpdate={updated => setDbPosts(posts => posts.map(p => p.id === updated.id ? updated : p))}
         />
       )}

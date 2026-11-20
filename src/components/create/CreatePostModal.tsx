@@ -9,6 +9,7 @@ import { useRouter } from "next/navigation";
 import { Playfair_Display } from "next/font/google";
 import { useCallback, useRef, useState } from "react";
 import { AddressPopup, useMyAddress } from "@/components/address/AddressEditor";
+import { invalidate } from "@/lib/clientCache";
 import { uploadMedia } from "@/lib/uploadMedia";
 
 // Same editorial serif the landing page uses — warmer than the gradient display text
@@ -1052,6 +1053,7 @@ export default function CreatePostModal({ onClose }: Props) {
                     const data = await res.json().catch(() => ({}));
                     if (!res.ok || !data.post) throw new Error(data.error ?? `Could not save your post (${res.status}).`);
                     const created = data.post;
+                    invalidate("/api/posts"); // feed and profile reload their lists
                     onClose();
                     if (created?.id) router.push(`/feed/${created.id}`);
                   } catch (err) {

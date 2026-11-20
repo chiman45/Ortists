@@ -3,6 +3,7 @@
 import { useUser } from "@clerk/nextjs";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
+import { getJSON } from "@/lib/clientCache";
 
 const LIKES_KEY       = "ortist_last_seen_likes";
 const TOAST_LIKES_KEY = "ortist_last_toast_likes";
@@ -21,18 +22,19 @@ export function useNotifications() {
 
     async function fetchAll() {
       // Unread messages
-      const msgRes = await fetch(`/api/notifications?userId=${user!.id}`).catch(() => null);
-      if (msgRes?.ok) {
-        const { unreadMessages: um } = await msgRes.json();
+      // Answers are shared with other pages and reused for 20s
+      const msg = await getJSON<{ unreadMessages?: number }>(`/api/notifications?userId=${user!.id}`, 20_000).catch(() => null);
+      if (msg) {
+        const { unreadMessages: um } = msg;
         const count = um ?? 0;
         prevMessages.current = count;
         setUnreadMessages(count);
       }
 
       // New likes — compare current total to last-seen stored in localStorage
-      const statsRes = await fetch(`/api/stats?userId=${user!.id}`).catch(() => null);
-      if (statsRes?.ok) {
-        const { totalLikes } = await statsRes.json();
+      const stats = await getJSON<{ totalLikes?: number }>(`/api/stats?userId=${user!.id}`, 20_000).catch(() => null);
+      if (stats) {
+        const { totalLikes } = stats;
         totalLikesRef.current = totalLikes ?? 0;
         const lastSeen = parseInt(localStorage.getItem(LIKES_KEY) ?? String(totalLikes), 10);
         const delta = Math.max(0, (totalLikes ?? 0) - lastSeen);
@@ -54,7 +56,8 @@ export function useNotifications() {
     }
 
     fetchAll();
-    const interval = setInterval(fetchAll, 10_000);
+    // Every 30s, and only while the tab is actually being looked at
+    const interval = setInterval(() => { if (document.visibilityState === "visible") fetchAll(); }, 30_000);
     return () => clearInterval(interval);
   }, [user]);
 

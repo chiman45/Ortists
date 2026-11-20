@@ -10,6 +10,7 @@ import { allPosts } from "@/lib/mockData";
 import { useUser } from "@clerk/nextjs";
 import { ArrowLeft, Bookmark, Check, Heart, Loader2, MessageCircle, Send, Share2, ShoppingBag, ShoppingCart, UserPlus } from "lucide-react";
 import Link from "next/link";
+import { Playfair_Display } from "next/font/google";
 import { useRouter } from "next/navigation";
 import AuthPromptModal from "@/components/ui/AuthPromptModal";
 import ReactionButton from "@/components/ui/ReactionButton";
@@ -26,6 +27,20 @@ import { followStyle } from "@/lib/followStyle";
 // identity, so an inline `[]` wiped and reloaded the grid on every keystroke
 // in the comment box.
 const NO_POSTS: Post[] = [];
+
+const playfair = Playfair_Display({ subsets: ["latin"], weight: ["600", "700"], display: "swap" });
+
+/** "just now", "5 min ago", "3 days ago", then the date. */
+function timeAgo(ts: string): string {
+  const mins = Math.floor((Date.now() - new Date(ts).getTime()) / 60000);
+  if (mins < 1) return "just now";
+  if (mins < 60) return `${mins} min ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs} hour${hrs === 1 ? "" : "s"} ago`;
+  const days = Math.floor(hrs / 24);
+  if (days < 30) return `${days} day${days === 1 ? "" : "s"} ago`;
+  return new Date(ts).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
+}
 
 const UUID_RE =/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -281,7 +296,16 @@ export default function FeedPostPage({ params }: { params: Promise<{ id: string 
     <div className="flex min-h-screen" style={{ background: "var(--bg)" }}>
       <Sidebar />
       <div className="flex-1 flex flex-col lg:ml-17 min-h-screen min-w-0">
-        <MainHeader />
+        {/* Back sits in the top bar, on the same line as the cart and bell */}
+        <MainHeader>
+          <button
+            onClick={() => router.back()}
+            className="inline-flex items-center gap-2 text-sm font-semibold h-9 pl-2.5 pr-3.5 rounded-xl transition-opacity hover:opacity-70"
+            style={{ color: "var(--text-2)", background: "var(--bg-subtle)" }}
+          >
+            <ArrowLeft size={16} /> Back
+          </button>
+        </MainHeader>
         <main className="flex-1 pb-24 lg:pb-8">
 
           {loading && isUUID && <PostDetailSkeleton />}
@@ -290,15 +314,6 @@ export default function FeedPostPage({ params }: { params: Promise<{ id: string 
 
             {/* ── Pinterest layout: back row + pin card + related grid ── */}
             <div className="px-4 md:px-6 pt-4 pb-10">
-
-              {/* Back button row */}
-              <button
-                onClick={() => router.back()}
-                className="inline-flex items-center gap-2 text-sm mb-4 transition-opacity hover:opacity-70"
-                style={{ color: "var(--text-4)" }}
-              >
-                <ArrowLeft size={15} /> Back
-              </button>
 
               {/* ── Row: pin card + related pins side by side ── */}
               <div className="flex items-start gap-6">
@@ -404,25 +419,37 @@ export default function FeedPostPage({ params }: { params: Promise<{ id: string 
                     </div>
 
                     {/* Scrollable content */}
-                    <div className="flex flex-col gap-4 px-5 py-4 overflow-y-auto flex-1" style={{ maxHeight: "80vh" }}>
+                    <div className="flex flex-col gap-5 px-5 md:px-6 py-5 overflow-y-auto flex-1" style={{ maxHeight: "80vh" }}>
 
-                      {/* Artist row */}
-                      <div className="flex items-center gap-3">
-                        <Link href={profileHref} className="shrink-0">
+                      {/* Title block */}
+                      <div>
+                        <p className="text-[11px] font-semibold tracking-[0.18em] uppercase mb-2" style={{ color: "#9B7CF5" }}>
+                          {[cat || "Art", typeLabel].filter(Boolean).join("  ·  ")}
+                        </p>
+                        <h1 className={`${playfair.className} text-3xl md:text-[34px] font-semibold leading-tight capitalize break-words`}
+                          style={{ color: "var(--text-1)", letterSpacing: "-0.01em" }}>
+                          {title}
+                        </h1>
+                        {descText && (
+                          <p className="text-[15px] leading-relaxed mt-3 whitespace-pre-wrap break-words" style={{ color: "var(--text-3)" }}>{descText}</p>
+                        )}
+                      </div>
+
+                      {/* Artist */}
+                      <div className="flex items-center gap-3.5 py-4" style={{ borderTop: "1px solid var(--border)", borderBottom: "1px solid var(--border)" }}>
+                        <Link href={profileHref} className="shrink-0 rounded-full p-[2px]" style={{ background: "linear-gradient(135deg,#7C5BF5,#FF7EA0)" }}>
                           {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img src={avatar} alt={udisp} className="w-10 h-10 rounded-full object-cover"
-                            style={{ border: "2px solid rgba(124,91,245,0.4)" }} />
+                          <img src={avatar} alt={udisp} className="w-12 h-12 rounded-full object-cover block" style={{ border: "2px solid var(--bg)" }} />
                         </Link>
                         <div className="flex-1 min-w-0">
-                          <Link href={profileHref} className="hover:underline">
-                            <p className="text-sm font-bold truncate" style={{ color: "var(--text-1)" }}>{udisp}</p>
-                          </Link>
-                          <p className="text-xs" style={{ color: "var(--text-5)" }}>{cat}</p>
+                          <p className="text-[10px] font-semibold tracking-[0.16em] uppercase" style={{ color: "var(--text-5)" }}>Artist</p>
+                          <Link href={profileHref} className="block text-base font-bold truncate hover:underline" style={{ color: "var(--text-1)" }}>{udisp}</Link>
+                          <p className="text-xs truncate" style={{ color: "var(--text-5)" }}>@{uname}</p>
                         </div>
                         {user?.id !== post?.user_id && (
                           <button
                             onClick={handleFollow}
-                            className="text-xs font-semibold px-3 py-1.5 rounded-full shrink-0 transition-all hover:opacity-80"
+                            className="text-sm font-bold px-5 py-2 rounded-full shrink-0 transition-all hover:opacity-85"
                             style={followStyle(following)}
                           >
                             {following ? "Following" : "Follow"}
@@ -430,44 +457,53 @@ export default function FeedPostPage({ params }: { params: Promise<{ id: string 
                         )}
                       </div>
 
-                      {/* Title + description */}
-                      <div>
-                        <h1 className="text-xl font-bold mb-1.5" style={{ color: "var(--text-1)" }}>{title}</h1>
-                        {descText && (
-                          <p className="text-sm leading-relaxed" style={{ color: "var(--text-4)" }}>{descText}</p>
-                        )}
-                      </div>
-
-                      {/* Meta */}
-                      <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm p-3 rounded-xl" style={{ background: "var(--bg-subtle)", border: "1px solid var(--border)" }}>
-                        <div>
-                          <p className="text-[10px] uppercase tracking-wide mb-0.5" style={{ color: "var(--text-5)" }}>Category</p>
-                          <p className="text-sm font-medium" style={{ color: "var(--text-2)" }}>{cat || "Art"}</p>
-                        </div>
-                        <div>
-                          <p className="text-[10px] uppercase tracking-wide mb-0.5" style={{ color: "var(--text-5)" }}>Type</p>
-                          <p className="text-sm font-medium" style={{ color: "var(--text-2)" }}>{typeLabel}</p>
-                        </div>
-                        <div>
-                          <p className="text-[10px] uppercase tracking-wide mb-0.5" style={{ color: "var(--text-5)" }}>Artist</p>
-                          <p className="text-sm font-medium truncate" style={{ color: "var(--text-2)" }}>@{uname}</p>
-                        </div>
-                        <div>
-                          <p className="text-[10px] uppercase tracking-wide mb-0.5" style={{ color: "var(--text-5)" }}>Posted</p>
-                          <p className="text-sm font-medium" style={{ color: "var(--text-2)" }}>
-                            {post?.created_at ? new Date(post.created_at).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) : "—"}
-                          </p>
-                        </div>
-                      </div>
+                      {/* Details: only what the artist actually entered */}
+                      {(() => {
+                        const rows = [
+                          { label: "Medium", value: post?.medium ?? null },
+                          { label: "Style",  value: post?.style ?? null },
+                          { label: "Size",   value: descDimensions },
+                          { label: "Posted", value: post?.created_at ? new Date(post.created_at).toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" }) : null },
+                        ].filter(r => !!r.value);
+                        const tags = (post?.tags ?? []).filter(t => t && t !== cat);
+                        if (!rows.length && !tags.length) return null;
+                        return (
+                          <div>
+                            <dl>
+                              {rows.map(r => (
+                                <div key={r.label} className="flex items-baseline justify-between gap-4 py-2">
+                                  <dt className="text-sm shrink-0" style={{ color: "var(--text-5)" }}>{r.label}</dt>
+                                  <dd className="text-sm font-semibold text-right capitalize break-words min-w-0" style={{ color: "var(--text-2)" }}>{r.value}</dd>
+                                </div>
+                              ))}
+                            </dl>
+                            {tags.length > 0 && (
+                              <div className="flex flex-wrap gap-1.5 mt-3">
+                                {tags.map(t => (
+                                  <span key={t} className="px-3 py-1 rounded-full text-xs font-medium"
+                                    style={{ background: "var(--bg-subtle)", color: "var(--text-4)", border: "1px solid var(--border)" }}>
+                                    {t}
+                                  </span>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })()}
 
                       {/* Price & Buy */}
                       {descPrice && (
-                        <div className="flex flex-col gap-2">
-                          <div className="flex items-baseline gap-1.5">
-                            <span className="text-2xl font-bold" style={{ color: "#9B7CF5" }}>{buyerPriceLabel(descPrice) ?? descPrice}</span>
-                            {descDimensions && (
-                              <span className="text-xs" style={{ color: "var(--text-5)" }}>· {descDimensions}</span>
-                            )}
+                        <div className="flex flex-col gap-3 rounded-2xl p-4" style={{ background: "var(--bg-subtle)", border: "1px solid var(--border-card)" }}>
+                          <div className="flex items-end justify-between gap-3">
+                            <div>
+                              <p className="text-[10px] font-semibold tracking-[0.16em] uppercase" style={{ color: "var(--text-5)" }}>Price</p>
+                              <p className={`${playfair.className} text-3xl font-semibold leading-none mt-1.5`} style={{ color: "var(--text-1)" }}>
+                                {buyerPriceLabel(descPrice) ?? descPrice}
+                              </p>
+                            </div>
+                            <p className="text-xs text-right" style={{ color: "var(--text-5)" }}>
+                              Original artwork<br />Delivery added at checkout
+                            </p>
                           </div>
                           {/* See it on a wall — drawn to scale from the listed size */}
                           {!isVideo && <WallPreview imageUrl={img} dimensions={descDimensions} />}
@@ -512,50 +548,61 @@ export default function FeedPostPage({ params }: { params: Promise<{ id: string 
                       )}
 
                       {/* Comments */}
-                      <div className="flex flex-col gap-3">
-                        <p className="text-sm font-semibold" style={{ color: "var(--text-1)" }}>
-                          Comments {comments.length > 0 && <span style={{ color: "var(--text-5)" }}>({comments.length})</span>}
-                        </p>
+                      <div className="flex flex-col gap-4 pt-4" style={{ borderTop: "1px solid var(--border)" }}>
+                        <h2 className="flex items-baseline gap-2 text-base font-bold" style={{ color: "var(--text-1)" }}>
+                          Comments
+                          {comments.length > 0 && <span className="text-sm font-medium" style={{ color: "var(--text-5)" }}>{comments.length}</span>}
+                        </h2>
 
                         {/* Comment input */}
-                        <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl" style={{ background: "var(--bg-subtle)", border: "1px solid var(--border)" }}>
+                        <form onSubmit={e => { e.preventDefault(); submitComment(); }} className="flex items-center gap-2.5">
                           {user && (
                             // eslint-disable-next-line @next/next/no-img-element
-                            <img src={user.imageUrl} alt="you" className="w-7 h-7 rounded-full object-cover shrink-0" />
+                            <img src={user.imageUrl} alt="" className="w-9 h-9 rounded-full object-cover shrink-0" />
                           )}
+                          <label htmlFor="post-comment" className="sr-only">Write a comment</label>
                           <input
+                            id="post-comment"
                             ref={commentInputRef}
                             value={commentText}
                             onChange={e => setCommentText(e.target.value)}
-                            onKeyDown={e => e.key === "Enter" && submitComment()}
-                            placeholder="Add a comment to start the conversation…"
-                            className="flex-1 bg-transparent text-sm outline-none"
-                            style={{ color: "var(--text-1)" }}
+                            placeholder={comments.length ? "Add a comment…" : "Be the first to comment…"}
+                            autoComplete="off"
+                            className="flex-1 min-w-0 px-4 py-2.5 rounded-full text-base md:text-sm outline-none"
+                            style={{ background: "var(--bg-subtle)", border: "1px solid var(--border-card)", color: "var(--text-1)" }}
                           />
-                          <button onClick={submitComment} disabled={!commentText.trim()}
-                            className="transition-opacity disabled:opacity-30" style={{ color: "#9B7CF5" }}>
-                            <Send size={16} />
+                          <button type="submit" disabled={!commentText.trim()} aria-label="Post comment"
+                            className="w-10 h-10 rounded-full flex items-center justify-center shrink-0 text-white transition-opacity hover:opacity-85 disabled:opacity-35"
+                            style={{ background: "linear-gradient(135deg,#361E7B,#7C5BF5)" }}>
+                            <Send size={15} />
                           </button>
-                        </div>
+                        </form>
 
                         {/* Comment list */}
-                        {!loading && comments.length === 0 && (
-                          <p className="text-xs text-center py-3" style={{ color: "var(--text-5)" }}>No comments yet. Be the first!</p>
+                        {comments.length > 0 && (
+                          <ul className="flex flex-col gap-4">
+                            {comments.map(c => (
+                              <li key={c.id} className="flex gap-3">
+                                {c.author_avatar ? (
+                                  // eslint-disable-next-line @next/next/no-img-element
+                                  <img src={c.author_avatar} alt="" className="w-9 h-9 rounded-full object-cover shrink-0" />
+                                ) : (
+                                  <span aria-hidden className="w-9 h-9 rounded-full shrink-0 flex items-center justify-center text-sm font-bold"
+                                    style={{ background: "rgba(124,91,245,0.18)", color: "#9B7CF5" }}>
+                                    {(c.author_name?.trim()[0] ?? "?").toUpperCase()}
+                                  </span>
+                                )}
+                                <div className="min-w-0 flex-1 rounded-2xl rounded-tl-md px-3.5 py-2.5" style={{ background: "var(--bg-subtle)" }}>
+                                  <p className="flex items-baseline gap-2">
+                                    <span className="text-sm font-semibold truncate" style={{ color: "var(--text-1)" }}>{c.author_name}</span>
+                                    <span className="text-[11px] shrink-0" style={{ color: "var(--text-5)" }}>{timeAgo(c.created_at)}</span>
+                                  </p>
+                                  <p className="text-sm leading-relaxed break-words mt-0.5" style={{ color: "var(--text-2)" }}>{c.text}</p>
+                                </div>
+                              </li>
+                            ))}
+                          </ul>
                         )}
-                        {comments.map(c => (
-                          <div key={c.id} className="flex gap-2.5">
-                            {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img src={c.author_avatar ?? "https://i.pravatar.cc/40"} alt={c.author_name}
-                              className="w-7 h-7 rounded-full object-cover shrink-0 mt-0.5" />
-                            <div>
-                              <span className="text-xs font-semibold mr-1.5" style={{ color: "var(--text-1)" }}>{c.author_name}</span>
-                              <span className="text-xs" style={{ color: "var(--text-3)" }}>{c.text}</span>
-                              <p className="text-[10px] mt-0.5" style={{ color: "var(--text-5)" }}>
-                                {new Date(c.created_at).toLocaleDateString()}
-                              </p>
-                            </div>
-                          </div>
-                        ))}
                       </div>
 
                     </div>{/* end scrollable */}

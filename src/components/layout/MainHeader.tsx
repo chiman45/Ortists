@@ -5,6 +5,7 @@ import { useNotifications } from "@/hooks/useNotifications";
 import { Bell, CheckCheck, LogOut, Settings, ShoppingCart, X } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
+import { bindCacheToUser, clearClientCache, invalidate, setCached, swr } from "@/lib/clientCache";
 
 interface Notification {
   id: string;
@@ -135,15 +136,13 @@ export default function MainHeader({ children }: { children?: React.ReactNode })
   // Cart badge: refreshed whenever a page adds to or removes from the cart
   useEffect(() => {
     if (!user) return;
-    const load = () => {
-      fetch("/api/cart")
-        .then(r => (r.ok ? r.json() : null))
-        .then(d => setCartCount(d?.count ?? 0))
-        .catch(() => {});
-    };
-    load();
-    window.addEventListener("ortists:cart-changed", load);
-    return () => window.removeEventListener("ortists:cart-changed", load);
+    bindCacheToUser(user.id);
+    // Reused for 30s between pages; a cart change always asks again
+    const show = (d: { count?: number }) => setCartCount(d?.count ?? 0);
+    const stop = swr<{ count?: number }>("/api/cart", show, 30_000);
+    const reload = () => { invalidate("/api/cart"); swr<{ count?: number }>("/api/cart", show); };
+    window.addEventListener("ortists:cart-changed", reload);
+    return () => { stop(); window.removeEventListener("ortists:cart-changed", reload); };
   }, [user]);
 
   const unread      = notifs.filter(n => !n.read).length;
@@ -153,15 +152,22 @@ export default function MainHeader({ children }: { children?: React.ReactNode })
   async function fetchNotifs() {
     if (!user) return;
     setLoading(true);
-    const res = await fetch(`/api/notifications/list?userId=${user.id}`).catch(() => null);
+    const url = `/api/notifications/list?userId=${user.id}`;
+    const res = await fetch(url).catch(() => null);
     if (res?.ok) {
-      const { notifications } = await res.json();
-      setNotifs(notifications ?? []);
+      const data = await res.json();
+      setCached(url, data);
+      setNotifs(data.notifications ?? []);
     }
     setLoading(false);
   }
 
-  useEffect(() => { if (user) fetchNotifs(); }, [user]); // eslint-disable-line
+  // Moving between pages reuses the list for 20s instead of downloading it again
+  useEffect(() => {
+    if (!user) return;
+    return swr<{ notifications?: Notification[] }>(
+      `/api/notifications/list?userId=${user.id}`, d => setNotifs(d.notifications ?? []), 20_000);
+  }, [user]);
 
   // Check for new notifications every 30s so the badge appears without a reload
   useEffect(() => {
@@ -170,7 +176,7 @@ export default function MainHeader({ children }: { children?: React.ReactNode })
       if (document.visibilityState !== "visible") return;
       fetch(`/api/notifications/list?userId=${user.id}`)
         .then(r => (r.ok ? r.json() : null))
-        .then(d => { if (d?.notifications) setNotifs(d.notifications); })
+        .then(d => { if (d?.notifications) { setCached(`/api/notifications/list?userId=${user.id}`, d); setNotifs(d.notifications); } })
         .catch(() => {});
     }, 30_000);
     return () => clearInterval(t);
@@ -247,7 +253,7 @@ export default function MainHeader({ children }: { children?: React.ReactNode })
         {/* Logout beside Settings — on mobile the sidebar (and its account menu) is hidden */}
         {user && (
           <button
-            onClick={() => { if (window.confirm("Log out of Ortists?")) signOut({ redirectUrl: "/login" }); }}
+            onClick={() => { if (window.confirm("Log out of Ortists?")) { clearClientCache(); } else return; signOut({ redirectUrl: "/login" }); }}
             className="p-2 rounded-xl transition-opacity hover:opacity-70 flex"
             style={{ background: "var(--bg-subtle)", color: "var(--text-icon)" }}
             aria-label="Log out"

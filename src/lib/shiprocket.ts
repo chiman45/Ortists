@@ -192,3 +192,27 @@ export async function checkServiceability(params: {
     delivery_days: Number.isFinite(best.days) ? best.days : null,
   };
 }
+
+export interface PostcodeDetails {
+  postcode:   string;
+  city:       string;
+  state:      string;
+  localities: string[];
+}
+
+/** City, state and localities for an Indian pincode, or null when Shiprocket doesn't know it. */
+export async function postcodeDetails(postcode: string): Promise<PostcodeDetails | null> {
+  const token = await getToken();
+  const res = await fetch(`${BASE}/open/postcode/details?postcode=${encodeURIComponent(postcode)}`, {
+    headers: { "Authorization": `Bearer ${token}` },
+    cache: "no-store",
+  });
+  if (res.status === 401) { cache = null; throw new Error("Shiprocket rejected the login"); }
+  const data = await res.json().catch(() => null) as {
+    success?: boolean;
+    postcode_details?: { postcode?: string; city?: string; state?: string; locality?: string[] };
+  } | null;
+  const d = data?.postcode_details;
+  if (!data?.success || !d?.city || !d?.state) return null;
+  return { postcode, city: d.city, state: d.state, localities: Array.isArray(d.locality) ? d.locality : [] };
+}

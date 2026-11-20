@@ -13,6 +13,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { firstImage } from "@/lib/imageUrl";
 import { useEffect, useRef, useState } from "react";
+import { swr } from "@/lib/clientCache";
 
 
 interface SearchPost {
@@ -93,14 +94,14 @@ export default function FeedPage() {
 
   // Load normal feed
   useEffect(() => {
-    fetch("/api/posts?limit=100&offset=0")
-      .then(r => r.json())
-      .then(({ posts }: { posts: Post[] }) => {
-        // API already returns newest first — keep that order so new work shows at the top
-        setDbPosts(posts ?? []);
-        setLoading(false);
-      })
-      .catch(() => setLoading(false));
+    // Last loaded posts appear instantly; a fresh copy replaces them when it arrives
+    const stop = swr<{ posts?: Post[] }>("/api/posts?limit=100&offset=0", ({ posts }) => {
+      // API already returns newest first — keep that order so new work shows at the top
+      setDbPosts(posts ?? []);
+      setLoading(false);
+    });
+    const giveUp = setTimeout(() => setLoading(false), 15_000);
+    return () => { stop(); clearTimeout(giveUp); };
   }, []);
 
   // Latest = newest first (API order); Popular = most liked, ties broken by newest
