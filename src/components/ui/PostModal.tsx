@@ -1,7 +1,10 @@
 "use client";
 
 import { type Post as DbPost } from "@/lib/db/posts";
-import { Bookmark, Check, Pencil, RotateCcw, X, ZoomIn, ZoomOut } from "lucide-react";
+import { Bookmark, Check, MessageCircle, Pencil, RotateCcw, Send, X, ZoomIn, ZoomOut } from "lucide-react";
+import { useUser } from "@clerk/nextjs";
+import Link from "next/link";
+import { type Comment } from "@/lib/db/comments";
 import { useEffect, useRef, useState } from "react";
 import { buyerPriceLabel } from "@/lib/pricing";
 import ReactionButton from "@/components/ui/ReactionButton";
@@ -67,6 +70,48 @@ export default function PostModal({ post: initialPost, isOwner, ownerId, current
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
   const [actionPending, setActionPending] = useState(false);
+
+  // Comments
+  const { user } = useUser();
+  const [comments, setComments]       = useState<Comment[]>([]);
+  const [commentText, setCommentText] = useState("");
+  const [sending, setSending]         = useState(false);
+  const [commentError, setCommentError] = useState<string | null>(null);
+  const commentInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch(`/api/comments?postId=${initialPost.id}`)
+      .then(r => r.json())
+      .then(d => { if (!cancelled) setComments(d.comments ?? []); })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [initialPost.id]);
+
+  async function submitComment() {
+    const text = commentText.trim();
+    if (!text || sending || !user) return;
+    setSending(true); setCommentError(null);
+    try {
+      const res = await fetch("/api/comments", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          user_id: user.id, post_id: post.id, text,
+          author_name: user.fullName ?? user.username ?? "Someone",
+          author_avatar: user.imageUrl ?? null,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.comment) throw new Error(data.error ?? "Could not post your comment.");
+      setComments(prev => [data.comment, ...prev]);
+      setCommentText("");
+    } catch (e) {
+      setCommentError(e instanceof Error ? e.message : "Could not post your comment.");
+    } finally {
+      setSending(false);
+    }
+  }
 
   const [carouselIdx, setCarouselIdx] = useState(0);
   const images = parseImages(post.image_url);
@@ -506,6 +551,12 @@ export default function PostModal({ post: initialPost, isOwner, ownerId, current
                 />
                 <span className="font-semibold" style={{ color: saved ? "#9B7CF5" : "var(--text-2)" }}>{post.saves_count}</span>
               </button>
+              <button onClick={() => commentInputRef.current?.focus()}
+                className="flex items-center gap-1.5 text-sm transition-all hover:scale-110 active:scale-95"
+                title="Comment" aria-label={`${comments.length} comments. Write a comment`}>
+                <MessageCircle size={16} style={{ color: "var(--text-4)" }} />
+                <span className="font-semibold" style={{ color: "var(--text-2)" }}>{comments.length}</span>
+              </button>
               <span className="text-[11px] ml-auto" style={{ color: "var(--text-5)" }}>
                 {new Date(post.created_at).toLocaleDateString("en-US", { day: "numeric", month: "short", year: "numeric" })}
               </span>
@@ -530,7 +581,71 @@ export default function PostModal({ post: initialPost, isOwner, ownerId, current
                 {post.style && <span>Style: <strong style={{ color: "var(--text-3)" }}>{post.style}</strong></span>}
               </div>
             )}
+
+            {/* Comments */}
+            {!editing && (
+              <div className="pt-3" style={{ borderTop: "1px solid var(--border)" }}>
+                <p className="text-xs font-bold mb-3" style={{ color: "var(--text-2)" }}>
+                  Comments{comments.length ? ` (${comments.length})` : ""}
+                </p>
+                {comments.length === 0 ? (
+                  <p className="text-xs" style={{ color: "var(--text-5)" }}>No comments yet. Be the first.</p>
+                ) : (
+                  <ul className="flex flex-col gap-3.5">
+                    {comments.map(c => (
+                      <li key={c.id} className="flex gap-2.5">
+                        {c.author_avatar ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={c.author_avatar} alt="" className="w-7 h-7 rounded-full object-cover shrink-0" />
+                        ) : (
+                          <span aria-hidden className="w-7 h-7 rounded-full shrink-0 flex items-center justify-center text-[11px] font-bold"
+                            style={{ background: "rgba(124,91,245,0.18)", color: "#9B7CF5" }}>
+                            {(c.author_name?.trim()[0] ?? "?").toUpperCase()}
+                          </span>
+                        )}
+                        <div className="min-w-0">
+                          <p className="text-xs">
+                            <span className="font-semibold" style={{ color: "var(--text-1)" }}>{c.author_name}</span>
+                            <span className="ml-2" style={{ color: "var(--text-6)" }}>
+                              {new Date(c.created_at).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}
+                            </span>
+                          </p>
+                          <p className="text-sm leading-relaxed break-words mt-0.5" style={{ color: "var(--text-3)" }}>{c.text}</p>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            )}
           </div>
+
+          {/* Write a comment: stays at the bottom of the panel */}
+          {!editing && (
+            <div className="shrink-0 px-4 py-3" style={{ borderTop: "1px solid var(--border)", paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))" }}>
+              {user ? (
+                <>
+                  <form onSubmit={e => { e.preventDefault(); submitComment(); }} className="flex items-center gap-2">
+                    <label htmlFor="pm-comment" className="sr-only">Write a comment</label>
+                    <input id="pm-comment" ref={commentInputRef} value={commentText} onChange={e => setCommentText(e.target.value)}
+                      placeholder="Add a comment…" maxLength={2000} autoComplete="off"
+                      className="flex-1 min-w-0 px-3.5 py-2.5 rounded-full text-base md:text-sm outline-none"
+                      style={{ background: "var(--bg-subtle)", border: "1px solid var(--border)", color: "var(--text-1)" }} />
+                    <button type="submit" disabled={!commentText.trim() || sending} aria-label="Post comment"
+                      className="w-10 h-10 rounded-full flex items-center justify-center shrink-0 text-white transition-opacity hover:opacity-85 disabled:opacity-40"
+                      style={{ background: "linear-gradient(135deg,#361E7B,#7C5BF5)" }}>
+                      <Send size={15} />
+                    </button>
+                  </form>
+                  {commentError && <p role="alert" className="text-xs mt-2" style={{ color: "#EF4444" }}>{commentError}</p>}
+                </>
+              ) : (
+                <p className="text-xs text-center" style={{ color: "var(--text-4)" }}>
+                  <Link href="/login" className="font-semibold underline underline-offset-4" style={{ color: "#9B7CF5" }}>Log in</Link> to comment.
+                </p>
+              )}
+            </div>
+          )}
         </div>
       </div>
     </div>

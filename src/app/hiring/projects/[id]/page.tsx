@@ -2,11 +2,11 @@
 
 import Sidebar from "@/components/layout/Sidebar";
 import BottomNav from "@/components/layout/BottomNav";
-import HireBrief from "@/components/hiring/HireBrief";
+import HireBrief, { parseBrief } from "@/components/hiring/HireBrief";
 import { useAuth, useUser } from "@clerk/nextjs";
 import {
   Bell, ChevronRight, CheckCircle2, FileText,
-  Paperclip, Plus, RefreshCw, Settings, Star, Upload,
+  ArrowLeft, Download, Paperclip, Plus, RefreshCw, Settings, Star, Upload,
 } from "lucide-react";
 import { useRouter, useParams } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -46,6 +46,8 @@ interface HireRequest {
   milestones: Milestone[];
   created_at: string;
   updated_at: string | null;
+  accepted_at?: string | null;
+  completed_at?: string | null;
 }
 
 interface Message {
@@ -230,6 +232,38 @@ function parseFile(t: string): FileData | null {
   catch { return null; }
 }
 
+/** A link to the file: public files have one already, private ones get a 1-hour signed link. */
+async function resolveFileUrl(f: FileData, convId: string, userId: string): Promise<string | null> {
+  if (f.url) return f.url;
+  if (!f.path || !f.bucket) return null;
+  try {
+    const r = await fetch(`/api/signed-url?path=${encodeURIComponent(f.path)}&bucket=${f.bucket}&userId=${userId}&convId=${convId}`);
+    const { url } = await r.json();
+    return url ?? null;
+  } catch { return null; }
+}
+
+/** Save the file to the device under its original name. */
+async function downloadFile(f: FileData, convId: string, userId: string, knownUrl?: string) {
+  const url = knownUrl || await resolveFileUrl(f, convId, userId);
+  if (!url) return false;
+  let href = url;
+  try {
+    // Storage sends the file as a download (not opened in the tab) when asked with ?download=<name>
+    const u = new URL(url);
+    u.searchParams.set("download", f.name);
+    href = u.toString();
+  } catch { /* keep the plain link */ }
+  const a = document.createElement("a");
+  a.href = href;
+  a.download = f.name;
+  a.rel = "noopener";
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  return true;
+}
+
 function fileExt(name: string) {
   const parts = name.split(".");
   return parts.length > 1 ? parts[parts.length - 1].toUpperCase() : "FILE";
@@ -245,7 +279,7 @@ function fileIconColor(type: string, name: string): string {
 
 // ── Lightbox ──────────────────────────────────────────────────
 
-function Lightbox({ src, name, onClose }: { src: string; name: string; onClose: () => void }) {
+function Lightbox({ src, name, onClose, onDownload }: { src: string; name: string; onClose: () => void; onDownload?: () => void }) {
   return createPortal(
     <div
       className="fixed inset-0 z-[1000] flex flex-col items-center justify-center"
@@ -256,6 +290,13 @@ function Lightbox({ src, name, onClose }: { src: string; name: string; onClose: 
       <img src={src} alt={name} className="max-w-[90vw] max-h-[80vh] rounded-2xl object-contain"
         style={{ boxShadow: "0 24px 80px rgba(0,0,0,0.6)" }} onClick={e => e.stopPropagation()} />
       <p className="mt-3 text-xs" style={{ color: "rgba(255,255,255,0.5)" }}>{name} · click outside to close</p>
+      {onDownload && (
+        <button onClick={e => { e.stopPropagation(); onDownload(); }}
+          className="mt-3 inline-flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-bold transition-opacity hover:opacity-90"
+          style={{ background: "#F5F0E6", color: "#151515" }}>
+          <Download size={15} /> Download
+        </button>
+      )}
     </div>,
     document.body
   );
@@ -292,11 +333,18 @@ function FileBubble({ text, isMe, convId, userId, onImageLoad }: {
   if (isImage) {
     return (
       <>
-        <div className="rounded-xl overflow-hidden cursor-pointer" style={{ maxWidth: 260 }} onClick={() => setLightbox(true)}>
+        <div className="relative rounded-xl overflow-hidden cursor-pointer" style={{ maxWidth: 260 }} onClick={() => setLightbox(true)}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={resolvedUrl} alt={f.name} className="w-full block" style={{ maxHeight: 200, objectFit: "cover" }} />
+          <button onClick={e => { e.stopPropagation(); downloadFile(f, convId, userId, resolvedUrl); }}
+            aria-label={`Download ${f.name}`} title="Download"
+            className="absolute right-2 bottom-2 w-9 h-9 rounded-full flex items-center justify-center transition-opacity hover:opacity-85"
+            style={{ background: "rgba(0,0,0,0.65)", color: "#fff", backdropFilter: "blur(6px)" }}>
+            <Download size={15} />
+          </button>
         </div>
-        {lightbox && <Lightbox src={resolvedUrl} name={f.name} onClose={() => setLightbox(false)} />}
+        {lightbox && <Lightbox src={resolvedUrl} name={f.name} onClose={() => setLightbox(false)}
+          onDownload={() => downloadFile(f, convId, userId, resolvedUrl)} />}
       </>
     );
   }
@@ -304,24 +352,30 @@ function FileBubble({ text, isMe, convId, userId, onImageLoad }: {
     return (
       <div className="rounded-xl overflow-hidden" style={{ maxWidth: 260 }}>
         <video src={resolvedUrl} controls className="w-full block" style={{ maxHeight: 200 }} />
+        <button onClick={() => downloadFile(f, convId, userId, resolvedUrl)}
+          className="w-full flex items-center justify-center gap-1.5 py-2 text-xs font-semibold transition-opacity hover:opacity-80"
+          style={{ background: "var(--bg-subtle)", color: "var(--text-2)" }}>
+          <Download size={13} /> Download video
+        </button>
       </div>
     );
   }
   return (
-    <a href={resolvedUrl} target="_blank" rel="noopener noreferrer"
-      className="flex items-center gap-2 no-underline rounded-xl"
-      style={{ minWidth: 160, maxWidth: 220, background: isMe ? "rgba(255,255,255,0.12)" : "var(--bg-subtle)", border: `1px solid ${isMe ? "rgba(255,255,255,0.18)" : "var(--border)"}`, padding: "8px 10px" }}
-      onClick={e => e.stopPropagation()}
+    <button type="button" onClick={e => { e.stopPropagation(); downloadFile(f, convId, userId, resolvedUrl); }}
+      title={`Download ${f.name}`}
+      className="flex items-center gap-2 rounded-xl text-left transition-opacity hover:opacity-85"
+      style={{ minWidth: 180, maxWidth: 240, background: isMe ? "rgba(255,255,255,0.12)" : "var(--bg-subtle)", border: `1px solid ${isMe ? "rgba(255,255,255,0.18)" : "var(--border)"}`, padding: "8px 10px" }}
     >
       <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0"
         style={{ background: isMe ? "rgba(255,255,255,0.15)" : "rgba(124,91,245,0.15)" }}>
         <FileText size={13} style={{ color: isMe ? "#fff" : "#9B7CF5" }} />
       </div>
-      <div className="min-w-0">
+      <div className="min-w-0 flex-1">
         <p className="text-xs font-semibold truncate" style={{ color: isMe ? "#fff" : "var(--text-1)" }}>{f.name}</p>
         <p className="text-[10px]" style={{ color: isMe ? "rgba(255,255,255,0.55)" : "var(--text-5)" }}>{fmtBytes(f.size)}</p>
       </div>
-    </a>
+      <Download size={14} className="shrink-0" style={{ color: isMe ? "#fff" : "var(--text-3)" }} />
+    </button>
   );
 }
 
@@ -377,9 +431,11 @@ function UploadPreview({ file, onSend, onCancel }: { file: File; onSend: () => P
 
 // ── Left FILES sidebar ────────────────────────────────────────
 
-function FilesSidebar({ messages, onUpload }: {
+function FilesSidebar({ messages, onUpload, convId, userId }: {
   messages: Message[];
   onUpload: (f: File) => Promise<void>;
+  convId: string;
+  userId: string;
 }) {
   const fileRef = useRef<HTMLInputElement>(null);
   const [preview, setPreview] = useState<File | null>(null);
@@ -422,9 +478,13 @@ function FilesSidebar({ messages, onUpload }: {
           const color = fileIconColor(f.type, f.name);
           const shortName = f.name.length > 10 ? f.name.slice(0, 9) + "_" : f.name;
           return (
-            <div
+            <button
+              type="button"
               key={m.id}
-              className="mx-2 flex items-center gap-2 px-2 py-2 rounded-xl cursor-pointer transition-all hover:opacity-80"
+              onClick={() => downloadFile(f, convId, userId)}
+              title={`Download ${f.name}`}
+              aria-label={`Download ${f.name}`}
+              className="mx-2 flex items-center gap-2 px-2 py-2 rounded-xl cursor-pointer text-left transition-all hover:opacity-80"
               style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}
             >
               <div
@@ -437,7 +497,8 @@ function FilesSidebar({ messages, onUpload }: {
                 <p className="text-[11px] font-semibold truncate" style={{ color: "var(--text-2)" }}>{shortName}</p>
                 <p className="text-[9px]" style={{ color: "var(--text-6)" }}>{fmtBytes(f.size)}</p>
               </div>
-            </div>
+              <Download size={12} className="shrink-0 ml-auto" style={{ color: "var(--text-5)" }} />
+            </button>
           );
         })}
       </div>
@@ -942,8 +1003,11 @@ function domainTag(url: string): string {
 
 interface LinkPreview { url: string; image: string; title: string; description: string; siteName: string; tag: string; error?: string; }
 
-function ReferencesTab({ messages }: { messages: Message[] }) {
-  const urls = extractUrls(messages);
+// References = what the client attached to the request (images and links) plus
+// every link shared later in the conversation.
+function ReferencesTab({ messages, description }: { messages: Message[]; description: string | null }) {
+  const brief = parseBrief(description);
+  const urls = [...new Set([...brief.links, ...extractUrls(messages)])];
   const [previews, setPreviews] = useState<LinkPreview[]>([]);
   const [loading, setLoading]   = useState(true);
 
@@ -967,7 +1031,7 @@ function ReferencesTab({ messages }: { messages: Message[] }) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [urls.join(",")]);
 
-  if (loading) {
+  if (loading && brief.images.length === 0) {
     return (
       <div className="flex-1 flex flex-col gap-4 px-6 py-5">
         <div className="grid grid-cols-2 gap-4">
@@ -979,7 +1043,7 @@ function ReferencesTab({ messages }: { messages: Message[] }) {
     );
   }
 
-  if (urls.length === 0 || previews.length === 0) {
+  if (brief.images.length === 0 && (urls.length === 0 || previews.length === 0)) {
     return (
       <div className="flex-1 flex flex-col items-center justify-center gap-3 text-center py-16 px-6">
         <div className="w-14 h-14 rounded-2xl flex items-center justify-center" style={{ background: "var(--bg-subtle)" }}>
@@ -990,7 +1054,7 @@ function ReferencesTab({ messages }: { messages: Message[] }) {
         </div>
         <p className="text-sm font-semibold" style={{ color: "var(--text-3)" }}>No references yet</p>
         <p className="text-xs max-w-xs" style={{ color: "var(--text-5)" }}>
-          Share links in the conversation — they&apos;ll appear here as visual previews
+          Images attached to the request and links shared in the conversation appear here
         </p>
       </div>
     );
@@ -999,6 +1063,30 @@ function ReferencesTab({ messages }: { messages: Message[] }) {
   return (
     <div className="flex-1 overflow-y-auto px-6 py-5" style={{ scrollbarWidth: "thin", scrollbarColor: "rgba(255,255,255,0.08) transparent" }}>
       <div className="grid grid-cols-2 gap-4">
+        {/* Images the client attached when sending the request */}
+        {brief.images.map((src, i) => (
+          <a
+            key={src}
+            href={src}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="group block rounded-2xl overflow-hidden no-underline transition-all hover:scale-[1.01] hover:opacity-90"
+            style={{ background: "var(--bg-card)", border: "1px solid var(--border)", textDecoration: "none" }}
+          >
+            <div className="relative overflow-hidden" style={{ height: 160 }}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={src} alt={`Reference image ${i + 1}`} className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" />
+            </div>
+            <div className="flex items-center justify-between px-3.5 py-2.5">
+              <p className="text-xs font-semibold truncate flex-1 mr-2" style={{ color: "var(--text-2)" }}>
+                Reference image{brief.images.length > 1 ? ` ${i + 1}` : ""}
+              </p>
+              <span className="shrink-0 text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: "rgba(124,91,245,0.15)", color: "#9B7CF5" }}>
+                From the brief
+              </span>
+            </div>
+          </a>
+        ))}
         {previews.map((p, i) => (
           <a
             key={i}
@@ -1050,211 +1138,179 @@ function ReferencesTab({ messages }: { messages: Message[] }) {
 }
 
 // ── Deliverables tab ─────────────────────────────────────────
+// Only real information: what the client asked for in the request, the files
+// the artist has actually sent, and the dates things really happened.
 
-type DeliverableStatus = "approved" | "in_progress" | "upcoming";
-type TimelineStatus    = "done" | "revision" | "approved" | "pending";
-
-interface TimelineEntry { label: string; status: TimelineStatus; }
-interface Deliverable {
-  id: string;
-  title: string;
-  description: string;
-  details: string;
-  due: string;
-  status: DeliverableStatus;
-  revisions: { used: number; max: number };
-  timeline: TimelineEntry[];
+/** "A poster, 2 social banners\nSource file" → ["A poster", "2 social banners", "Source file"] */
+function splitDeliverables(text: string | null): string[] {
+  return (text ?? "")
+    .split(/\n|;|,(?!\d)|\s+and\s+/i)
+    .map(s => s.replace(/^[\s\-•*\d.)]+/, "").trim())
+    .filter(Boolean);
 }
 
-function buildDeliverables(project: HireRequest): Deliverable[] {
-  // Use real milestones if they exist and have enough shape; otherwise use illustrative mock
-  const ms = project.milestones ?? [];
-  if (ms.length >= 2) {
-    return ms.map((m, i) => ({
-      id:   `B${i + 1}`,
-      title: m.title,
-      description: "Deliverable",
-      details: "Digital files",
-      due: m.due
-        ? new Date(m.due).toLocaleDateString("en-US", { month: "short", day: "numeric" })
-        : "—",
-      status: m.done ? "approved" : i === 0 ? "in_progress" : "upcoming",
-      revisions: { used: 0, max: 2 },
-      timeline: m.done
-        ? [{ label: "V1 submitted", status: "done" }, { label: "Approved", status: "approved" }]
-        : [{ label: "V1 submitted", status: "done" }, { label: "In review", status: "pending" }],
-    }));
-  }
-  // Illustrative example derived from project title
-  const name = project.project_title;
-  return [
-    {
-      id: "B1", title: "Initial Concepts", description: "2 concept directions",
-      details: "High-resolution digital files", due: "Aug 22",
-      status: "approved", revisions: { used: 1, max: 2 },
-      timeline: [
-        { label: "V1 submitted",       status: "done"     },
-        { label: "Revision requested", status: "revision" },
-        { label: "V2 submitted",       status: "done"     },
-        { label: "Approved",           status: "approved" },
-      ],
-    },
-    {
-      id: "B2", title: `${name} Illustrations`, description: "3 final character illustrations",
-      details: "PNG + PSD source files", due: "Aug 30",
-      status: "in_progress", revisions: { used: 1, max: 2 },
-      timeline: [
-        { label: "V1 submitted",       status: "done"     },
-        { label: "Revision requested", status: "revision" },
-      ],
-    },
-    {
-      id: "B3", title: "Final Files", description: "PNG + PSD source files",
-      details: "All assets organised and exported", due: "Sep 5",
-      status: "upcoming", revisions: { used: 0, max: 2 },
-      timeline: [],
-    },
+function DeliverablesTab({ project, messages, isArtist, onOpenChat, userId }: {
+  project: HireRequest; messages: Message[]; isArtist: boolean; onOpenChat: () => void; userId: string;
+}) {
+  const brief  = parseBrief(project.project_description);
+  const asked  = splitDeliverables(brief.deliverables);
+  const canvas = brief.canvas?.match(/^(.*?)\s*\((.+)\)\s*$/);
+  const size   = canvas ? canvas[1] : brief.canvas;
+  const frame  = canvas ? canvas[2].replace(/\s*—\s*/g, ", ") : null;
+  const daysLeft = daysUntil(project.deadline);
+
+  // Files the artist has sent in the conversation are the delivered work
+  const sent = messages
+    .filter(m => isFile(m.text ?? "") && !!project.artist_clerk_id && m.sender_id === project.artist_clerk_id)
+    .map(m => ({ m, f: parseFile(m.text!) }))
+    .filter((x): x is { m: Message; f: FileData } => !!x.f);
+
+  const artist = isArtist ? "You" : project.artist_name;
+  const done = project.status === "completed";
+  const declined = project.status === "declined";
+
+  const events: { label: string; at: string | null; note?: string }[] = [
+    { label: "Request sent", at: project.created_at },
+    declined
+      ? { label: "Request declined", at: project.updated_at ?? null }
+      : { label: "Request accepted", at: project.accepted_at ?? (project.status !== "pending" ? project.updated_at : null) ?? null,
+          note: `Waiting for ${isArtist ? "your" : "the artist's"} reply` },
+    ...(declined ? [] : [
+      { label: "First file delivered", at: sent[0]?.m.created_at ?? null, note: "No files sent yet" },
+      { label: "Project completed", at: done ? (project.completed_at ?? project.updated_at ?? null) : null, note: "Not completed yet" },
+    ]),
   ];
-}
 
-const STATUS_CFG: Record<DeliverableStatus, { label: string; dot: string; bg: string; text: string }> = {
-  approved:    { label: "Approved",    dot: "#10B981", bg: "rgba(16,185,129,0.15)",  text: "#34D399" },
-  in_progress: { label: "In progress", dot: "#6366F1", bg: "rgba(99,102,241,0.15)",  text: "#818CF8" },
-  upcoming:    { label: "Upcoming",    dot: "#6B7280", bg: "rgba(107,114,128,0.15)", text: "#9CA3AF" },
-};
-
-const TIMELINE_DOT: Record<TimelineStatus, string> = {
-  done:     "rgba(255,255,255,0.45)",
-  revision: "#F59E0B",
-  approved: "#10B981",
-  pending:  "rgba(255,255,255,0.25)",
-};
-
-function DeliverablesTab({ project }: { project: HireRequest }) {
-  const deliverables = buildDeliverables(project);
-  const total      = deliverables.length;
-  const completed  = deliverables.filter(d => d.status === "approved").length;
-  const inProgress = deliverables.filter(d => d.status === "in_progress").length;
-  const pct        = Math.round((completed / total) * 100);
-  const progressPct = project.progress;
+  const LABEL = "text-[11px] font-semibold tracking-[0.16em] uppercase";
+  type Spec = { label: string; value: string; note?: string | null; urgent?: boolean };
+  const specs = ([
+    size ? { label: "Canvas size", value: size } : null,
+    frame ? { label: "Framing", value: frame.charAt(0).toUpperCase() + frame.slice(1) } : null,
+    project.deadline ? {
+      label: "Deadline",
+      value: /^\d{4}-\d{2}-\d{2}/.test(project.deadline) ? fmtDateFull(project.deadline) : project.deadline,
+      note: daysLeft === null || done ? null : daysLeft < 0 ? "Date has passed" : daysLeft === 0 ? "Due today" : `${daysLeft} day${daysLeft === 1 ? "" : "s"} left`,
+      urgent: daysLeft !== null && daysLeft <= 3 && !done,
+    } : null,
+  ] as (Spec | null)[]).filter((s): s is Spec => !!s);
 
   return (
-    <div className="flex-1 overflow-y-auto px-6 py-5 flex flex-col gap-5" style={{ scrollbarWidth: "thin", scrollbarColor: "rgba(255,255,255,0.08) transparent" }}>
+    <div className="flex-1 overflow-y-auto px-5 md:px-8 py-6 md:py-8" style={{ scrollbarWidth: "thin", scrollbarColor: "rgba(255,255,255,0.08) transparent" }}>
+      <div className="max-w-2xl mx-auto flex flex-col gap-10">
 
-      {/* ── Project completion header ── */}
-      <div
-        className="p-5 rounded-2xl"
-        style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}
-      >
-        <div className="flex items-start justify-between mb-2">
-          <div>
-            <h2 className="text-lg font-bold" style={{ color: "var(--text-1)" }}>Project completion</h2>
-            <p className="text-xs mt-0.5" style={{ color: "var(--text-5)" }}>
-              {total} deliverable{total !== 1 ? "s" : ""} · {completed} completed · {inProgress} in progress
+        {/* ── What the client asked for ── */}
+        <section aria-labelledby="del-asked">
+          <p className={`${LABEL} mb-1.5`} style={{ color: "#9B7CF5" }}>From the request</p>
+          <h2 id="del-asked" className="text-2xl font-bold pb-4" style={{ color: "var(--text-1)", letterSpacing: "-0.01em", borderBottom: "1px solid var(--border)" }}>
+            {isArtist ? "What the client asked for" : "What you asked for"}
+          </h2>
+
+          {asked.length > 0 ? (
+            <ul>
+              {asked.map((item, i) => (
+                <li key={i} className="flex items-start gap-4 py-4" style={{ borderBottom: "1px solid var(--border)" }}>
+                  <span className="text-xs font-semibold tabular-nums pt-1 w-6 shrink-0" style={{ color: "var(--text-6)" }}>{String(i + 1).padStart(2, "0")}</span>
+                  <span className="text-[17px] font-semibold break-words" style={{ color: "var(--text-1)" }}>{item}</span>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-sm py-4" style={{ color: "var(--text-4)", borderBottom: "1px solid var(--border)" }}>
+              {isArtist ? "The client" : "You"} did not list specific deliverables. The Brief tab has the full description.
             </p>
-          </div>
-          <p className="text-2xl font-bold" style={{ color: "#9B7CF5" }}>{pct}%</p>
-        </div>
-        <div className="flex flex-col gap-2 mt-4">
-          {/* Purple — overall project progress */}
-          <div className="h-1.5 rounded-full overflow-hidden" style={{ background: "rgba(255,255,255,0.07)" }}>
-            <div className="h-full rounded-full transition-all" style={{ width: `${progressPct}%`, background: "linear-gradient(90deg,#361E7B,#7C5BF5)" }} />
-          </div>
-          {/* Green — deliverable completion */}
-          <div className="h-1.5 rounded-full overflow-hidden" style={{ background: "rgba(255,255,255,0.07)" }}>
-            <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, background: "linear-gradient(90deg,#059669,#10B981)" }} />
-          </div>
-        </div>
-      </div>
+          )}
 
-      {/* ── Deliverable cards ── */}
-      {deliverables.map((d, idx) => {
-        const cfg = STATUS_CFG[d.status];
-        const dueSoon = d.due !== "—" && (() => {
-          const parsed = new Date(`${d.due} 2026`);
-          if (isNaN(parsed.getTime())) return false;
-          return Math.ceil((parsed.getTime() - Date.now()) / 86400000) <= 5;
-        })();
-
-        return (
-          <div
-            key={d.id}
-            className="rounded-2xl overflow-hidden"
-            style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}
-          >
-            {/* Card header */}
-            <div className="flex items-start gap-4 px-5 pt-5 pb-4">
-              {/* Number badge */}
-              <div
-                className="w-9 h-9 rounded-xl flex items-center justify-center text-xs font-bold text-white shrink-0"
-                style={{ background: "linear-gradient(135deg,#361E7B,#7C5BF5)" }}
-              >
-                {d.id}
-              </div>
-
-              {/* Title + meta */}
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 flex-wrap mb-1">
-                  <p className="text-base font-bold" style={{ color: "var(--text-1)" }}>{d.title}</p>
-                  <span
-                    className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold"
-                    style={{ background: cfg.bg, color: cfg.text }}
-                  >
-                    <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: cfg.dot }} />
-                    {cfg.label}
-                  </span>
+          {specs.length > 0 && (
+            <dl className="grid grid-cols-1 sm:grid-cols-3 gap-x-6 gap-y-4 pt-5">
+              {specs.map(s => (
+                <div key={s.label}>
+                  <dt className="text-xs" style={{ color: "var(--text-5)" }}>{s.label}</dt>
+                  <dd className="text-[15px] font-semibold mt-1 break-words" style={{ color: "var(--text-1)" }}>
+                    {s.value}
+                    {s.note && <span className="block text-xs font-medium mt-0.5" style={{ color: s.urgent ? "#F87171" : "var(--text-5)" }}>{s.note}</span>}
+                  </dd>
                 </div>
-                <p className="text-sm mb-1" style={{ color: "var(--text-3)" }}>{d.description}</p>
-                <p className="text-xs" style={{ color: "var(--text-6)" }}>
-                  Details — {d.details}
-                  {"  "}
-                  <span style={{ color: "var(--text-6)" }}>Due — </span>
-                  <span style={{ color: dueSoon ? "#EF4444" : "var(--text-5)", fontWeight: dueSoon ? 600 : 400 }}>{d.due}</span>
-                </p>
-              </div>
+              ))}
+            </dl>
+          )}
+        </section>
 
-              {/* Right: revisions + view button */}
-              <div className="shrink-0 flex flex-col items-end gap-2">
-                <div className="text-right">
-                  <p className="text-[9px] font-bold tracking-widest mb-0.5" style={{ color: "var(--text-6)" }}>REVISIONS</p>
-                  <p className="text-sm font-bold" style={{ color: "var(--text-3)" }}>
-                    {d.revisions.used}
-                    <span style={{ color: "var(--text-6)" }}> / {d.revisions.max}</span>
-                  </p>
-                </div>
-                {d.status !== "upcoming" && (
-                  <button
-                    className="px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all hover:opacity-80"
-                    style={{ background: "var(--bg-subtle)", color: "var(--text-3)", border: "1px solid var(--border)" }}
-                  >
-                    View submission
-                  </button>
-                )}
-              </div>
+        {/* ── What has actually been delivered ── */}
+        <section aria-labelledby="del-sent">
+          <h2 id="del-sent" className="flex items-baseline gap-2.5 text-lg font-bold pb-3" style={{ color: "var(--text-1)", borderBottom: "1px solid var(--border)" }}>
+            Files delivered
+            <span className="text-sm font-medium" style={{ color: "var(--text-5)" }}>{sent.length}</span>
+          </h2>
+
+          {sent.length === 0 ? (
+            <div className="py-6">
+              <p className="text-sm" style={{ color: "var(--text-4)" }}>
+                {declined ? "This request was declined, so nothing was delivered."
+                  : project.status === "pending" ? "Work starts once the request is accepted."
+                  : isArtist ? "You have not sent any files yet. Send your work in the conversation and it will be listed here."
+                  : `${project.artist_name} has not sent any files yet. They will appear here as soon as they do.`}
+              </p>
+              {isArtist && project.status === "accepted" && (
+                <button onClick={onOpenChat}
+                  className="inline-flex items-center gap-2 mt-4 px-5 py-2.5 rounded-full text-sm font-bold text-white transition-opacity hover:opacity-90"
+                  style={{ background: "linear-gradient(135deg,#361E7B,#7C5BF5)" }}>
+                  <Upload size={14} /> Send a file
+                </button>
+              )}
             </div>
+          ) : (
+            <ul>
+              {sent.map(({ m, f }) => {
+                const color = fileIconColor(f.type, f.name);
+                return (
+                  <li key={m.id} className="flex items-center gap-4 py-3.5" style={{ borderBottom: "1px solid var(--border)" }}>
+                    <span className="w-11 h-11 rounded-lg flex items-center justify-center text-[10px] font-bold shrink-0" style={{ background: `${color}22`, color }}>
+                      {fileExt(f.name).slice(0, 4)}
+                    </span>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[15px] font-semibold truncate" style={{ color: "var(--text-1)" }}>{f.name}</p>
+                      <p className="text-xs mt-0.5" style={{ color: "var(--text-5)" }}>
+                        {fmtBytes(f.size)} · sent by {artist === "You" ? "you" : artist} on {fmtDateFull(m.created_at)}
+                      </p>
+                    </div>
+                    <button onClick={() => downloadFile(f, project.conversation_id ?? "", userId)}
+                      className="inline-flex items-center gap-1.5 text-sm font-semibold shrink-0 px-4 py-2 rounded-full transition-opacity hover:opacity-80"
+                      style={{ color: "var(--text-1)", border: "1px solid var(--border-card)" }}>
+                      <Download size={14} /> Download
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </section>
 
-            {/* Timeline */}
-            {d.timeline.length > 0 && (
-              <div
-                className="px-5 py-3 flex flex-col gap-2"
-                style={{ borderTop: "1px solid var(--border)", background: "rgba(0,0,0,0.15)" }}
-              >
-                {d.timeline.map((entry, i) => (
-                  <div key={i} className="flex items-center gap-2.5">
-                    <span className="w-2 h-2 rounded-full shrink-0" style={{ background: TIMELINE_DOT[entry.status] }} />
-                    <p
-                      className="text-xs font-medium"
-                      style={{ color: entry.status === "revision" ? "#F59E0B" : entry.status === "approved" ? "#10B981" : "rgba(255,255,255,0.5)" }}
-                    >
-                      {entry.label}
-                    </p>
+        {/* ── What has happened, with real dates ── */}
+        <section aria-labelledby="del-time">
+          <h2 id="del-time" className="text-lg font-bold pb-3" style={{ color: "var(--text-1)", borderBottom: "1px solid var(--border)" }}>Timeline</h2>
+          <ol className="pt-5">
+            {events.map((e, i) => {
+              const happened = !!e.at;
+              const bad = e.label === "Request declined";
+              return (
+                <li key={e.label} className="flex gap-4">
+                  <div className="flex flex-col items-center">
+                    <span className="w-6 h-6 rounded-full flex items-center justify-center shrink-0"
+                      style={{ background: happened ? (bad ? "rgba(239,68,68,0.16)" : "rgba(16,185,129,0.16)") : "transparent", border: happened ? "none" : "1.5px solid var(--border-card)" }}>
+                      {happened && !bad && <CheckCircle2 size={14} color="#10B981" />}
+                    </span>
+                    {i < events.length - 1 && <span className="w-px flex-1 my-1" style={{ background: "var(--border-card)", minHeight: 22 }} />}
                   </div>
-                ))}
-              </div>
-            )}
-          </div>
-        );
-      })}
+                  <div className="pb-5 min-w-0">
+                    <p className="text-[15px] font-semibold" style={{ color: happened ? (bad ? "#F87171" : "var(--text-1)") : "var(--text-5)" }}>{e.label}</p>
+                    <p className="text-xs mt-0.5" style={{ color: "var(--text-5)" }}>{happened ? fmtDateFull(e.at!) : e.note}</p>
+                  </div>
+                </li>
+              );
+            })}
+          </ol>
+        </section>
+      </div>
     </div>
   );
 }
@@ -1398,9 +1454,20 @@ export default function ProjectDetailPage() {
         >
           {/* Breadcrumb */}
           <div className="flex items-center gap-2 flex-1 min-w-0">
+            {/* Back to the list of commissions */}
             <button
               onClick={() => router.push("/hiring?tab=projects")}
-              className="flex items-center gap-1.5 shrink-0 transition-opacity hover:opacity-70"
+              aria-label="Back to commissions"
+              className="flex items-center gap-1.5 shrink-0 h-9 pl-2 pr-3 -ml-2 rounded-full text-sm font-semibold transition-opacity hover:opacity-75"
+              style={{ color: "var(--text-2)", background: "var(--bg-subtle)" }}
+            >
+              <ArrowLeft size={16} />
+              <span className="hidden sm:inline">Back</span>
+            </button>
+            <button
+              onClick={() => router.push("/hiring?tab=projects")}
+              aria-label="Commissions"
+              className="hidden sm:flex items-center gap-1.5 shrink-0 transition-opacity hover:opacity-70"
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src="/login-image/ortists-badge.png" alt="Ortists" style={{ height: 22, objectFit: "contain" }} />
@@ -1439,6 +1506,8 @@ export default function ProjectDetailPage() {
           <FilesSidebar
             messages={messages}
             onUpload={async () => {}} // upload handled inside ConversationPanel's file ref
+            convId={convId ?? ""}
+            userId={myId}
           />
 
           {/* Center: tabs + content */}
@@ -1540,10 +1609,10 @@ export default function ProjectDetailPage() {
                 />
               )}
               {activeTab === "deliverables" && (
-                <DeliverablesTab project={project} />
+                <DeliverablesTab project={project} messages={messages} isArtist={isArtist} onOpenChat={() => setActiveTab("conversation")} userId={myId} />
               )}
               {activeTab === "references" && (
-                <ReferencesTab messages={messages} />
+                <ReferencesTab messages={messages} description={project.project_description} />
               )}
             </div>
           </div>

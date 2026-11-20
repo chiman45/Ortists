@@ -692,7 +692,10 @@ function MyProjectsView({ userId, onSwitchToHire }: { userId: string; onSwitchTo
     setDeciding(id);
     try {
       const res = await fetch(`/api/hire-requests/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ artistClerkId: userId, status }) });
-      if (res.ok) setIncoming(prev => prev.map(r => r.id === id ? { ...r, status } : r));
+      if (res.ok) {
+        setIncoming(prev => prev.map(r => r.id === id ? { ...r, status } : r));
+        window.dispatchEvent(new Event("ortists:hire-changed")); // update the badge
+      }
     } finally {
       setDeciding(null);
     }
@@ -892,6 +895,23 @@ function HiringPageInner() {
   const { user, isLoaded } = useUser();
 
   const [tab, setTab]                       = useState<"hire" | "projects">("hire");
+  // Commission requests waiting for this artist's answer (badge on "My Projects")
+  const [pendingRequests, setPendingRequests] = useState(0);
+
+  useEffect(() => {
+    if (!user) return;
+    const load = () => {
+      if (document.visibilityState !== "visible") return;
+      fetch(`/api/hire-requests?artistClerkId=${user.id}`)
+        .then(r => (r.ok ? r.json() : null))
+        .then(d => { if (d) setPendingRequests(((d.requests ?? []) as { status: string }[]).filter(r => r.status === "pending").length); })
+        .catch(() => {});
+    };
+    const first = setTimeout(load, 0);
+    const every = setInterval(load, 30_000);
+    window.addEventListener("ortists:hire-changed", load);
+    return () => { clearTimeout(first); clearInterval(every); window.removeEventListener("ortists:hire-changed", load); };
+  }, [user]);
 
   const router = useRouter();
 
@@ -1064,7 +1084,9 @@ function HiringPageInner() {
                 <button
                   key={t}
                   onClick={() => t === "projects" ? requireAuth(() => switchTab(t)) : switchTab(t)}
-                  className="px-5 py-1.5 rounded-full text-sm font-semibold transition-all whitespace-nowrap"
+                  aria-label={t === "projects" && pendingRequests > 0
+                    ? `My Projects, ${pendingRequests} new request${pendingRequests === 1 ? "" : "s"}` : undefined}
+                  className="relative px-5 py-1.5 rounded-full text-sm font-semibold transition-all whitespace-nowrap"
                   style={{
                     background: tab === t ? "linear-gradient(135deg,#361E7B,#7C5BF5)" : "transparent",
                     color: tab === t ? "#fff" : "var(--text-4)",
@@ -1072,6 +1094,13 @@ function HiringPageInner() {
                   }}
                 >
                   {t === "hire" ? "Hire Artists" : "My Projects"}
+                  {t === "projects" && pendingRequests > 0 && (
+                    <span aria-hidden
+                      className="absolute -top-1.5 -right-1 flex items-center justify-center rounded-full text-[10px] font-bold text-white"
+                      style={{ minWidth: 18, height: 18, padding: "0 5px", background: "#f43f5e", boxShadow: "0 0 0 2px var(--bg)" }}>
+                      {pendingRequests > 9 ? "9+" : pendingRequests}
+                    </span>
+                  )}
                 </button>
               ))}
             </div>

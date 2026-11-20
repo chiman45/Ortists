@@ -47,6 +47,8 @@ export default function FeedPage() {
   const [searchOpen, setSearchOpen]         = useState(false);
   const [resultTab, setResultTab]           = useState<ResultTab>("All");
   const abortRef                            = useRef<AbortController | null>(null);
+  // Answers already fetched in this visit, so retyping or deleting a letter is instant
+  const searchCache = useRef(new Map<string, { posts: SearchPost[]; accounts: SearchAccount[] }>());
   const inputRef                            = useRef<HTMLInputElement>(null);
 
   // Clear likes badge when user visits feed
@@ -85,15 +87,12 @@ export default function FeedPage() {
     const t = setTimeout(() => {
       const trimmed = search.trim();
       setQuery(isQuerySafe(trimmed) ? trimmed : "");
-    }, 350);
+    }, 120);
     return () => clearTimeout(t);
   }, [search]);
 
   // Load normal feed
   useEffect(() => {
-    if (query) return;
-    setLoading(true);
-    setDbPosts([]);
     fetch("/api/posts?limit=100&offset=0")
       .then(r => r.json())
       .then(({ posts }: { posts: Post[] }) => {
@@ -102,7 +101,7 @@ export default function FeedPage() {
         setLoading(false);
       })
       .catch(() => setLoading(false));
-  }, [query]);
+  }, []);
 
   // Latest = newest first (API order); Popular = most liked, ties broken by newest
   const shownPosts = activeTab === "Popular"
@@ -111,22 +110,45 @@ export default function FeedPage() {
 
   // Search
   useEffect(() => {
-    if (!query) { setSearchPosts([]); setSearchAccounts([]); return; }
     abortRef.current?.abort();
+    if (!query) { setSearchPosts([]); setSearchAccounts([]); setSearching(false); return; }
+
+    const key = query.toLowerCase();
+    const cached = searchCache.current.get(key);
+    if (cached) { setSearchPosts(cached.posts); setSearchAccounts(cached.accounts); setSearching(false); return; }
+
+    // Show matches from the posts already on this page straight away…
+    const local = dbPosts
+      .filter(p => `${p.title ?? ""} ${p.category ?? ""}`.toLowerCase().includes(key))
+      .slice(0, 24)
+      .map(p => ({
+        id: p.id, title: p.title, image_url: p.image_url, likes_count: p.likes_count ?? 0, category: p.category ?? null,
+        author_username: p.author_username, author_avatar: p.author_avatar ?? null, author_name: p.author_name,
+      }));
+    setSearchPosts(local);
+    setSearchAccounts(prev => prev.filter(a => `${a.display_name ?? ""} ${a.username ?? ""} ${a.tag ?? ""}`.toLowerCase().includes(key)));
+
+    // …then replace them with the full answer from the server
     const ctrl = new AbortController();
     abortRef.current = ctrl;
     setSearching(true);
     fetch(`/api/search?q=${encodeURIComponent(query)}&type=all`, { signal: ctrl.signal })
       .then(r => r.json())
       .then(({ posts, accounts }) => {
-        setSearchPosts(posts ?? []);
-        setSearchAccounts(accounts ?? []);
+        const result = { posts: posts ?? [], accounts: accounts ?? [] };
+        searchCache.current.set(key, result);
+        setSearchPosts(result.posts);
+        setSearchAccounts(result.accounts);
         setSearching(false);
       })
       .catch(err => { if (err.name !== "AbortError") setSearching(false); });
+  // dbPosts is read once per query on purpose: results must not reshuffle when the feed refreshes
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [query]);
 
   const hasResults = searchPosts.length > 0 || searchAccounts.length > 0;
+  // Only block the screen with a spinner when there is nothing at all to show yet
+  const showSpinner = searching && !hasResults;
 
   return (
     <div
@@ -239,7 +261,7 @@ export default function FeedPage() {
           </div>
 
           {/* Result-type tabs — only when there's a query */}
-          {query && !searching && hasResults && (
+          {query && hasResults && (
             <div
               className="flex gap-1 px-4 py-2.5 shrink-0 overflow-x-auto"
               style={{ borderBottom: "1px solid var(--border)", scrollbarWidth: "none" }}
@@ -283,7 +305,7 @@ export default function FeedPage() {
           <div className="flex-1 overflow-y-auto" style={{ scrollbarWidth: "thin" }}>
 
             {/* Loading spinner */}
-            {searching && (
+            {showSpinner && (
               <div className="flex items-center justify-center gap-3 py-20">
                 <div className="w-5 h-5 rounded-full border-2 animate-spin"
                   style={{ borderColor: "var(--bg-subtle)", borderTopColor: "#7C5BF5" }} />
@@ -323,7 +345,7 @@ export default function FeedPage() {
             )}
 
             {/* ── Accounts tab ── */}
-            {!searching && (resultTab === "All" || resultTab === "Accounts") && searchAccounts.length > 0 && (
+            {(resultTab === "All" || resultTab === "Accounts") && searchAccounts.length > 0 && (
               <section className="px-4 pt-5">
                 {resultTab === "All" && (
                   <div className="flex items-center gap-2 mb-3">
@@ -386,7 +408,7 @@ export default function FeedPage() {
             )}
 
             {/* ── Posts tab ── */}
-            {!searching && (resultTab === "All" || resultTab === "Posts") && searchPosts.length > 0 && (
+            {(resultTab === "All" || resultTab === "Posts") && searchPosts.length > 0 && (
               <section className={resultTab === "All" ? "px-4 pt-6 pb-8" : "px-4 pt-5 pb-8"}>
                 {resultTab === "All" && (
                   <div className="flex items-center gap-2 mb-3">
@@ -414,7 +436,7 @@ export default function FeedPage() {
                           width={400}
                           height={500}
                           className="w-full object-cover transition-all duration-300 group-hover:scale-[1.03] group-hover:brightness-110"
-                          sizes="(max-width: 640px) 50vw, 25vw"
+                          sizes="(max-width: 768px) 50vw, 33vw"
                         />
                         {p.category && (
                           <span
